@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use App\Models\NurseSubservice;
 
 class NurseSubsercviceSeeder extends Seeder
 {
@@ -12,6 +13,10 @@ class NurseSubsercviceSeeder extends Seeder
      */
     public function run(): void
     {
-        //
+        NurseSubservice::create([
+            'service_id' => 1,
+            'name' => 'Shoulder Injection',
+            'price' => 10,
+        ]);
     }
 }
