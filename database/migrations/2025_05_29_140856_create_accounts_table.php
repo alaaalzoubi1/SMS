@@ -18,6 +18,8 @@ return new class extends Migration
             $table->string('password');
             $table->string('phone_number');
             $table->string('fcm_token')->nullable();
+            $table->string('verification_code')->nullable();
+            $table->timestamp('verification_expires_at')->nullable();
             $table->timestamp('email_verified_at')->nullable();
             $table->softDeletes();
             $table->timestamps();
