@@ -21,6 +21,8 @@ class Account extends Authenticatable implements JWTSubject
         'phone_number',
         'fcm_token',
         'email_verified_at',
+        'is_approved',
+        'verification_code'
     ];
 
     protected $hidden = [
