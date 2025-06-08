@@ -12,10 +12,10 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
-use Tymon\JWTAuth\Contracts\JWTSubject;
 use Tymon\JWTAuth\Facades\JWTAuth;
-
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Str;
+use Illuminate\Support\Carbon;
 class DoctorAuthController extends Controller
 {
 
@@ -121,5 +121,65 @@ class DoctorAuthController extends Controller
             [$user , $doctor]
         );
     }
+    public function requestLogin(Request $request): JsonResponse
+    {
+        $request->validate([
+            'email' => 'required|email|exists:accounts,email',
+        ]);
+
+
+
+
+
+        $account = Account::where('email', $request->email)->first();
+
+        if (!$account->hasRole('doctor')) {
+            return response()->json(['message' => 'Not authorized as doctor'], 403);
+        }
+
+
+        if ($account->is_approved !== 'approved') {
+            return response()->json(['message' => 'Admin approval pending.'], 403);
+        }
+
+        $code = rand(100000, 999999);
+        $account->verification_code = $code;
+        $account->verification_expires_at = now()->addMinutes(5);
+        $account->save();
+
+        $account->notify(new SendVerificationCode($code));
+
+        return response()->json(['message' => 'Verification code sent to email.']);
+    }
+    public function verifyLogin(Request $request): JsonResponse
+    {
+        $request->validate([
+            'email' => 'required|email|exists:accounts,email',
+            'code'  => 'required|numeric',
+        ]);
+
+        $account = Account::where('email', $request->email)->first();
+
+        if (
+            !$account->verification_code ||
+            $account->verification_code != $request->code ||
+            !$account->verification_expires_at ||
+            now()->gt($account->verification_expires_at)
+        ) {
+            return response()->json(['message' => 'Invalid or expired verification code.'], 403);
+        }
+
+        $account->verification_code = null;
+        $account->verification_expires_at = null;
+        $account->save();
+
+        $token = JWTAuth::fromUser($account);
+
+        return response()->json([
+            'message' => 'Login successful',
+            'token' => $token
+        ]);
+    }
+
 
 }

@@ -26,6 +26,8 @@ class SendVerificationCode extends Notification
         return (new MailMessage)
             ->subject('Your Verification Code')
             ->line('Your verification code is: ' . $this->code)
-            ->line('If you did not request this, please ignore this email.');
+            ->line('If you did not request this, please ignore this email.')
+            ->salutation("Regards, Sahtee Team");
+
     }
 }
