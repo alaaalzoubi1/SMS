@@ -14,8 +14,7 @@ class AdminApproveController extends Controller
 {
     public function approveDoctor($doctorId): JsonResponse
     {
-        $doctor = Doctor::findOrFail($doctorId);
-        $account = $doctor->account;
+        $account = Account::findOrFail($doctorId);
         if (!$account)
         {
             return response()->json(['message' => 'invalid id']);

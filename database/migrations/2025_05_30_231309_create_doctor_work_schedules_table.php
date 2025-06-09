@@ -20,6 +20,7 @@ class CreateDoctorWorkSchedulesTable extends Migration
             $table->time('start_time');
             $table->time('end_time');
             $table->index('doctor_id');
+            $table->unique(['doctor_id', 'day_of_week']);
             $table->timestamps();
             $table->softDeletes();
         });

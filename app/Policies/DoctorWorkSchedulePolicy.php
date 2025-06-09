@@ -2,6 +2,7 @@
 
 namespace App\Policies;
 
+use App\Models\Account;
 use App\Models\DoctorWorkSchedule;
 use App\Models\User;
 use Illuminate\Auth\Access\Response;
@@ -19,9 +20,9 @@ class DoctorWorkSchedulePolicy
     /**
      * Determine whether the user can view the model.
      */
-    public function view(User $user, DoctorWorkSchedule $doctorWorkSchedule): bool
+    public function view(Account $user, DoctorWorkSchedule $schedule)
     {
-        return false;
+        return $schedule->doctor_id === $user->doctor->id;
     }
 
     /**
@@ -43,9 +44,9 @@ class DoctorWorkSchedulePolicy
     /**
      * Determine whether the user can delete the model.
      */
-    public function delete(User $user, DoctorWorkSchedule $doctorWorkSchedule): bool
+    public function all(Account $user, DoctorWorkSchedule $schedule): bool
     {
-        return false;
+        return $user->doctor && $user->doctor->id === $schedule->doctor_id;
     }
 
     /**
