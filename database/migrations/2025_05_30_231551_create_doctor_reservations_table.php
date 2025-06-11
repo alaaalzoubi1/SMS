@@ -23,6 +23,7 @@ class CreateDoctorReservationsTable extends Migration
 
             $table->index('doctor_id');
             $table->index('user_id');
+            $table->index('status');
 
             $table->timestamps();
             $table->softDeletes();

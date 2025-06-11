@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreDoctorWorkScheduleRequest extends FormRequest
 {
@@ -23,7 +24,14 @@ class StoreDoctorWorkScheduleRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'day_of_week' => 'required|in:saturday,sunday,monday,tuesday,wednesday,thursday,friday',
+            'day_of_week' => [
+                'required',
+                'in:saturday,sunday,monday,tuesday,wednesday,thursday,friday',
+                Rule::unique('doctor_work_schedules')->where(function ($query) {
+                    return $query->where('doctor_id', auth()->user()->doctor->id)
+                        ->whereNull('deleted_at');
+                }),
+            ],
             'start_time'  => 'required|date_format:H:i',
             'end_time'    => 'required|date_format:H:i|after:start_time',
         ];

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\DoctorAuthController;
+use App\Http\Controllers\DoctorReservationController;
 use App\Http\Controllers\DoctorServiceController;
 use App\Http\Controllers\DoctorWorkScheduleController;
 use Illuminate\Support\Facades\Route;
@@ -29,4 +30,9 @@ Route::prefix('services')->group(function () {
     Route::post('/{id}', [DoctorServiceController::class, 'update']);
     Route::delete('/{id}', [DoctorServiceController::class, 'destroy']);
     Route::patch('/restore/{id}', [DoctorServiceController::class, 'restore']);
+});
+
+Route::prefix('reservations')->group(callback: function (){
+    Route::post('/',[DoctorReservationController::class,'createStaticReservation']);
+    Route::get('/',[DoctorReservationController::class,'index']);
 });

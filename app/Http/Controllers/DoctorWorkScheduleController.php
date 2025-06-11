@@ -45,12 +45,15 @@ class DoctorWorkScheduleController extends Controller
     {
         $schedule = DoctorWorkSchedule::findOrFail($id);
         $this->authorize('all', $schedule);
-        $schedule->update($request->validated());
+//        $schedule->update($request->validated());
+        $schedule->fill($request->validated());
+        if ($schedule->isDirty())
+            return response()->json([
+                'message' => 'Work schedule updated successfully.',
+                'data' => $schedule
+            ]);
+        return response()->json(['message' => 'No changes detected.']);
 
-        return response()->json([
-            'message' => 'Work schedule updated successfully.',
-            'data' => $schedule
-        ]);
     }
 
     /**
@@ -68,10 +71,32 @@ class DoctorWorkScheduleController extends Controller
         ]);
     }
 
+    /**
+     * @throws AuthorizationException
+     */
     public function restore($id): JsonResponse
     {
         $schedule = DoctorWorkSchedule::withTrashed()->findOrFail($id);
+
+        // Get the authenticated doctor
+        $doctor = Doctor::where('account_id', auth()->id())->firstOrFail();
+
+        // Authorization check (assuming policy is implemented)
         $this->authorize('all', $schedule);
+
+        // Check for duplicates: same doctor_id and day_of_week, not soft deleted
+        $dayAlreadyTaken = DoctorWorkSchedule::where('doctor_id', $doctor->id)
+            ->where('day_of_week', $schedule->day_of_week)
+            ->whereNull('deleted_at')
+            ->exists();
+
+        if ($dayAlreadyTaken) {
+            return response()->json([
+                'message' => 'This day already exists for your schedule.'
+            ], 409);
+        }
+
+        // Restore if it's soft deleted
         if ($schedule->trashed()) {
             $schedule->restore();
 
@@ -82,9 +107,10 @@ class DoctorWorkScheduleController extends Controller
         }
 
         return response()->json([
-            'message' => 'Schedule is not deleted.',
+            'message' => 'Schedule is not deleted.'
         ], 400);
     }
+
 
     public function trashed(): JsonResponse
     {
