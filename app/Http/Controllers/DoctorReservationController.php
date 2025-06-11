@@ -10,6 +10,7 @@ use App\Http\Requests\UpdateDoctorReservationRequest;
 use App\Models\DoctorService;
 use App\Models\User;
 use App\Services\DoctorReservationService;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -119,7 +120,32 @@ class DoctorReservationController extends Controller
         }
     }
 
+    /**
+     * @throws AuthorizationException
+     */
+    public function updateStatus(Request $request, $id): JsonResponse
+    {
+        $request->validate([
+            'status' => 'required|in:pending,approved,rejected,cancelled,completed',
+        ]);
 
+
+        $reservation = DoctorReservation::where('id', $id)
+            ->first();
+        if (!$reservation) {
+            return response()->json(['message' => 'Reservation not found or unauthorized.'], 404);
+        }
+        $this->authorize('manageReservations',$reservation);
+
+
+        $reservation->status = $request->status;
+        $reservation->save();
+
+        return response()->json([
+            'message' => 'Reservation status updated successfully.',
+            'data' => $reservation
+        ]);
+    }
     /**
      * Store a newly created resource in storage.
      */
