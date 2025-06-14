@@ -19,6 +19,6 @@ class HospitalWorkSchedule extends Model
 
     public function hospital():BelongsTo
     {
-        return $this->belongsTo(Hospital::class);
+        return $this->belongsTo(Hospital::class, 'hospital_id');
     }
 }

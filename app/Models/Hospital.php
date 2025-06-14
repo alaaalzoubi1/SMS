@@ -22,6 +22,6 @@ class Hospital extends Model
     }
     public function workSchedule():HasMany
     {
-        return $this->hasMany(HospitalWorkSchedule::class);
+        return $this->hasMany(HospitalWorkSchedule::class, 'hospital_id');
     }
 }
