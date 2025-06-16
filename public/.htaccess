@@ -1,25 +1,40 @@
 <IfModule mod_rewrite.c>
-    <IfModule mod_negotiation.c>
-        Options -MultiViews -Indexes
-    </IfModule>
-
     RewriteEngine On
 
+    # ---------------------------
+    # Prevent access to sensitive files
+    # ---------------------------
+    RewriteRule ^(\.env|\.env\.example|\.git|\.gitignore|\.gitattributes|composer\.json|composer\.lock|artisan|server\.php|phpunit\.xml|README\.md|.htaccess)$ - [F,L]
+
+    # ---------------------------
     # Handle Authorization Header
+    # ---------------------------
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 
+    # ---------------------------
     # Handle X-XSRF-Token Header
+    # ---------------------------
     RewriteCond %{HTTP:x-xsrf-token} .
     RewriteRule .* - [E=HTTP_X_XSRF_TOKEN:%{HTTP:X-XSRF-Token}]
 
-    # Redirect Trailing Slashes If Not A Folder...
+    # ---------------------------
+    # Redirect Trailing Slashes If Not A Folder
+    # ---------------------------
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_URI} (.+)/$
     RewriteRule ^ %1 [L,R=301]
 
-    # Send Requests To Front Controller...
+    # ---------------------------
+    # Send Requests To Front Controller (index.php)
+    # ---------------------------
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteRule ^ index.php [L]
 </IfModule>
+
+# Extra protection just in case
+<FilesMatch "^\.">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
