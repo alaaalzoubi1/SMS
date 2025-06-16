@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Api;
+namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
@@ -8,41 +8,55 @@ use App\Models\Hospital;
 use App\Models\Account;
 use App\Models\HospitalWorkSchedule;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
 
 class HospitalController extends Controller
 {
+    private function getAuthenticatedHospital()
+    {
+        $hospital = Hospital::where('account_id', Auth::id())->first();
+        if (!$hospital) {
+            abort(404, 'Hospital not found for the authenticated user.');
+        }
+        return $hospital;
+    }
+
     public function getProfile()
     {
-        $hospital = Hospital::with(['account', 'workSchedules'])->first(); 
-        if (!$hospital) {
-            return response()->json(['message' => 'Hospital not found'], 404);
-        }
-        $profileData = [
+        $hospital = $this->getAuthenticatedHospital();
+
+        $account = $hospital->account;
+        $workSchedules = $hospital->workSchedules;
+
+        Log::info('Hospital Profile Data:', [
+            'hospital_id' => $hospital->id,
+            'account_data_exists' => (bool) $account,
+            'phone_number' => $account ? $account->phone_number : 'N/A',
+            'work_schedules_count' => $workSchedules ? $workSchedules->count() : 0,
+            'raw_work_schedules' => $workSchedules ? $workSchedules->toArray() : [],
+        ]);
+
+        return response()->json([
             'id' => $hospital->id,
             'account_id' => $hospital->account_id,
             'address' => $hospital->address,
-            'contact_number' => $hospital->account ? $hospital->account->phone_number : null,
-            'work_schedules' => $hospital->workSchedules->map(function($schedule) {
+            'contact_number' => $account ? $account->phone_number : null,
+            'work_schedules' => $workSchedules ? $workSchedules->map(function($schedule) {
                 return [
                     'id' => $schedule->id,
                     'day_of_week' => $schedule->day_of_week,
                     'start_time' => $schedule->start_time,
                     'end_time' => $schedule->end_time,
                 ];
-            })->toArray(),
-        ];
-        Log::info('Hospital Profile Data:', $profileData);
-        return response()->json($profileData);
+            }) : [],
+        ]);
     }
 
     public function updateProfile(Request $request)
     {
-        $hospital = Hospital::first(); 
-        if (!$hospital) {
-            return response()->json(['message' => 'Hospital not found'], 404);
-        }
+        $hospital = $this->getAuthenticatedHospital();
 
         $request->validate([
             'address' => 'sometimes|string|max:255',
@@ -84,12 +98,7 @@ class HospitalController extends Controller
 
     public function changePassword(Request $request)
     {
-        $hospital = Hospital::first();
-
-        if (!$hospital) {
-            return response()->json(['message' => 'Hospital not found'], 404);
-        }
-
+        $hospital = $this->getAuthenticatedHospital();
         $account = Account::find($hospital->account_id);
 
         if (!$account) {
@@ -113,17 +122,14 @@ class HospitalController extends Controller
 
     public function updateWorkSchedules(Request $request)
     {
-        $hospital = Hospital::first(); 
-        if (!$hospital) {
-            return response()->json(['message' => 'Hospital not found'], 404);
-        }
+        $hospital = $this->getAuthenticatedHospital();
 
         $request->validate([
             'schedules' => 'required|array',
             'schedules.*.day_of_week' => 'required|string|in:Sunday,Monday,Tuesday,Wednesday,Thursday,Friday,Saturday',
             'schedules.*.start_time' => 'required|date_format:H:i:s',
             'schedules.*.end_time' => 'required|date_format:H:i:s|after:schedules.*.start_time',
-            'schedules.*.id' => 'sometimes|nullable|exists:hospital_work_schedules,id', // لتمكين التحديث أو الإضافة
+            'schedules.*.id' => 'sometimes|nullable|exists:hospital_work_schedules,id',
         ]);
 
         DB::beginTransaction();
