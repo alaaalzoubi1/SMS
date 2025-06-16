@@ -34,7 +34,7 @@ class HospitalServiceController extends Controller
                                                     'id' => $service->id,
                                                     'hospital_id' => $service->hospital_id,
                                                     'service_id' => $service->service_id,
-                                                    'service_name' => $service->service->service_name ?? 'غير معروف',
+                                                    'service_name' => $service->service->service_name ,
                                                     'price' => (float) $service->price,
                                                     'capacity' => (int) $service->capacity,
                                                 ];
@@ -105,7 +105,7 @@ class HospitalServiceController extends Controller
             'id' => $hospitalService->id,
             'hospital_id' => $hospitalService->hospital_id,
             'service_id' => $hospitalService->service_id,
-            'service_name' => $hospitalService->service->service_name ?? 'غير معروف',
+            'service_name' => $hospitalService->service->service_name ,
             'price' => (float) $hospitalService->price,
             'capacity' => (int) $hospitalService->capacity,
         ]);
