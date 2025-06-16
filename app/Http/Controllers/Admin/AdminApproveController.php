@@ -12,9 +12,9 @@ use App\Notifications\SendVerificationCode;
 
 class AdminApproveController extends Controller
 {
-    public function approveDoctor($doctorId): JsonResponse
+    public function approve($accountId): JsonResponse
     {
-        $account = Account::findOrFail($doctorId);
+        $account = Account::findOrFail($accountId);
         if (!$account)
         {
             return response()->json(['message' => 'invalid id']);
@@ -30,8 +30,9 @@ class AdminApproveController extends Controller
         ]);
 
         $account->notify(new SendVerificationCode($account->verification_code));
-
-        return response()->json(['message' => 'Doctor approved and verification code sent.']);
+        $role = $account->getRoleNames()->first();
+        return response()->json(['message' => ucfirst($role) . ' approved and verification code sent.']);
     }
+
 
 }

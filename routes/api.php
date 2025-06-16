@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Auth\AdminAuthController;
 use App\Http\Controllers\Auth\DoctorAuthController;
+use App\Http\Controllers\Auth\NurseAuthController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
@@ -15,19 +16,34 @@ Route::get('/clear-config', function () {
     Artisan::call('cache:clear');
     return 'Cleared!';
 });
-Route::middleware('throttle:1,5')->group(function () {
-    Route::post('/password/forgot', [ForgotPasswordController::class, 'requestResetCode']);
-    Route::post('doctor/request-login', [DoctorAuthController::class, 'requestLogin']);
+// Throttled routes (limit: 1 request per minute)
+Route::middleware('throttle:100,1')->group(function () {
 
+    Route::post('/password/forgot', [ForgotPasswordController::class, 'requestResetCode']);
+
+    Route::prefix('doctor')->group(function () {
+        Route::post('register', [DoctorAuthController::class, 'register']);
+        Route::post('verifyCode', [DoctorAuthController::class, 'verifyCode']);
+        Route::post('login', [DoctorAuthController::class, 'login']);
+        Route::post('request-login', [DoctorAuthController::class, 'requestLogin']);
+        Route::post('verify-login', [DoctorAuthController::class, 'verifyLogin']);
+    });
+
+    Route::prefix('nurse')->group(function () {
+        Route::post('register', [NurseAuthController::class, 'register']);
+        Route::post('verifyCode', [NurseAuthController::class, 'verifyCode']);
+        Route::post('login', [NurseAuthController::class, 'login']);
+        Route::post('request-login', [NurseAuthController::class, 'requestLogin']);
+        Route::post('verify-login', [NurseAuthController::class, 'verifyLogin']);
+    });
 });
+
 Route::post('/password/reset', [ForgotPasswordController::class, 'resetPassword']);
 
 Route::post('admin/login', [AdminAuthController::class, 'login']);
-Route::post('doctor/register',[DoctorAuthController::class,'register']);
-Route::post('doctor/verifyCode',[DoctorAuthController::class,'verifyCode']);
-Route::post('doctor/login',[DoctorAuthController::class,'login']);
 
-Route::post('doctor/verify-login', [DoctorAuthController::class, 'verifyLogin']);
+
+
 
 
 Route::controller(HospitalController::class)->group(function () {

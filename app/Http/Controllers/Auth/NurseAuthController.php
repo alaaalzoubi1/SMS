@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\DoctorRegisterRequest;
+use App\Http\Requests\NurseRegisterRequest;
 use App\Models\Account;
-use App\Models\Doctor;
+use App\Models\Nurse;
 use App\Notifications\SendVerificationCode;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -13,16 +13,12 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Tymon\JWTAuth\Facades\JWTAuth;
-use Illuminate\Support\Facades\RateLimiter;
-use Illuminate\Support\Str;
-use Illuminate\Support\Carbon;
-class DoctorAuthController extends Controller
+
+class NurseAuthController extends Controller
 {
-
-
-    public function register(DoctorRegisterRequest $request): JsonResponse
+    public function register(NurseRegisterRequest $request): JsonResponse
     {
-        try {
+//        try {
             $validated = $request->validated();
 
             DB::beginTransaction();
@@ -35,30 +31,32 @@ class DoctorAuthController extends Controller
                 'fcm_token'    => $request->fcm_token ?? null,
             ]);
 
-            $doctor = Doctor::create([
+            $nurse = Nurse::create([
                 'account_id'     => $account->id,
                 'specialization' => $validated['specialization'],
-                'address'        => $validated['address'],
+                'study_stage'        => $validated['study_stage'],
                 'age'            => $validated['age'],
                 'gender'         => $validated['gender'],
+                'longitude'         => $validated['longitude'],
+                'latitude' => $validated['latitude'],
             ]);
 
-            $account->assignRole('doctor');
+            $account->assignRole('nurse');
 
             DB::commit();
 
             return response()->json([
                 'message' => 'Registration successful. Awaiting admin approval.',
             ], 201);
-        } catch (\Exception $e) {
-            DB::rollBack(); // Roll back all changes
-
-            Log::error('Doctor registration failed: ' . $e->getMessage());
-
-            return response()->json([
-                'message' => 'Registration failed. Please try again later.',
-            ], 500);
-        }
+//        } catch (\Exception $e) {
+//            DB::rollBack(); // Roll back all changes
+//
+//            Log::error('Doctor registration failed: ' . $e->getMessage());
+//
+//            return response()->json([
+//                'message' => 'Registration failed. Please try again later.',
+//            ], 500);
+//        }
     }
 
     public function verifyCode(Request $request): JsonResponse
@@ -94,8 +92,8 @@ class DoctorAuthController extends Controller
         if (!$account || !Hash::check($credentials['password'], $account->password)) {
             return response()->json(['message' => 'Invalid credentials'], 401);
         }
-        if (!$account->hasRole('doctor')) {
-            return response()->json(['message' => 'Not authorized as doctor'], 403);
+        if (!$account->hasRole('nurse')) {
+            return response()->json(['message' => 'Not authorized as nurse'], 403);
         }
         if ($account->is_approved !== 'approved') {
             return response()->json(['message' => 'Your registration is not approved by admin yet.'], 403);
@@ -115,9 +113,9 @@ class DoctorAuthController extends Controller
     public function me(): JsonResponse
     {
         $user = auth()->user();
-        $doctor = $user->doctor;
+        $nurse = $user->nurse;
         return response()->json(
-            [$user , $doctor]
+            [$user , $nurse]
         );
     }
     public function requestLogin(Request $request): JsonResponse
@@ -126,8 +124,8 @@ class DoctorAuthController extends Controller
             'email' => 'required|email|exists:accounts,email',
         ]);
         $account = Account::where('email', $request->email)->first();
-        if (!$account->hasRole('doctor')) {
-            return response()->json(['message' => 'Not authorized as doctor'], 403);
+        if (!$account->hasRole('nurse')) {
+            return response()->json(['message' => 'Not authorized as nurse'], 403);
         }
         if ($account->is_approved !== 'approved') {
             return response()->json(['message' => 'Admin approval pending.'], 403);
@@ -169,6 +167,5 @@ class DoctorAuthController extends Controller
             'token' => $token
         ]);
     }
-
 
 }
