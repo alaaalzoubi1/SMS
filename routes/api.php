@@ -5,6 +5,9 @@ use App\Http\Controllers\Auth\DoctorAuthController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\HospitalController;
+
+
 use App\Http\Controllers\Auth\ForgotPasswordController;
 
 Route::get('/clear-config', function () {
@@ -26,3 +29,10 @@ Route::post('doctor/login',[DoctorAuthController::class,'login']);
 
 Route::post('doctor/verify-login', [DoctorAuthController::class, 'verifyLogin']);
 
+
+Route::controller(HospitalController::class)->group(function () {
+    Route::get('profile','getProfile');
+    Route::put('updateProfile','updateProfile');
+    Route::post('change-password','changePassword');
+    Route::post('work-schedules','updateWorkSchedules');
+});
