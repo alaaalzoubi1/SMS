@@ -18,6 +18,7 @@ class Doctor extends Model
         'address',
         'age',
         'gender',
+        'instructions_before_booking'
     ];
 
     // Doctor belongs to Account

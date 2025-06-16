@@ -10,14 +10,12 @@ class CreateDoctorServicesTable extends Migration
     {
         Schema::create('doctor_services', function (Blueprint $table) {
             $table->id();
-
             $table->foreignId('doctor_id')->constrained('doctors');
-
             $table->string('name');
             $table->decimal('price', 10, 2);
             $table->integer('duration_minutes');
-
             $table->index('doctor_id');
+            $table->unique(['doctor_id','name']);
             $table->timestamps();
             $table->softDeletes();
         });

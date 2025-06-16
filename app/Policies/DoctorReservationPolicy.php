@@ -2,7 +2,9 @@
 
 namespace App\Policies;
 
+use App\Models\Account;
 use App\Models\DoctorReservation;
+use App\Models\DoctorService;
 use App\Models\User;
 use Illuminate\Auth\Access\Response;
 
@@ -23,7 +25,10 @@ class DoctorReservationPolicy
     {
         return false;
     }
-
+    public function manageReservations(Account $account, DoctorReservation $reservation): bool
+    {
+        return $reservation->doctor->account_id === $account->id;
+    }
     /**
      * Determine whether the user can create models.
      */
