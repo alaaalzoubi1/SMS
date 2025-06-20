@@ -2,11 +2,13 @@
 
 namespace App\Policies;
 
-use App\Models\NurseSubsercvice;
+use App\Models\Account;
+use App\Models\NurseService;
+use App\Models\NurseSubservice;
 use App\Models\User;
 use Illuminate\Auth\Access\Response;
 
-class NurseSubsercvicePolicy
+class NurseSubservicePolicy
 {
     /**
      * Determine whether the user can view any models.
@@ -15,7 +17,14 @@ class NurseSubsercvicePolicy
     {
         return false;
     }
-
+    public function manageSubservice(Account $account, NurseSubservice $service): bool
+    {
+        return $service->service->nurse->account_id === $account->id;
+    }
+    public function manageNurse(Account $account, NurseService $service): bool
+    {
+        return $service->nurse->account_id === $account->id;
+    }
     /**
      * Determine whether the user can view the model.
      */

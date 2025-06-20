@@ -2,6 +2,7 @@
 
 namespace App\Policies;
 
+use App\Models\Account;
 use App\Models\NurseService;
 use App\Models\User;
 use Illuminate\Auth\Access\Response;
@@ -11,6 +12,10 @@ class NurseServicePolicy
     /**
      * Determine whether the user can view any models.
      */
+    public function manageNurse(Account $account, NurseService $service): bool
+    {
+        return $service->nurse->account_id === $account->id;
+    }
     public function viewAny(User $user): bool
     {
         return false;

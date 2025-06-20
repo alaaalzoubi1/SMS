@@ -2,6 +2,7 @@
 
 namespace App\Policies;
 
+use App\Models\Account;
 use App\Models\NurseReservation;
 use App\Models\User;
 use Illuminate\Auth\Access\Response;
@@ -15,7 +16,10 @@ class NurseReservationPolicy
     {
         return false;
     }
-
+    public function manageNurseReservations(Account $account, NurseReservation $reservation): bool
+    {
+        return $reservation->nurse->account_id === $account->id;
+    }
     /**
      * Determine whether the user can view the model.
      */
