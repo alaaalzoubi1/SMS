@@ -10,3 +10,4 @@ use Illuminate\Support\Facades\Route;
 Route::post('logout', [AdminAuthController::class, 'logout']);
 Route::get('me', [AdminAuthController::class, 'me']);
 Route::get('approveAccount/{id}',[AdminApproveController::class,'approve']);
+Route::post('get-pending-accounts',[AdminApproveController::class,'index']);
