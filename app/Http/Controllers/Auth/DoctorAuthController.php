@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Enums\SpecializationType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\DoctorRegisterRequest;
+use App\Jobs\SendVerificationCodeJob;
 use App\Models\Account;
 use App\Models\Doctor;
 use App\Notifications\SendVerificationCode;
@@ -22,7 +23,7 @@ class DoctorAuthController extends Controller
 
     public function register(DoctorRegisterRequest $request): JsonResponse
     {
-//        try {
+        try {
             $validated = $request->validated();
 
             DB::beginTransaction();
@@ -59,14 +60,14 @@ class DoctorAuthController extends Controller
             return response()->json([
                 'message' => 'تم التسجيل بنجاح. بانتظار موافقة الإدارة.',
             ], 201);
-//        } catch (\Exception $e) {
-//            DB::rollBack();
-//            Log::error('Doctor registration failed: ' . $e->getMessage());
-//
-//            return response()->json([
-//                'message' => 'فشل في التسجيل. حاول مرة أخرى لاحقاً.',
-//            ], 500);
-//        }
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Doctor registration failed: ' . $e->getMessage());
+
+            return response()->json([
+                'message' => 'فشل في التسجيل. حاول مرة أخرى لاحقاً.',
+            ], 500);
+        }
     }
 
     /**
@@ -162,7 +163,7 @@ class DoctorAuthController extends Controller
         $account->verification_code = $code;
         $account->verification_expires_at = now()->addMinutes(5);
         $account->save();
-        $account->notify(new SendVerificationCode($code));
+        SendVerificationCodeJob::dispatch($account);
 
         return response()->json(['message' => 'Verification code sent to email.']);
     }
