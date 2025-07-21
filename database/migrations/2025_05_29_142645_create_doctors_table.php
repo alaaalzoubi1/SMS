@@ -11,10 +11,13 @@ class CreateDoctorsTable extends Migration
         Schema::create('doctors', function (Blueprint $table) {
             $table->id();
             $table->foreignId('account_id')->constrained('accounts');
-            $table->string('specialization');
+            $table->string('full_name');
+            $table->string('profile_description')->nullable();
             $table->string('address');
             $table->integer('age');
             $table->enum('gender', ['male', 'female']);
+            $table->unsignedTinyInteger('specialization_type')->nullable()->index();
+            $table->string('license_image_path')->nullable();
             $table->timestamps();
             $table->softDeletes();
         });

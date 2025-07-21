@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\SpecializationType;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -14,11 +15,16 @@ class Doctor extends Model
 
     protected $fillable = [
         'account_id',
-        'specialization',
+        'full_name',
+        'profile_description',
         'address',
         'age',
         'gender',
-        'instructions_before_booking'
+        'specialization_type',
+        'license_image_path'
+    ];
+    protected $casts = [
+        'specialization_type' => SpecializationType::class,
     ];
 
     // Doctor belongs to Account

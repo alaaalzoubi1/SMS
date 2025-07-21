@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\SendVerificationCodeJob;
 use App\Models\Account;
 use App\Models\Doctor;
 use Illuminate\Http\JsonResponse;
@@ -14,10 +15,9 @@ class AdminApproveController extends Controller
 {
     public function approve($accountId): JsonResponse
     {
-        $account = Account::findOrFail($accountId);
-        if (!$account)
-        {
-            return response()->json(['message' => 'invalid id']);
+        $account = Account::find($accountId);
+        if (!$account) {
+            return response()->json(['message' => 'Invalid ID'], 404);
         }
         if ($account->is_approved == 'approved') {
             return response()->json(['message' => 'Already approved.']);
@@ -29,7 +29,9 @@ class AdminApproveController extends Controller
             'verification_code' => $verificationCode
         ]);
 
-        $account->notify(new SendVerificationCode($account->verification_code));
+        // أرسل الإشعار باستخدام الـ Job
+        SendVerificationCodeJob::dispatch($account);
+
         $role = $account->getRoleNames()->first();
         return response()->json(['message' => ucfirst($role) . ' approved and verification code sent.']);
     }

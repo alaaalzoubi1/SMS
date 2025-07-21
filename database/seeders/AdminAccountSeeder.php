@@ -17,7 +17,6 @@ class AdminAccountSeeder extends Seeder
         $admin = Account::firstOrCreate(
             ['email' => 'admin@sahtee.com'],
             [
-                'full_name' => 'Super Admin',
                 'password' => Hash::make('Admin@123'),
                 'phone_number' => '0000000000',
             ]

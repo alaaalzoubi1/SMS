@@ -15,12 +15,15 @@ class Nurse extends Model
     use HasFactory,SoftDeletes;
     protected $fillable = [
         'account_id',
-        'specialization',
-        'study_stage',
+        'full_name',
+        'address',
+        'graduation_type',
         'longitude',
         'latitude',
         'age',
         'gender',
+        'profile_description',
+        'license_image_path'
     ];
 
     public function account(): BelongsTo

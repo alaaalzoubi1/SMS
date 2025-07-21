@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Enums\SpecializationType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\DoctorRegisterRequest;
 use App\Models\Account;
@@ -12,35 +13,43 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Spatie\LaravelOptions\Options;
 use Tymon\JWTAuth\Facades\JWTAuth;
-use Illuminate\Support\Facades\RateLimiter;
-use Illuminate\Support\Str;
-use Illuminate\Support\Carbon;
+
 class DoctorAuthController extends Controller
 {
 
 
     public function register(DoctorRegisterRequest $request): JsonResponse
     {
-        try {
+//        try {
             $validated = $request->validated();
 
             DB::beginTransaction();
 
             $account = Account::create([
-                'full_name'    => $validated['full_name'],
                 'email'        => $validated['email'],
                 'password'     => Hash::make($validated['password']),
                 'phone_number' => $validated['phone_number'],
                 'fcm_token'    => $request->fcm_token ?? null,
             ]);
 
-            $doctor = Doctor::create([
-                'account_id'     => $account->id,
-                'specialization' => $validated['specialization'],
-                'address'        => $validated['address'],
-                'age'            => $validated['age'],
-                'gender'         => $validated['gender'],
+            // تخزين صورة الرخصة
+            $licensePath = null;
+            if ($request->hasFile('license_image')) {
+                $licenseFile = $request->file('license_image');
+                $filename = uniqid('license_') . '.' . $licenseFile->getClientOriginalExtension();
+                $licensePath = $licenseFile->storeAs('doctors/licenses', $filename, 'public');
+            }
+
+            Doctor::create([
+                'account_id'         => $account->id,
+                'full_name'          => $validated['full_name'],
+                'specialization_type'=> $validated['specialization'],
+                'address'            => $validated['address'],
+                'age'                => $validated['age'],
+                'gender'             => $validated['gender'],
+                'license_image_path' => $licensePath,
             ]);
 
             $account->assignRole('doctor');
@@ -48,18 +57,35 @@ class DoctorAuthController extends Controller
             DB::commit();
 
             return response()->json([
-                'message' => 'Registration successful. Awaiting admin approval.',
+                'message' => 'تم التسجيل بنجاح. بانتظار موافقة الإدارة.',
             ], 201);
-        } catch (\Exception $e) {
-            DB::rollBack(); // Roll back all changes
-
-            Log::error('Doctor registration failed: ' . $e->getMessage());
-
-            return response()->json([
-                'message' => 'Registration failed. Please try again later.',
-            ], 500);
-        }
+//        } catch (\Exception $e) {
+//            DB::rollBack();
+//            Log::error('Doctor registration failed: ' . $e->getMessage());
+//
+//            return response()->json([
+//                'message' => 'فشل في التسجيل. حاول مرة أخرى لاحقاً.',
+//            ], 500);
+//        }
     }
+
+    /**
+     * @throws \Exception
+     */
+    public function specializations(): JsonResponse
+    {
+        $specializations = array_map(function (SpecializationType $spec) {
+            return [
+                'label' => $spec->label(),
+                'value' => $spec->value(),
+            ];
+        }, SpecializationType::cases());
+
+        return response()->json([
+            'specializations' => $specializations,
+        ]);
+    }
+
 
     public function verifyCode(Request $request): JsonResponse
     {

@@ -42,7 +42,7 @@ Route::post('/password/reset', [ForgotPasswordController::class, 'resetPassword'
 
 Route::post('admin/login', [AdminAuthController::class, 'login']);
 
-
+Route::get('doctor/specializations',[DoctorAuthController::class,'specializations']);
 
 
 

@@ -14,6 +14,8 @@ return new class extends Migration
         Schema::create('hospitals', function (Blueprint $table) {
             $table->id();
             $table->foreignId('account_id')->constrained('accounts');
+            $table->string('full_name');
+
             $table->string('address');
             $table->softDeletes();
             $table->timestamps();

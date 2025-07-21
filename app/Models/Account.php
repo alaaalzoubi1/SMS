@@ -15,7 +15,6 @@ class Account extends Authenticatable implements JWTSubject
     use HasFactory, Notifiable, SoftDeletes, HasRoles;
 
     protected $fillable = [
-        'full_name',
         'email',
         'password',
         'phone_number',

@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('users', function (Blueprint $table) {
             $table->id();
             $table->foreignId('account_id')->constrained('accounts');
+            $table->string('full_name');
             $table->integer('age');
             $table->enum('gender', ['male', 'female']);
             $table->softDeletes();

@@ -13,7 +13,6 @@ return new class extends Migration
     {
         Schema::create('accounts', function (Blueprint $table) {
             $table->id();
-            $table->string('full_name');
             $table->string('email')->unique();
             $table->string('password');
             $table->string('phone_number');
@@ -21,6 +20,7 @@ return new class extends Migration
             $table->string('verification_code')->nullable();
             $table->timestamp('verification_expires_at')->nullable();
             $table->timestamp('email_verified_at')->nullable();
+            $table->enum('is_approved',['approved' , 'pending' , 'rejected'])->default('pending')->index();
             $table->softDeletes();
             $table->timestamps();
         });
