@@ -206,29 +206,49 @@ class DoctorAuthController extends Controller
         $account = auth()->user();
         $doctor = $account->doctor;
 
-        $specializationEnum = SpecializationType::tryFromArabic($validated['specialization']);
-        if (!$specializationEnum) {
-            return response()->json(['message' => 'التخصص غير صالح.'], 422);
+        $accountData = [];
+        $doctorData = [];
+
+        // تحديث الحقول في حساب المستخدم
+        if (array_key_exists('full_name', $validated)) {
+            $doctorData['full_name'] = $validated['full_name'];
         }
 
-        $account->update([
-            'phone_number' => $validated['phone_number'],
-        ]);
+        if (array_key_exists('phone_number', $validated)) {
+            $accountData['phone_number'] = $validated['phone_number'];
+        }
 
-        $doctor->update([
-            'full_name'    => $validated['full_name'],
-            'address'             => $validated['address'],
-            'age'                 => $validated['age'],
-            'gender'              => $validated['gender'],
-            'specialization_type' => $specializationEnum->value,
-            'profile_description' => $validated['profile_description'] ?? $doctor->profile_description,
-        ]);
+        // تحديث الحقول في جدول الأطباء
+        foreach (['address', 'age', 'gender', 'profile_description'] as $field) {
+            if (array_key_exists($field, $validated)) {
+                $doctorData[$field] = $validated[$field];
+            }
+        }
+
+        // معالجة التخصص (enum) إذا وُجد
+        if (array_key_exists('specialization', $validated)) {
+            $enum = SpecializationType::tryFromArabic($validated['specialization']);
+            if (!$enum) {
+                return response()->json(['message' => 'التخصص غير صالح.'], 422);
+            }
+            $doctorData['specialization_type'] = $enum->value;
+        }
+
+        // تنفيذ التحديثات
+        if (!empty($accountData)) {
+            $account->update($accountData);
+        }
+
+        if (!empty($doctorData)) {
+            $doctor->update($doctorData);
+        }
 
         return response()->json([
             'message' => 'تم تحديث الملف الشخصي بنجاح.',
             'doctor' => $doctor->fresh(),
         ]);
     }
+
 
 
 
