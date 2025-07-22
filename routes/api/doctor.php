@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::post('logout', [DoctorAuthController::class, 'logout']);
 Route::get('me', [DoctorAuthController::class, 'me']);
+Route::post('edit-profile',[DoctorAuthController::class,'editProfile']);
 
 
 Route::prefix('schedules')->group(function () {

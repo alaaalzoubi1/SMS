@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Enums\SpecializationType;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\DoctorEditProfileRequest;
 use App\Http\Requests\DoctorRegisterRequest;
 use App\Jobs\SendVerificationCodeJob;
 use App\Models\Account;
@@ -50,6 +51,7 @@ class DoctorAuthController extends Controller
                 'address'            => $validated['address'],
                 'age'                => $validated['age'],
                 'gender'             => $validated['gender'],
+                'profile_description' => $validated['profile_description'],
                 'license_image_path' => $licensePath,
             ]);
 
@@ -196,6 +198,38 @@ class DoctorAuthController extends Controller
             'token' => $token
         ]);
     }
+
+    public function editProfile(DoctorEditProfileRequest $request): JsonResponse
+    {
+        $validated = $request->validated();
+
+        $account = auth()->user();
+        $doctor = $account->doctor;
+
+        $specializationEnum = SpecializationType::tryFromArabic($validated['specialization']);
+        if (!$specializationEnum) {
+            return response()->json(['message' => 'التخصص غير صالح.'], 422);
+        }
+
+        $account->update([
+            'phone_number' => $validated['phone_number'],
+        ]);
+
+        $doctor->update([
+            'full_name'    => $validated['full_name'],
+            'address'             => $validated['address'],
+            'age'                 => $validated['age'],
+            'gender'              => $validated['gender'],
+            'specialization_type' => $specializationEnum->value,
+            'profile_description' => $validated['profile_description'] ?? $doctor->profile_description,
+        ]);
+
+        return response()->json([
+            'message' => 'تم تحديث الملف الشخصي بنجاح.',
+            'doctor' => $doctor->fresh(),
+        ]);
+    }
+
 
 
 }
