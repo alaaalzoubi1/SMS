@@ -53,17 +53,10 @@ class DoctorReservationController extends Controller
      */
     public function createStaticUser(array $data): User
     {
-        $uniqueId = Str::uuid()->toString();
-        $email = "static_user_{$uniqueId}@sahtee.local";
-        $account = Account::create([
-            'full_name'    => $data['full_name'],
-            'email'        => $email,
-            'password'     => bcrypt(Str::random(10)), // Secure random password
-            'phone_number' => $data['phone_number'] ?? null,
-            'fcm_token'    => null,
-        ]);
+
         return User::create([
-            'account_id' => $account->id,
+            'account_id' => 3,
+            'full_name'    => $data['full_name'],
             'age' => $data['age'],
             'gender' => $data['gender']
         ]);
@@ -73,7 +66,6 @@ class DoctorReservationController extends Controller
     {
         $request->validate([
             'full_name'     => 'required|string|max:255',
-            'phone_number'  => 'nullable|string|max:20',
             'age' => 'required|integer|min:0|max:99',
             'gender'         => 'required|in:male,female',
             'doctor_service_id' => 'required|exists:doctor_services,id',
@@ -85,8 +77,8 @@ class DoctorReservationController extends Controller
             $service = DoctorService::with('doctor')->findOrFail($request->doctor_service_id);
             $this->authorize('manage',$service);
             $user = $this->createStaticUser([
+                'account_id' => 3,
                 'full_name' => $request->full_name,
-                'phone_number' => $request->phone_number,
                 'age' => $request->age,
                 'gender' => $request->gender
             ]);
