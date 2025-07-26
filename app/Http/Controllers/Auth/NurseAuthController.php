@@ -19,45 +19,65 @@ class NurseAuthController extends Controller
     public function register(NurseRegisterRequest $request): JsonResponse
     {
         try {
+            // Validate request data
             $validated = $request->validated();
 
+            // Start transaction
             DB::beginTransaction();
 
+            // Create Account (This will remain the same)
             $account = Account::create([
-                'full_name'    => $validated['full_name'],
                 'email'        => $validated['email'],
                 'password'     => Hash::make($validated['password']),
                 'phone_number' => $validated['phone_number'],
                 'fcm_token'    => $request->fcm_token ?? null,
             ]);
 
+            // Handle the license image upload
+            $licenseImagePath = null;
+            if ($request->hasFile('license_image')) {
+                $licenseImagePath = $request->file('license_image')->store('nurses/licenses', 'public');
+            }
+
+            // Create Nurse with the new structure
             $nurse = Nurse::create([
                 'account_id'     => $account->id,
-                'specialization' => $validated['specialization'],
-                'study_stage'        => $validated['study_stage'],
+                'full_name'      => $validated['full_name'],  // Name is in Nurse table
+                'address'        => $validated['address'],
+                'graduation_type'=> $validated['graduation_type'],
+                'longitude'      => $validated['longitude'],
+                'latitude'       => $validated['latitude'],
                 'age'            => $validated['age'],
                 'gender'         => $validated['gender'],
-                'longitude'         => $validated['longitude'],
-                'latitude' => $validated['latitude'],
+                'profile_description' => $validated['profile_description'] ?? null,
+                'license_image_path'  => $licenseImagePath,
             ]);
 
+            // Assign role to the nurse account
             $account->assignRole('nurse');
 
+            // Commit transaction
             DB::commit();
 
+            // Return success response
             return response()->json([
                 'message' => 'Registration successful. Awaiting admin approval.',
             ], 201);
         } catch (\Exception $e) {
-            DB::rollBack(); // Roll back all changes
+            // Rollback transaction in case of failure
+            DB::rollBack();
 
-            Log::error('Doctor registration failed: ' . $e->getMessage());
+            // Log the error
+            Log::error('Nurse registration failed: ' . $e->getMessage());
 
+            // Return error response
             return response()->json([
                 'message' => 'Registration failed. Please try again later.',
             ], 500);
         }
     }
+
+
 
     public function verifyCode(Request $request): JsonResponse
     {
@@ -167,5 +187,68 @@ class NurseAuthController extends Controller
             'token' => $token
         ]);
     }
+    public function updateProfile(Request $request): JsonResponse
+    {
+        $account = auth()->user();
+        $nurse = $account->nurse; // الحصول على السجلات الخاصة بالممرض المرتبط بالحساب الحالي
+
+        // التحقق من البيانات المدخلة
+        $validated = $request->validate([
+            'phone_number' => 'sometimes|string|unique:accounts,phone_number',
+            'full_name' => 'sometimes|string|max:255',
+            'address' => 'nullable|string|max:255',
+            'graduation_type' => 'sometimes|in:معهد,مدرسة,جامعة,ماجستير,دكتوراه',
+            'longitude' => 'nullable|numeric',
+            'latitude' => 'nullable|numeric',
+            'age' => 'sometimes|integer|min:21|max:99',
+            'gender' => 'sometimes|in:male,female',
+            'profile_description' => 'nullable|string|max:500',
+        ]);
+        if (isset($validated['phone_number']))     {
+            $account->phone_number = $validated['phone_number'];
+        }
+        // تحديث الحقول في جدول الممرض
+        if (isset($validated['full_name'])) {
+            $nurse->full_name = $validated['full_name'];
+        }
+
+        if (isset($validated['address'])) {
+            $nurse->address = $validated['address'];
+        }
+
+        if (isset($validated['graduation_type'])) {
+            $nurse->graduation_type = $validated['graduation_type'];
+        }
+
+        if (isset($validated['longitude'])) {
+            $nurse->longitude = $validated['longitude'];
+        }
+
+        if (isset($validated['latitude'])) {
+            $nurse->latitude = $validated['latitude'];
+        }
+
+        if (isset($validated['age'])) {
+            $nurse->age = $validated['age'];
+        }
+
+        if (isset($validated['gender'])) {
+            $nurse->gender = $validated['gender'];
+        }
+
+        if (isset($validated['profile_description'])) {
+            $nurse->profile_description = $validated['profile_description'];
+        }
+        // حفظ التغييرات
+        $account->save();
+        $nurse->save();
+
+        return response()->json([
+            'message' => 'Profile updated successfully.',
+            'phone_number' => $account->phone_number,
+            'nurse' => $nurse,
+        ]);
+    }
+
 
 }

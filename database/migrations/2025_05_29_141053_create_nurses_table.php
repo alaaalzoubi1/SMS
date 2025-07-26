@@ -23,7 +23,7 @@ return new class extends Migration
             $table->integer('age');
             $table->enum('gender', ['male', 'female']);
             $table->string('profile_description')->nullable();
-            $table->string('license_image_path')->nullable();
+            $table->string('license_image_path');
             $table->softDeletes();
             $table->timestamps();
         });

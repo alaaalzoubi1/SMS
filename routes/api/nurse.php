@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::post('logout', [NurseAuthController::class, 'logout']);
 Route::get('me', [NurseAuthController::class, 'me']);
-
+Route::post('updateProfile',[NurseAuthController::class,'updateProfile']);
 
 Route::prefix('services')->group(function () {
     Route::get('/', [NurseServiceController::class, 'index']);

@@ -55,7 +55,6 @@ class DoctorReservationController extends Controller
     {
 
         return User::create([
-            'account_id' => 3,
             'full_name'    => $data['full_name'],
             'age' => $data['age'],
             'gender' => $data['gender']
@@ -77,7 +76,6 @@ class DoctorReservationController extends Controller
             $service = DoctorService::with('doctor')->findOrFail($request->doctor_service_id);
             $this->authorize('manage',$service);
             $user = $this->createStaticUser([
-                'account_id' => 3,
                 'full_name' => $request->full_name,
                 'age' => $request->age,
                 'gender' => $request->gender

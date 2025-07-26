@@ -13,6 +13,7 @@ class User extends Model
 
     protected $fillable = [
         'account_id',
+        'full_name',
         'age',
         'gender',
     ];
