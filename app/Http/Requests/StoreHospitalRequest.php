@@ -11,7 +11,7 @@ class StoreHospitalRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return false;
+        return true;
     }
 
     /**
@@ -22,7 +22,23 @@ class StoreHospitalRequest extends FormRequest
     public function rules(): array
     {
         return [
-            //
+            'hospital_name' => 'required|string|max:255|exists:hospitals,full_name',
+            'unique_code'   => 'required|string|exists:hospitals,unique_code',
+            'address'       => 'required|string|max:255',
+            'email'          => 'required|email|unique:accounts,email' ,
+            'phone_number'  => 'required|string|unique:accounts,phone_number',
+            'password'     => 'required|string|min:8|confirmed',
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'hospital_name.required' => 'The hospital name is required.',
+            'unique_code.required'   => 'The unique code is required.',
+            'address.required'       => 'The address is required.',
+            'email.required'         => 'The email is required.',
+            'phone_number.required'  => 'The phone number is required.',
         ];
     }
 }

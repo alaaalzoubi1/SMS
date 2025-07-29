@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Auth\AdminAuthController;
 use App\Http\Controllers\Auth\DoctorAuthController;
+use App\Http\Controllers\Auth\HospitalAuthController;
 use App\Http\Controllers\Auth\NurseAuthController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
@@ -35,6 +36,13 @@ Route::middleware('throttle:100,1')->group(function () {
         Route::post('login', [NurseAuthController::class, 'login']);
         Route::post('request-login', [NurseAuthController::class, 'requestLogin']);
         Route::post('verify-login', [NurseAuthController::class, 'verifyLogin']);
+    });
+    Route::prefix('hospital')->group(function () {
+        Route::post('register', [HospitalAuthController::class, 'updateHospitalData']);
+        Route::post('verifyCode', [HospitalAuthController::class, 'verifyCode']);
+        Route::post('login', [HospitalAuthController::class, 'login']);
+        Route::post('request-login', [HospitalAuthController::class, 'requestLogin']);
+        Route::post('verify-login', [HospitalAuthController::class, 'verifyLogin']);
     });
 });
 

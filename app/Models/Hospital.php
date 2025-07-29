@@ -13,7 +13,12 @@ class Hospital extends Model
     use HasFactory;
     protected $fillable = [
         'account_id',
-        'address'
+        'address',
+        'full_name',
+        'unique_code'
+    ];
+    protected $hidden = [
+        'unique_code',
     ];
 
     public function account():BelongsTo

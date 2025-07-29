@@ -1,6 +1,7 @@
 <?php
 
 
+use App\Http\Controllers\Auth\HospitalAuthController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\HospitalController;
 use App\Http\Controllers\HospitalServiceController;
@@ -8,6 +9,10 @@ use App\Http\Controllers\HospitalWorkScheduleController;
 use App\Http\Controllers\HospitalServiceReservationController;
 
 // the URL is api/hospital
+Route::post('logout', [HospitalAuthController::class, 'logout']);
+Route::get('me', [HospitalAuthController::class, 'me']);
+Route::post('edit-profile',[HospitalAuthController::class,'editProfile']);
+
 Route::controller(HospitalController::class)->group(function () {
     Route::get('profile','getProfile');
     Route::post('profile','updateProfile');

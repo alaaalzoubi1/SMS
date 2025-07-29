@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('account_id')->constrained('accounts');
             $table->string('full_name');
-
+            $table->uuid('unique_code')->unique();
             $table->string('address');
             $table->softDeletes();
             $table->timestamps();
