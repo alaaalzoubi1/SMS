@@ -10,6 +10,9 @@ use App\Models\Service;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
+use App\Jobs\NotifyAdminNewService;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 
 class HospitalServiceController extends Controller
 {
@@ -45,30 +48,48 @@ class HospitalServiceController extends Controller
         return response()->json($hospitalServices);
     }
 
+
+
     public function store(Request $request)
     {
         $hospital = $this->getAuthenticatedHospital();
 
         $request->validate([
-            'service_id' => 'required|exists:services,id',
+            'service_name' => 'required|string|max:255',
             'price' => 'required|numeric|min:0',
-            'capacity' => 'nullable|integer|min:0',
+            'capacity' => 'required|integer|min:0',
         ]);
 
-        if (HospitalService::where('hospital_id', $hospital->id)
-                            ->where('service_id', $request->service_id)
-                            ->exists()) {
-            return response()->json(['message' => 'This service already exists for this hospital.'], 409);
-        }
+        // Check if the service exists in the 'services' table
+        $service = Service::where('service_name', $request->service_name)->first();
 
         DB::beginTransaction();
 
         try {
-            $hospitalService = $hospital->hospitalServices()->create([
-                'service_id' => $request->service_id,
+            // If the service doesn't exist, create it
+            if (!$service) {
+                $service = Service::create([
+                    'service_name' => $request->service_name,
+                ]);
+            }
+
+            // Check if this service is already associated with the hospital
+            if (HospitalService::where('hospital_id', $hospital->id)
+                ->where('service_id', $service->id)
+                ->exists()) {
+                return response()->json(['message' => 'This service already exists for this hospital.'], 409);
+            }
+
+            // Create the hospital-service association
+            $hospitalService = HospitalService::create([
+                'hospital_id' => $hospital->id,
+                'service_id' => $service->id,
                 'price' => $request->price,
                 'capacity' => $request->capacity,
             ]);
+
+            // Dispatch a job to send an email notification to the admin
+            NotifyAdminNewService::dispatch($hospital, $service);
 
             DB::commit();
 
@@ -85,6 +106,7 @@ class HospitalServiceController extends Controller
             return response()->json(['message' => 'Failed to add hospital service', 'error' => $e->getMessage()], 500);
         }
     }
+
 
     public function show(string $id)
     {
@@ -111,7 +133,10 @@ class HospitalServiceController extends Controller
         ]);
     }
 
-    public function update(Request $request, string $id)
+    /**
+     * @throws ValidationException
+     */
+    public function update(Request $request, $id)
     {
         $hospital = $this->getAuthenticatedHospital();
 
@@ -123,14 +148,19 @@ class HospitalServiceController extends Controller
             return response()->json(['message' => 'Hospital service not found'], 404);
         }
 
-        $request->validate([
-            'price' => 'sometimes|required|numeric|min:0',
-            'capacity' => 'nullable|integer|min:0',
+        $validator = Validator::make($request->all(),[
+            'price' => 'sometimes|numeric|min:0',
+            'capacity' => 'sometimes|integer|min:0',
         ]);
-
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+        $validated = $validator->validated();
         DB::beginTransaction();
         try {
-            $hospitalService->update($request->only(['price', 'capacity']));
+            $hospitalService->fill($validated);
+            if ($hospitalService->isDirty())
+                $hospitalService->save();
 
             DB::commit();
 
@@ -143,8 +173,7 @@ class HospitalServiceController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error("Error updating hospital service: " . $e->getMessage(), ['exception' => $e]);
-            return response()->json(['message' => 'Failed to update hospital service', 'error' => $e->getMessage()], 500);
+            return response()->json(['message' => 'Failed to update hospital service'], 500);
         }
     }
 

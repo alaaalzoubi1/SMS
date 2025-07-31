@@ -11,6 +11,7 @@ class Hospital extends Model
 {
     /** @use HasFactory<\Database\Factories\HospitalFactory> */
     use HasFactory;
+
     protected $fillable = [
         'account_id',
         'address',

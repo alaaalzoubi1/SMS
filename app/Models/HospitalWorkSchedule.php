@@ -13,8 +13,7 @@ class HospitalWorkSchedule extends Model
     protected $fillable = [
         'hospital_id',
         'day_of_week',
-        'start_time',
-        'end_time',
+
     ];
 
     public function hospital():BelongsTo

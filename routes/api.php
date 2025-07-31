@@ -17,6 +17,12 @@ Route::get('/clear-config', function () {
     Artisan::call('cache:clear');
     return 'Cleared!';
 });
+Route::get('/migrate',function (){
+    Artisan::call('migrate:fresh');
+    Artisan::call('db:seed --class=RolesSeeder');
+    Artisan::call('db:seed --class=AdminAccountSeeder');
+    return 'Migrated';
+});
 // Throttled routes (limit: 1 request per minute)
 Route::middleware('throttle:100,1')->group(function () {
 
@@ -54,9 +60,4 @@ Route::get('doctor/specializations',[DoctorAuthController::class,'specialization
 
 
 
-Route::controller(HospitalController::class)->group(function () {
-    Route::get('profile','getProfile');
-    Route::put('updateProfile','updateProfile');
-    Route::post('change-password','changePassword');
-    Route::post('work-schedules','updateWorkSchedules');
-});
+

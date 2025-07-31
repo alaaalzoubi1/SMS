@@ -29,8 +29,6 @@ class HospitalWorkScheduleController extends Controller
             return [
                 'id' => $schedule->id,
                 'day_of_week' => $schedule->day_of_week,
-                'start_time' => $schedule->start_time,
-                'end_time' => $schedule->end_time,
             ];
         });
 
@@ -45,16 +43,13 @@ class HospitalWorkScheduleController extends Controller
 
         $request->validate([
             'day_of_week' => 'required|string|in:Sunday,Monday,Tuesday,Wednesday,Thursday,Friday,Saturday|unique:hospital_work_schedules,day_of_week,NULL,id,hospital_id,' . $hospital->id,
-            'start_time' => 'required|date_format:H:i:s',
-            'end_time' => 'required|date_format:H:i:s|after:start_time',
         ]);
 
         DB::beginTransaction();
         try {
-            $schedule = $hospital->workSchedules()->create([
+            $schedule = HospitalWorkSchedule::create([
                 'day_of_week' => $request->day_of_week,
-                'start_time' => $request->start_time,
-                'end_time' => $request->end_time,
+                'hospital_id' => $hospital->id
             ]);
             DB::commit();
 
@@ -83,41 +78,10 @@ class HospitalWorkScheduleController extends Controller
         return response()->json([
             'id' => $schedule->id,
             'day_of_week' => $schedule->day_of_week,
-            'start_time' => $schedule->start_time,
-            'end_time' => $schedule->end_time,
         ]);
     }
 
-    public function update(Request $request, string $id)
-    {
-        $hospital = $this->getAuthenticatedHospital();
 
-        $schedule = HospitalWorkSchedule::where('hospital_id', $hospital->id)->find($id);
-
-        if (!$schedule) {
-            return response()->json(['message' => 'Work schedule not found'], 404);
-        }
-
-        $request->validate([
-            'day_of_week' => 'sometimes|required|string|in:Sunday,Monday,Tuesday,Wednesday,Thursday,Friday,Saturday|unique:hospital_work_schedules,day_of_week,' . $schedule->id . ',id,hospital_id,' . $hospital->id,
-            'start_time' => 'sometimes|required|date_format:H:i:s',
-            'end_time' => 'sometimes|required|date_format:H:i:s|after:start_time',
-        ]);
-
-        DB::beginTransaction();
-        try {
-            $schedule->update($request->only(['day_of_week', 'start_time', 'end_time']));
-            DB::commit();
-
-            Log::info('Hospital Work Schedule updated:', ['schedule_id' => $id, 'updated_data' => $schedule->toArray()]);
-
-            return response()->json($schedule);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            Log::error("Error updating hospital work schedule: " . $e->getMessage());
-            return response()->json(['message' => 'Failed to update work schedule', 'error' => $e->getMessage()], 500);
-        }
-    }
 
     public function destroy(string $id)
     {
@@ -133,8 +97,6 @@ class HospitalWorkScheduleController extends Controller
         try {
             $schedule->delete();
             DB::commit();
-
-            Log::info('Hospital Work Schedule deleted:', ['schedule_id' => $id]);
 
             return response()->json(['message' => 'Work schedule deleted successfully'], 200);
         } catch (\Exception $e) {

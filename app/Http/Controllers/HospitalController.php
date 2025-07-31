@@ -25,30 +25,20 @@ class HospitalController extends Controller
 
     public function getProfile()
     {
-        $hospital = $this->getAuthenticatedHospital();
-
-        $account = $hospital->account;
+        $account = auth()->user();
+        $hospital = $account->hospital;
         $workSchedules = $hospital->workSchedules;
-
-        Log::info('Hospital Profile Data:', [
-            'hospital_id' => $hospital->id,
-            'account_data_exists' => (bool) $account,
-            'phone_number' => $account ? $account->phone_number : 'N/A',
-            'work_schedules_count' => $workSchedules ? $workSchedules->count() : 0,
-            'raw_work_schedules' => $workSchedules ? $workSchedules->toArray() : [],
-        ]);
 
         return response()->json([
             'id' => $hospital->id,
+            'email' => $account->email,
             'account_id' => $hospital->account_id,
             'address' => $hospital->address,
-            'contact_number' => $account ? $account->phone_number : null,
+            'contact_number' => $account?->phone_number,
             'work_schedules' => $workSchedules ? $workSchedules->map(function($schedule) {
                 return [
                     'id' => $schedule->id,
                     'day_of_week' => $schedule->day_of_week,
-                    'start_time' => $schedule->start_time,
-                    'end_time' => $schedule->end_time,
                 ];
             }) : [],
         ]);
@@ -72,8 +62,8 @@ class HospitalController extends Controller
             }
 
             $account = $hospital->account;
-            if ($account && $request->has('contact_number')) {
-                $account->phone_number = $request->input('contact_number');
+            if ($account && $request->has('phone_number')) {
+                $account->phone_number = $request->input('phone_number');
                 $account->save();
             }
 
@@ -91,81 +81,7 @@ class HospitalController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error("Error updating hospital profile: " . $e->getMessage());
-            return response()->json(['message' => 'Failed to update hospital profile', 'error' => $e->getMessage()], 500);
-        }
-    }
-
-    public function changePassword(Request $request)
-    {
-        $hospital = $this->getAuthenticatedHospital();
-        $account = Account::find($hospital->account_id);
-
-        if (!$account) {
-            return response()->json(['message' => 'Associated account not found'], 404);
-        }
-
-        $request->validate([
-            'current_password' => 'required|string',
-            'new_password' => 'required|string|min:8|confirmed',
-        ]);
-
-        if (!Hash::check($request->current_password, $account->password)) {
-            return response()->json(['message' => 'Current password does not match'], 400);
-        }
-
-        $account->password = Hash::make($request->new_password);
-        $account->save();
-
-        return response()->json(['message' => 'Password updated successfully']);
-    }
-
-    public function updateWorkSchedules(Request $request)
-    {
-        $hospital = $this->getAuthenticatedHospital();
-
-        $request->validate([
-            'schedules' => 'required|array',
-            'schedules.*.day_of_week' => 'required|string|in:Sunday,Monday,Tuesday,Wednesday,Thursday,Friday,Saturday',
-            'schedules.*.start_time' => 'required|date_format:H:i:s',
-            'schedules.*.end_time' => 'required|date_format:H:i:s|after:schedules.*.start_time',
-            'schedules.*.id' => 'sometimes|nullable|exists:hospital_work_schedules,id',
-        ]);
-
-        DB::beginTransaction();
-
-        try {
-            $existingScheduleIds = $hospital->workSchedules->pluck('id')->toArray();
-            $updatedOrCreatedIds = [];
-
-            foreach ($request->schedules as $scheduleData) {
-                if (isset($scheduleData['id']) && !is_null($scheduleData['id'])) {
-                    $schedule = HospitalWorkSchedule::where('hospital_id', $hospital->id)
-                                                    ->where('id', $scheduleData['id'])
-                                                    ->firstOrFail();
-                    $schedule->update($scheduleData);
-                    $updatedOrCreatedIds[] = $schedule->id;
-                } else {
-                    $schedule = $hospital->workSchedules()->create($scheduleData);
-                    $updatedOrCreatedIds[] = $schedule->id;
-                }
-            }
-
-            HospitalWorkSchedule::where('hospital_id', $hospital->id)
-                                ->whereNotIn('id', $updatedOrCreatedIds)
-                                ->delete();
-
-            DB::commit();
-
-            return response()->json([
-                'message' => 'Hospital work schedules updated successfully',
-                'work_schedules' => $hospital->fresh()->workSchedules
-            ]);
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            Log::error("Error updating hospital work schedules: " . $e->getMessage());
-            return response()->json(['message' => 'Failed to update work schedules', 'error' => $e->getMessage()], 500);
+            return response()->json(['message' => 'Failed to update hospital profile'], 500);
         }
     }
 }

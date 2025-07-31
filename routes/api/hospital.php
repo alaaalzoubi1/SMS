@@ -13,34 +13,27 @@ Route::post('logout', [HospitalAuthController::class, 'logout']);
 Route::get('me', [HospitalAuthController::class, 'me']);
 Route::post('edit-profile',[HospitalAuthController::class,'editProfile']);
 
-Route::controller(HospitalController::class)->group(function () {
-    Route::get('profile','getProfile');
-    Route::post('profile','updateProfile');
-    Route::post('change-password','changePassword');
-    Route::post('work-schedules','updateWorkSchedules');
+
+Route::prefix('service')->controller(HospitalServiceController::class)->group(function () {
+    Route::get('/','index');
+    Route::post('/','store');
+    Route::get('/{id}','show');
+    Route::put('/{id}','update');
+    Route::delete('/{id}','destroy');
 });
 
-Route::controller(HospitalServiceController::class)->group(function () {
-    Route::get('services','index');
-    Route::post('services','store');
-    Route::get('services/{id}','show');
-    Route::put('services/{id}','update');
-    Route::delete('services/{id}','destroy');
+Route::prefix('work-schedules')->controller(HospitalWorkScheduleController::class)->group(function () {
+    Route::get('/','index');
+    Route::post('/','store');
+    Route::get('/{id}','show');
+    Route::delete('/{id}','destroy');
 });
 
-Route::controller(HospitalWorkScheduleController::class)->group(function () {
-    Route::get('work-schedules','index');
-    Route::post('work-schedules','store');
-    Route::get('work-schedules/{id}','show');
-    Route::put('work-schedules/{id}','update');
-    Route::delete('work-schedules/{id}','destroy');
-});
-
-Route::controller(HospitalServiceReservationController::class)->group(function () {
-    Route::get('reservations','index'); //all reservations
-    Route::get('reservations/trashed', [HospitalServiceReservationController::class, 'trashed']); // view deleted reservations
-    Route::get('reservations/{id}','show'); // view one reservations
-    Route::patch('reservations/{id}/status','updateStatus'); // update reservations status
-    Route::delete('reservations/{id}','destroy'); // delete (Soft delete)
-    Route::patch('reservations/{id}/restore','restore'); // Recover a deleted reservation
+Route::prefix('reservations')->controller(HospitalServiceReservationController::class)->group(function () {
+    Route::get('/','index');
+    Route::get('/trashed', [HospitalServiceReservationController::class, 'trashed']);
+    Route::get('/{id}','show');
+    Route::patch('/{id}/status','updateStatus');
+    Route::delete('/{id}','destroy');
+    Route::patch('/{id}/restore','restore');
 });
