@@ -36,7 +36,7 @@ class NewHospitalServiceNotification extends Mailable
             ->view('emails.new_hospital_service')
             ->with([
                 'hospitalName' => $this->hospital->full_name,
-                'serviceName' => $this->service->name,
+                'serviceName' => $this->service->service_name,
             ]);
     }
 }
