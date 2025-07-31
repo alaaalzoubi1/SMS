@@ -13,13 +13,13 @@ class DoctorEditProfileRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'full_name'    => 'sometimes|required|string|max:255',
-            'phone_number' => 'sometimes|required|string|unique:accounts,phone_number,' . auth()->id(),
-            'address'      => 'sometimes|required|string|max:255',
-            'age'          => 'sometimes|required|integer|min:21|max:99',
-            'gender'       => 'sometimes|required|in:male,female',
-            'specialization' => 'sometimes|required|string|max:255',
-            'profile_description' => 'sometimes|nullable|string|max:1000',
+            'full_name'    => 'sometimes|string|max:255',
+            'phone_number' => 'sometimes|string|unique:accounts,phone_number,' . auth()->id(),
+            'address'      => 'sometimes|string|max:255',
+            'age'          => 'sometimes|integer|min:21|max:99',
+            'gender'       => 'sometimes|in:male,female',
+            'specialization' => 'sometimes|string|max:255',
+            'profile_description' => 'sometimes|string|max:1000',
         ];
     }
 
