@@ -22,7 +22,7 @@
         }
 
         .header {
-            background-color: #4CAF50;
+            background-color: teal;
             color: white;
             padding: 10px 0;
             text-align: center;
@@ -68,7 +68,6 @@
 
         <p>If you have any questions, feel free to contact us.</p>
 
-        <a href="{{ url('/login') }}" class="button">Login to Your Account</a>
     </div>
 
     <div class="footer">

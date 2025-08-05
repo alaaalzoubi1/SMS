@@ -122,7 +122,8 @@ class NurseAuthController extends Controller
 
         return response()->json([
             'message' => 'Login successful',
-            'token' => $token
+            'token' => $token,
+            'role' => $account->getRoleNames()->first()
         ]);
     }
     public function logout(): JsonResponse
@@ -184,7 +185,8 @@ class NurseAuthController extends Controller
 
         return response()->json([
             'message' => 'Login successful',
-            'token' => $token
+            'token' => $token,
+            'role' => $account->getRoleNames()->first()
         ]);
     }
     public function updateProfile(Request $request): JsonResponse
