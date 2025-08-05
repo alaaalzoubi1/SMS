@@ -15,23 +15,9 @@ class DatabaseSeeder extends Seeder
     {
         // User::factory(10)->create();
         $this->call([
-            AccountSeeder::class,
-            NurseSeeder::class,
             DoctorSeeder::class,
-            HospitalSeeder::class,
-            UserSeeder::class,
-            ServiceSeeder::class,
-            NurseServiceSeeder::class,
-            NurseReservationSeeder::class,
-            NurseSubsercviceSeeder::class,
-            HospitalServiceSeeder::class,
-            HospitalWorkScheduleSeeder::class,
-            HospitalServiceReservationSeeder::class,
-            DoctorServiceSeeder::class,
-            DoctorWorkScheduleSeeder::class,
-            DoctorReservationSeeder::class,
             RolesSeeder::class,
-            AdminAccountSeeder::class,
+            AdminAccountSeeder::class
         ]);
 
     }

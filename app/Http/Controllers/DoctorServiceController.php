@@ -97,4 +97,24 @@ class DoctorServiceController extends Controller
         $service->restore();
         return response()->json(['message' => 'Service restored.']);
     }
+    public function getDoctorServices($doctorId)
+    {
+        $doctor = Doctor::find($doctorId);
+
+        if (!$doctor) {
+            return response()->json(['message' => 'Doctor not found'], 404);
+        }
+
+        // Load services with the necessary data (optional: you can join with other tables if needed)
+        $services = $doctor->services()
+            ->select('id','name','price')
+            ->get();
+
+        return response()->json([
+            'doctor_id' => $doctor->id,
+            'doctor_name' => $doctor->full_name,
+            'services' => $services
+        ]);
+    }
+
 }

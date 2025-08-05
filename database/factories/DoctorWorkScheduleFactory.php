@@ -16,8 +16,14 @@ class DoctorWorkScheduleFactory extends Factory
      */
     public function definition(): array
     {
+        $day = $this->faker->unique()->randomElement([
+            'saturday', 'sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday'
+        ]);
+
         return [
-            //
+            'day_of_week' => $day,
+            'start_time' => $this->faker->time('H:i', '08:00'),
+            'end_time' => $this->faker->time('H:i', '17:00'),
         ];
     }
 }

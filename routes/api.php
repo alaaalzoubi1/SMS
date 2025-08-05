@@ -4,6 +4,7 @@ use App\Http\Controllers\Auth\AdminAuthController;
 use App\Http\Controllers\Auth\DoctorAuthController;
 use App\Http\Controllers\Auth\HospitalAuthController;
 use App\Http\Controllers\Auth\NurseAuthController;
+use App\Http\Controllers\Auth\UserAuthController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
@@ -50,7 +51,14 @@ Route::middleware('throttle:100,1')->group(function () {
         Route::post('request-login', [HospitalAuthController::class, 'requestLogin']);
         Route::post('verify-login', [HospitalAuthController::class, 'verifyLogin']);
     });
+    Route::prefix('user')->group(function (){
+        Route::post('register', [UserAuthController::class ,'register']);
+        Route::post('login', [UserAuthController::class, 'login']);
+        Route::post('request-login', [UserAuthController::class, 'requestLogin']);
+        Route::post('verify-login', [UserAuthController::class, 'verifyLogin']);
+    });
 });
+
 
 Route::post('/password/reset', [ForgotPasswordController::class, 'resetPassword']);
 

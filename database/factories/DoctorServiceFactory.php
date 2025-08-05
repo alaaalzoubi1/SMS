@@ -1,23 +1,24 @@
 <?php
 
 namespace Database\Factories;
+// database/factories/DoctorServiceFactory.php
 
+namespace Database\Factories;
+
+use App\Models\DoctorService;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
-/**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\DoctorService>
- */
 class DoctorServiceFactory extends Factory
 {
-    /**
-     * Define the model's default state.
-     *
-     * @return array<string, mixed>
-     */
+    protected $model = DoctorService::class;
+
     public function definition(): array
     {
         return [
-            //
+            'name' => $this->faker->word,               // Name of the service (e.g., "Consultation")
+            'price' => $this->faker->randomFloat(2, 50, 500),  // Random price between 50 and 500
+            'duration_minutes' => $this->faker->numberBetween(15, 60),  // Random duration between 15 and 60 minutes
         ];
     }
 }
+

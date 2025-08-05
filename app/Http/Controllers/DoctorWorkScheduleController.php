@@ -9,7 +9,8 @@ use App\Http\Requests\UpdateDoctorWorkScheduleRequest;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
-
+use Illuminate\Support\Carbon;
+use Illuminate\Http\Request;
 class DoctorWorkScheduleController extends Controller
 {
     use AuthorizesRequests;
@@ -142,4 +143,45 @@ class DoctorWorkScheduleController extends Controller
             'data' => $schedules
         ]);
     }
+
+
+    public function getAvailableDates(Request $request, $doctorId): JsonResponse
+    {
+        $doctor = Doctor::find($doctorId);
+        if (!$doctor) {
+            return response()->json(['message' => 'Doctor not found'], 404);
+        }
+
+        $month = $request->query('month', now()->month); // default: current month
+        $year = $request->query('year', now()->year);     // default: current year
+        $day = now()->day;
+        // Get working days from schedule
+        $workDays = $doctor->doctorWorkSchedule()->pluck('day_of_week')->toArray(); // ['monday', 'wednesday', ...]
+
+        // Map day names to numbers (Carbon: 0=Sunday, 1=Monday, ...)
+        $dayNameToNum = [
+            'sunday' => 0, 'monday' => 1, 'tuesday' => 2, 'wednesday' => 3,
+            'thursday' => 4, 'friday' => 5, 'saturday' => 6
+        ];
+        $workDayNums = array_map(fn($d) => $dayNameToNum[$d], $workDays);
+
+        // Generate all dates in the given month that match work days
+        $startOfMonth = Carbon::create($year, $month, $day);
+        $endOfMonth = $startOfMonth->copy()->endOfMonth();
+        $dates = [];
+
+        for ($date = $startOfMonth->copy(); $date->lte($endOfMonth); $date->addDay()) {
+            if (in_array($date->dayOfWeek, $workDayNums)) {
+                $dates[] = $date->toDateString(); // format: YYYY-MM-DD
+            }
+        }
+
+        return response()->json([
+            'doctor_id' => $doctor->id,
+            'month' => $month,
+            'year' => $year,
+            'available_dates' => $dates,
+        ]);
+    }
+
 }

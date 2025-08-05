@@ -29,7 +29,7 @@ class HospitalServiceReservationController extends Controller
         $reservations = HospitalServiceReservation::where('hospital_id', $hospital->id)
               ->with(['user', 'hospitalService.service'])
               ->orderBy('start_date', 'desc')
-              ->get()
+              ->paigenate()
               ->map(function($reservation) {
                   return [
                       'id' => $reservation->id,

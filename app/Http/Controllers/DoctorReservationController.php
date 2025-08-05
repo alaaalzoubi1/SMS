@@ -20,9 +20,68 @@ use Illuminate\Support\Str;
 class DoctorReservationController extends Controller
 {
     use AuthorizesRequests;
+
+
+    protected DoctorReservationService $doctorReservationService;
+
+    public function __construct(DoctorReservationService $doctorReservationService)
+    {
+        $this->doctorReservationService = $doctorReservationService;
+    }
+
+    /**
+     * Reserve an available slot for a user with a doctor service.
+     */
+    public function reserve(Request $request): JsonResponse
+    {
+        // Validate the request data
+        $request->validate([
+            'doctor_service_id' => 'required|exists:doctor_services,id',  // doctor_service_id instead of doctor_id
+            'doctor_id' => 'required|exists:doctors,id', // Ensure doctor_id is provided
+            'date' => 'required|date_format:Y-m-d',
+        ]);
+
+        // Get the reservation date and duration from the request
+        $doctorServiceId = $request->doctor_service_id;
+        $doctorId = $request->doctor_id;
+        $date = $request->date;
+
+        $service = DoctorService::where('id',$doctorServiceId)
+            ->where('doctor_id',$doctorId)
+            ->first();
+
+        $duration = $service->duration_minutes;
+
+        // Use the service to find the next available slot for the doctor service
+        $availableSlot = $this->doctorReservationService->getNextAvailableSlot($doctorId, $date, $duration);
+
+        if ($availableSlot) {
+            // If available, create the reservation
+            $reservation = DoctorReservation::create([
+                'doctor_service_id' => $doctorServiceId,  // link to the doctor service
+                'doctor_id' => $doctorId,  // link to the doctor
+                'user_id' => auth()->user()->user->id,  // assuming you're using Auth for the user
+                'date' => $date,
+                'start_time' => $availableSlot['start_time'],
+                'end_time' => $availableSlot['end_time'],
+                'status' => 'pending',
+            ]);
+
+            return response()->json([
+                'message' => 'Reservation successful.',
+                'reservation' => $reservation,
+            ], 201);
+        }
+
+        return response()->json([
+            'message' => 'No available slot for the selected date and duration.',
+        ], 400);
+    }
+
     /**
      * Display a listing of the resource.
      */
+
     public function index(Request $request): JsonResponse
     {
         $request->validate([

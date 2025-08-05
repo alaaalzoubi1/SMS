@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\SendApprovalEmail;
 use App\Jobs\SendVerificationCodeJob;
 use App\Models\Account;
 use App\Models\Doctor;
@@ -23,25 +24,18 @@ class AdminApproveController extends Controller
             return response()->json(['message' => 'Already approved.']);
         }
 
-        $verificationCode = rand(100000, 999999);
         $account->update([
             'is_approved' => 'approved',
-            'verification_code' => $verificationCode
+            'verification_code' => null,  // No need for verification code anymore
         ]);
 
-        // أرسل الإشعار باستخدام الـ Job
-        SendVerificationCodeJob::dispatch($account);
+        // Dispatch job to send the approval email
+        SendApprovalEmail::dispatch($account);
 
         $role = $account->getRoleNames()->first();
-        return response()->json(['message' => ucfirst($role) . ' approved and verification code sent.']);
+        return response()->json(['message' => ucfirst($role) . ' approved and approval email sent.']);
     }
-    protected function validateRole(string $role)
-    {
-        $validRoles = ['doctor', 'nurse'];
-        if (!in_array($role, $validRoles)) {
-            abort(422, 'Invalid role: ' . $role);
-        }
-    }
+
 
     protected function getPendingAccountsByRole(string $role)
     {
