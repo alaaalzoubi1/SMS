@@ -31,7 +31,7 @@ Route::middleware('throttle:100,1')->group(function () {
 
     Route::prefix('doctor')->group(function () {
         Route::post('register', [DoctorAuthController::class, 'register']);
-        Route::post('verifyCode', [DoctorAuthController::class, 'verifyCode']);
+//        Route::post('verifyCode', [DoctorAuthController::class, 'verifyCode']);
         Route::post('login', [DoctorAuthController::class, 'login']);
         Route::post('request-login', [DoctorAuthController::class, 'requestLogin']);
         Route::post('verify-login', [DoctorAuthController::class, 'verifyLogin']);
@@ -39,14 +39,14 @@ Route::middleware('throttle:100,1')->group(function () {
 
     Route::prefix('nurse')->group(function () {
         Route::post('register', [NurseAuthController::class, 'register']);
-        Route::post('verifyCode', [NurseAuthController::class, 'verifyCode']);
+//        Route::post('verifyCode', [NurseAuthController::class, 'verifyCode']);
         Route::post('login', [NurseAuthController::class, 'login']);
         Route::post('request-login', [NurseAuthController::class, 'requestLogin']);
         Route::post('verify-login', [NurseAuthController::class, 'verifyLogin']);
     });
     Route::prefix('hospital')->group(function () {
         Route::post('register', [HospitalAuthController::class, 'updateHospitalData']);
-        Route::post('verifyCode', [HospitalAuthController::class, 'verifyCode']);
+//        Route::post('verifyCode', [HospitalAuthController::class, 'verifyCode']);
         Route::post('login', [HospitalAuthController::class, 'login']);
         Route::post('request-login', [HospitalAuthController::class, 'requestLogin']);
         Route::post('verify-login', [HospitalAuthController::class, 'verifyLogin']);

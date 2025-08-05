@@ -35,7 +35,13 @@ class AdminApproveController extends Controller
         $role = $account->getRoleNames()->first();
         return response()->json(['message' => ucfirst($role) . ' approved and approval email sent.']);
     }
-
+    protected function validateRole(string $role)
+    {
+        $validRoles = ['doctor', 'nurse'];
+        if (!in_array($role, $validRoles)) {
+            abort(422, 'Invalid role: ' . $role);
+        }
+    }
 
     protected function getPendingAccountsByRole(string $role)
     {
