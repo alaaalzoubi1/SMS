@@ -138,7 +138,7 @@ class NurseController extends Controller
         $radius = 500000000; // Start with 1 km
         $maxRadius = 50; // Maximum limit to prevent overload
 
-        $point = new Point(lat: $latitude, lng: $longitude,srid: 4326);
+        $point = new Point($longitude,$latitude,srid: 4326);
 
         $nurses = Nurse::withinDistanceTo('location', $point, $radius)
             ->selectDistanceTo('location', $point)
