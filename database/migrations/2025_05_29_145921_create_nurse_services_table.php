@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('nurse_id')->constrained('nurses');
             $table->string('name');
-            $table->decimal('price', 8, 2);
+            $table->decimal('price', 8, 2)->index();
             $table->softDeletes();
             $table->timestamps();
 

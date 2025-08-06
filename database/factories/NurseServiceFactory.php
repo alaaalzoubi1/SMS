@@ -14,10 +14,12 @@ class NurseServiceFactory extends Factory
      *
      * @return array<string, mixed>
      */
-    public function definition(): array
+    public function definition()
     {
         return [
-            //
+            'nurse_id' => \App\Models\Nurse::factory(),
+            'name' => $this->faker->word,
+            'price' => $this->faker->randomFloat(2, 10, 100),
         ];
     }
 }

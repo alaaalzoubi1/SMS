@@ -13,14 +13,9 @@ class NurseSeeder extends Seeder
      */
     public function run(): void
     {
-        Nurse::create([
-            'account_id' => 3,
-            'specialization' => 'Pediatrics',
-            'study_stage' => 'Bachelor',
-            'longitude' => 36,
-            'latitude' => 33,
-            'age' => 28,
-            'gender' => 'female',
-        ]);
+        Nurse::factory()
+            ->count(10)
+            ->withServicesAndSubservices()  // Using the custom method to include services and subservices
+            ->create();
     }
 }

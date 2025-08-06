@@ -2,9 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\NurseFilterRequest;
 use App\Models\Nurse;
 use App\Http\Requests\StoreNurseRequest;
 use App\Http\Requests\UpdateNurseRequest;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class NurseController extends Controller
 {
@@ -63,4 +67,91 @@ class NurseController extends Controller
     {
         //
     }
+    public function listForUsers(NurseFilterRequest $request): JsonResponse
+    {
+
+        // Start building the query for nurses
+        $query = Nurse::query()
+            ->with(['services.subservices']) // Eager load services and subservices
+            ->select('id', 'full_name', 'address', 'graduation_type', 'age', 'gender', 'profile_description');
+
+        // Apply filters if present
+        if ($request->filled('gender')) {
+            $query->where('gender', $request->gender);
+        }
+
+        if ($request->filled('graduation_type')) {
+            $query->where('graduation_type', $request->graduation_type);
+        }
+
+        if ($request->filled('address')) {
+            $query->where('address', 'like', '%' . $request->address . '%');
+        }
+
+        if ($request->filled('full_name')) {
+            $query->where('full_name', 'like', '%' . $request->full_name . '%');
+        }
+
+        // Get the nurses
+        $nurses = $query->paginate(10); // Adjust pagination as needed
+
+        // Transform the nurses with relevant data only
+        $nurses->getCollection()->transform(function ($nurse) {
+            // Get services and subservices with only necessary columns
+            $nurse->services = $nurse->services->map(function ($service) {
+                return [
+                    'id' => $service->id,
+                    'name' => $service->name,
+                    'price' => $service->price,
+                    'subservices' => $service->subservices->map(function ($subservice) {
+                        return [
+                            'id' => $subservice->id,
+                            'name' => $subservice->name,
+                            'price' => $subservice->price,
+                        ];
+                    })
+                ];
+            });
+
+            // Return only the necessary data
+            return [
+                'id' => $nurse->id,
+                'full_name' => $nurse->full_name,
+                'address' => $nurse->address,
+                'graduation_type' => $nurse->graduation_type,
+                'age' => $nurse->age,
+                'gender' => $nurse->gender,
+                'profile_description' => $nurse->profile_description,
+                'services' => $nurse->services,
+            ];
+        });
+
+        // Return the paginated nurses
+        return response()->json($nurses);
+    }
+    public function getNearestNurses(Request $request)
+    {
+        $latitude = $request->input('latitude');
+        $longitude = $request->input('longitude');
+        $minNurses = 10;
+        $radius = 5; // Start with 1 km
+        $maxRadius = 50; // Maximum limit to prevent overload
+
+        do {
+            $nurses = Nurse::withDistance($latitude, $longitude)
+                ->having('distance', '<=', $radius)
+                ->orderBy('distance')
+                ->limit($minNurses)
+                ->get()
+                ->makeHidden(['license_image_path', 'deleted_at', 'created_at', 'updated_at']); // Hide unwanted columns
+
+            $radius += 5; // Expand search radius
+        } while ($nurses->count() < $minNurses && $radius <= $maxRadius);
+
+        return response()->json([
+            'nurses' => $nurses,
+        ]);
+    }
+
+
 }

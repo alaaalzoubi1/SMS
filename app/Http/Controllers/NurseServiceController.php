@@ -6,6 +6,7 @@ use App\Models\Nurse;
 use App\Models\NurseService;
 use App\Http\Requests\StoreNurseServiceRequest;
 use App\Http\Requests\UpdateNurseServiceRequest;
+use App\Models\Service;
 use App\Rules\UniqueServiceNameForNurse;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -93,5 +94,62 @@ class NurseServiceController extends Controller
         $service->delete();
         return response()->json(['message' => 'Service deleted.']);
     }
+
+
+    public function getFilteredServices(Request $request)
+    {
+        $request->validate([
+            'name' => 'string|nullable',
+            'price' => 'numeric|nullable',
+        ]);
+
+        $query = NurseService::with(['nurse:id,full_name,address,gender,graduation_type']);
+
+        if ($request->filled('name')) {
+            $query->where('name', 'like', '%' . $request->name . '%');
+        }
+
+        if ($request->filled('price')) {
+            $query->where('price', '<=', $request->price);
+        }
+
+        $services = $query->select('id', 'name', 'price', 'nurse_id')->paginate(10);
+
+        return response()->json([
+            'services' => $services
+        ]);
+    }
+    public function getNurseServicesWithSubservices($nurseId)
+    {
+        // Retrieve the nurse with the services and subservices
+        $nurse = Nurse::with(['services.subservices'])->find($nurseId);
+
+        if (!$nurse) {
+            return response()->json(['message' => 'Nurse not found'], 404);
+        }
+
+        // Map the response to the required structure
+        $servicesData = $nurse->services->map(function ($service) {
+            return [
+                'service_id' => $service->id,
+                'service_name' => $service->name,
+                'service_price' => $service->price,
+                'subservices' => $service->subservices->map(function ($subservice) {
+                    return [
+                        'subservice_id' => $subservice->id,
+                        'subservice_name' => $subservice->name,
+                        'subservice_price' => $subservice->price,
+                    ];
+                })
+            ];
+        });
+
+        return response()->json([
+            'nurse_id' => $nurse->id,
+            'nurse_name' => $nurse->full_name,
+            'services' => $servicesData
+        ]);
+    }
+
 
 }

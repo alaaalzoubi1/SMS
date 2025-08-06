@@ -5,6 +5,8 @@ use App\Http\Controllers\DoctorController;
 use App\Http\Controllers\DoctorReservationController;
 use App\Http\Controllers\DoctorServiceController;
 use App\Http\Controllers\DoctorWorkScheduleController;
+use App\Http\Controllers\NurseController;
+use App\Http\Controllers\NurseServiceController;
 use Illuminate\Support\Facades\Route;
 
 // the URL is api/user
@@ -18,4 +20,11 @@ Route::prefix('doctors')->group(function (){
     Route::get('{doctor_id}/services',[DoctorServiceController::class,'getDoctorServices']);
     Route::get('{doctor_id}/available-dates',[DoctorWorkScheduleController::class,'getAvailableDates']);
     Route::post('reserve',[DoctorReservationController::class,'reserve']);
+});
+
+Route::prefix('nurses')->group(function (){
+    Route::get('/',[NurseController::class,'listForUsers']);
+    Route::get('services',[NurseServiceController::class,'getFilteredServices']);
+    Route::get('nearest',[NurseController::class,'getNearestNurses']);
+    Route::get('{nurseId}/services',[NurseServiceController::class,'getNurseServicesWithSubservices']);
 });

@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Builder;
 
 class Nurse extends Model
 {
@@ -26,6 +27,8 @@ class Nurse extends Model
         'license_image_path'
     ];
 
+
+
     public function account(): BelongsTo
     {
         return $this->belongsTo(Account::class);
@@ -39,5 +42,15 @@ class Nurse extends Model
     {
         return $this->hasMany(NurseReservation::class);
     }
-
+    public function scopeWithDistance($query, float $latitude, float $longitude)
+    {
+        return $query->select('*')
+            ->selectRaw("(
+            6371 * acos(
+                cos(radians(?)) * cos(radians(latitude)) *
+                cos(radians(longitude) - radians(?)) +
+                sin(radians(?)) * sin(radians(latitude))
+            )
+        ) AS distance", [$latitude, $longitude, $latitude]);
+    }
 }
