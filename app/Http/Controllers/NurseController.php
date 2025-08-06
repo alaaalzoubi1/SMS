@@ -144,8 +144,8 @@ class NurseController extends Controller
             ->selectDistanceTo('location', $point)
             ->orderByDistanceTo('location', $point, 'asc')
             ->limit(10)
-            ->makeHidden(['license_image_path','deleted_at','created_at','updated_at'])
-            ->get();
+            ->get()
+            ->makeHidden(['license_image_path','deleted_at','created_at','updated_at']);
 
         return response()->json([
             'nurses' => $nurses,
