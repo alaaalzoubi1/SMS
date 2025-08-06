@@ -6,6 +6,7 @@ use App\Models\Account;
 use App\Models\NurseService;
 use App\Models\NurseSubservice;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use TarfinLabs\LaravelSpatial\Types\Point;
 
 /**
  * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Nurse>
@@ -24,8 +25,7 @@ class NurseFactory extends Factory
             'full_name' => $this->faker->name,
             'address' => $this->faker->address,
             'graduation_type' => $this->faker->randomElement(['معهد', 'مدرسة', 'جامعة', 'ماجستير', 'دكتوراه']),
-            'longitude' => $this->faker->longitude,
-            'latitude' => $this->faker->latitude,
+            'location' => new Point(lat: $this->faker->latitude,lng: $this->faker->longitude,srid: 4326 ),
             'age' => $this->faker->numberBetween(25, 65),
             'gender' => $this->faker->randomElement(['male', 'female']),
             'profile_description' => $this->faker->sentence,

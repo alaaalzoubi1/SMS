@@ -9,11 +9,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Builder;
+use TarfinLabs\LaravelSpatial\Casts\LocationCast;
+use TarfinLabs\LaravelSpatial\Traits\HasSpatial;
 
 class Nurse extends Model
 {
     /** @use HasFactory<NurseFactory> */
-    use HasFactory,SoftDeletes;
+    use HasFactory,SoftDeletes,HasSpatial;
     protected $fillable = [
         'account_id',
         'full_name',
@@ -21,13 +23,16 @@ class Nurse extends Model
         'graduation_type',
         'longitude',
         'latitude',
+        'location',
         'age',
         'gender',
         'profile_description',
         'license_image_path'
     ];
 
-
+    protected  $casts = [
+        'location' => LocationCast::class
+    ];
 
     public function account(): BelongsTo
     {

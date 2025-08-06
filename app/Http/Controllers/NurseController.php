@@ -9,6 +9,7 @@ use App\Http\Requests\UpdateNurseRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use TarfinLabs\LaravelSpatial\Types\Point;
 
 class NurseController extends Controller
 {
@@ -134,19 +135,16 @@ class NurseController extends Controller
         $latitude = $request->input('latitude');
         $longitude = $request->input('longitude');
         $minNurses = 10;
-        $radius = 5; // Start with 1 km
+        $radius = 5000; // Start with 1 km
         $maxRadius = 50; // Maximum limit to prevent overload
 
-        do {
-            $nurses = Nurse::withDistance($latitude, $longitude)
-                ->having('distance', '<=', $radius)
-                ->orderBy('distance')
-                ->limit($minNurses)
-                ->get()
-                ->makeHidden(['license_image_path', 'deleted_at', 'created_at', 'updated_at']); // Hide unwanted columns
+        $point = new Point(lat: $latitude, lng: $longitude,srid: 4326);
 
-            $radius += 5; // Expand search radius
-        } while ($nurses->count() < $minNurses && $radius <= $maxRadius);
+        $nurses = Nurse::withinDistanceTo('location', $point, $radius)
+            ->selectDistanceTo('location', $point)
+            ->orderByDistanceTo('location', $point, 'asc')
+            ->limit(10)
+            ->get();
 
         return response()->json([
             'nurses' => $nurses,

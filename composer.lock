@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "f9f0e67573d00dcad35f404a9200853b",
+    "content-hash": "fb84e6d45429234b3f0aef7f938f7ab7",
     "packages": [
         {
             "name": "beste/clock",
@@ -7112,6 +7112,68 @@
                 }
             ],
             "time": "2025-04-27T18:39:23+00:00"
+        },
+        {
+            "name": "tarfin-labs/laravel-spatial",
+            "version": "v3.1.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/tarfin-labs/laravel-spatial.git",
+                "reference": "a6a45de3afc12c79bf767c03aa950d316dc7d400"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/tarfin-labs/laravel-spatial/zipball/a6a45de3afc12c79bf767c03aa950d316dc7d400",
+                "reference": "a6a45de3afc12c79bf767c03aa950d316dc7d400",
+                "shasum": ""
+            },
+            "require": {
+                "illuminate/support": "^11.0|^12.0",
+                "php": "^8.2|^8.3|^8.4"
+            },
+            "require-dev": {
+                "doctrine/dbal": "^3.3",
+                "orchestra/testbench": "^9.0|^10.0",
+                "phpunit/phpunit": "^10.0|^11.0"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "aliases": {
+                        "LaravelSpatial": "TarfinLabs\\LaravelSpatial\\LaravelSpatialFacade"
+                    },
+                    "providers": [
+                        "TarfinLabs\\LaravelSpatial\\LaravelSpatialServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "TarfinLabs\\LaravelSpatial\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Turan Karatuğ",
+                    "email": "turan.karatug@tarfin.com",
+                    "role": "Developer"
+                }
+            ],
+            "description": "Laravel package to work with geospatial data types and functions.",
+            "homepage": "https://github.com/tarfin-labs/laravel-spatial",
+            "keywords": [
+                "laravel-spatial",
+                "tarfin-labs"
+            ],
+            "support": {
+                "issues": "https://github.com/tarfin-labs/laravel-spatial/issues",
+                "source": "https://github.com/tarfin-labs/laravel-spatial/tree/v3.1.1"
+            },
+            "time": "2025-06-12T08:45:58+00:00"
         },
         {
             "name": "tijsverkoyen/css-to-inline-styles",
