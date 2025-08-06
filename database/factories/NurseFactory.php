@@ -25,7 +25,7 @@ class NurseFactory extends Factory
             'full_name' => $this->faker->name,
             'address' => $this->faker->address,
             'graduation_type' => $this->faker->randomElement(['معهد', 'مدرسة', 'جامعة', 'ماجستير', 'دكتوراه']),
-            'location' => new Point(lat: $this->faker->latitude,lng: $this->faker->longitude,srid: 4326 ),
+            'location' => new Point(lat: $this->faker->latitude(),lng: $this->faker->longitude(),srid: 4326 ),
             'age' => $this->faker->numberBetween(25, 65),
             'gender' => $this->faker->randomElement(['male', 'female']),
             'profile_description' => $this->faker->sentence,
