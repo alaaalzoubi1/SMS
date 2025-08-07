@@ -136,7 +136,7 @@ class NurseController extends Controller
     {
         $latitude = $request->input('latitude');
         $longitude = $request->input('longitude');
-        $radius = 5000; // Start with 1 km
+        $radius = 50000000; // Start with 1 km
 
         $point = new Point($longitude,$latitude,srid: 4326);
 
