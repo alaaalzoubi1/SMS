@@ -23,6 +23,7 @@ class NurseFactory extends Factory
         return [
             'account_id' => Account::factory(),
             'full_name' => $this->faker->name,
+            'is_active'=> $this->faker->boolean ,
             'address' => $this->faker->address,
             'graduation_type' => $this->faker->randomElement(['معهد', 'مدرسة', 'جامعة', 'ماجستير', 'دكتوراه']),
             'location' => new Point($this->faker->numberBetween(-180,180),$this->faker->numberBetween(-90,90),4326 ),

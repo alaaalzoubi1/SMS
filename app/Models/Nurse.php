@@ -58,4 +58,8 @@ class Nurse extends Model
             )
         ) AS distance", [$latitude, $longitude, $latitude]);
     }
+    public function scopeActive($query)
+    {
+        return $query->where('is_active',true);
+    }
 }

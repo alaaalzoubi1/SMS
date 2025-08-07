@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use TarfinLabs\LaravelSpatial\Types\Point;
 use Tymon\JWTAuth\Facades\JWTAuth;
 
 class NurseAuthController extends Controller
@@ -45,8 +46,7 @@ class NurseAuthController extends Controller
                 'full_name'      => $validated['full_name'],  // Name is in Nurse table
                 'address'        => $validated['address'],
                 'graduation_type'=> $validated['graduation_type'],
-                'longitude'      => $validated['longitude'],
-                'latitude'       => $validated['latitude'],
+                'location'=> new Point($validated['longitude'],$validated['latitude'],srid: 4326),
                 'age'            => $validated['age'],
                 'gender'         => $validated['gender'],
                 'profile_description' => $validated['profile_description'] ?? null,
@@ -222,13 +222,11 @@ class NurseAuthController extends Controller
             $nurse->graduation_type = $validated['graduation_type'];
         }
 
-        if (isset($validated['longitude'])) {
-            $nurse->longitude = $validated['longitude'];
+        if (isset($validated['longitude']) && isset($validated['latitude'])) {
+            $nurse->location = new Point($validated['longitude'],$validated['latitude'],srid: 4326);
         }
 
-        if (isset($validated['latitude'])) {
-            $nurse->latitude = $validated['latitude'];
-        }
+
 
         if (isset($validated['age'])) {
             $nurse->age = $validated['age'];

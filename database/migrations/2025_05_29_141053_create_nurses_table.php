@@ -16,6 +16,7 @@ return new class extends Migration
         Schema::create('nurses', function (Blueprint $table) {
             $table->id();
             $table->foreignId('account_id')->constrained('accounts');
+            $table->boolean('is_active')->default(true)->index();
             $table->string('full_name');
             $table->string('address')->nullable();
             $table->enum('graduation_type',['معهد', 'مدرسة', 'جامعة', 'ماجستير' ,'دكتوراه'])->index();
