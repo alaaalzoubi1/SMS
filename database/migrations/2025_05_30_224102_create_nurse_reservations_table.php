@@ -40,8 +40,8 @@ return new class extends Migration
             $table->timestamps();
         });
         Schema::table('nurses', function (Blueprint $table) {
-            DB::statement("UPDATE `nurses` SET `location` = ST_GeomFromText('POINT(0 0)', 4326);");
-            DB::statement("ALTER TABLE `nurses` CHANGE `location` `location` POINT NOT NULL;");
+            DB::statement("UPDATE `nurse_reservations` SET `location` = ST_GeomFromText('POINT(0 0)', 4326);");
+            DB::statement("ALTER TABLE `nurse_reservations` CHANGE `location` `location` POINT NOT NULL;");
             $table->spatialIndex('location');
         });
     }
