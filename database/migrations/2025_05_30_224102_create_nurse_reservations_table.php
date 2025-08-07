@@ -39,7 +39,7 @@ return new class extends Migration
             $table->softDeletes();
             $table->timestamps();
         });
-        Schema::table('nurses', function (Blueprint $table) {
+        Schema::table('nurse_reservations', function (Blueprint $table) {
             DB::statement("UPDATE `nurse_reservations` SET `location` = ST_GeomFromText('POINT(0 0)', 4326);");
             DB::statement("ALTER TABLE `nurse_reservations` CHANGE `location` `location` POINT NOT NULL;");
             $table->spatialIndex('location');
