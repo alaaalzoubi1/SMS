@@ -75,7 +75,7 @@ class NurseController extends Controller
         $query = Nurse::query()
             ->with(['services.subservices']) // Eager load services and subservices
             ->Active()
-            ->select('id', 'full_name', 'address', 'graduation_type', 'age', 'gender', 'profile_description');
+            ->select('id', 'full_name', 'address', 'graduation_type', 'age', 'gender', 'profile_description','location');
 
         // Apply filters if present
         if ($request->filled('gender')) {
