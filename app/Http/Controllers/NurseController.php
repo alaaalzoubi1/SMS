@@ -138,7 +138,7 @@ class NurseController extends Controller
         $longitude = $request->input('longitude');
         $radius = 50000000; // Start with 1 km
 
-        $point = new Point($longitude,$latitude,srid: 4326);
+        $point = new Point(lat: $latitude, lng: $longitude, srid: 4326);
 
         $nurses = Nurse::Active()
             ->withinDistanceTo('location', $point, $radius)
