@@ -46,7 +46,7 @@ class NurseAuthController extends Controller
                 'full_name'      => $validated['full_name'],  // Name is in Nurse table
                 'address'        => $validated['address'],
                 'graduation_type'=> $validated['graduation_type'],
-                'location'=> new Point($validated['longitude'],$validated['latitude'],srid: 4326),
+                'location'=> new Point(lat: $validated['latitude'], lng: $validated['longitude'], srid: 4326),
                 'age'            => $validated['age'],
                 'gender'         => $validated['gender'],
                 'profile_description' => $validated['profile_description'] ?? null,
@@ -223,7 +223,7 @@ class NurseAuthController extends Controller
         }
 
         if (isset($validated['longitude']) && isset($validated['latitude'])) {
-            $nurse->location = new Point($validated['longitude'],$validated['latitude'],srid: 4326);
+            $nurse->location = new Point(lat: $validated['latitude'], lng: $validated['longitude'], srid: 4326);
         }
 
 

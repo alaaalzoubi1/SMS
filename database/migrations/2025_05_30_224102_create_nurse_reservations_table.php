@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -25,8 +26,7 @@ return new class extends Migration
 
             $table->enum('reservation_type', ['direct', 'manual']);
 
-            $table->decimal('location_lat', 10, 7)->nullable();
-            $table->decimal('location_lng', 10, 7)->nullable();
+            $table->geography('location', subtype: 'point')->nullable();
 
             $table->enum('status', ['pending', 'accepted', 'rejected', 'completed'])->default('pending');
             $table->text('note')->nullable();
@@ -39,7 +39,11 @@ return new class extends Migration
             $table->softDeletes();
             $table->timestamps();
         });
-
+        Schema::table('nurses', function (Blueprint $table) {
+            DB::statement("UPDATE `nurses` SET `location` = ST_GeomFromText('POINT(0 0)', 4326);");
+            DB::statement("ALTER TABLE `nurses` CHANGE `location` `location` POINT NOT NULL;");
+            $table->spatialIndex('location');
+        });
     }
 
     /**
