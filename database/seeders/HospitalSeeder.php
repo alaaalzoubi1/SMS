@@ -13,9 +13,18 @@ class HospitalSeeder extends Seeder
      */
     public function run(): void
     {
-        Hospital::create([
-            'account_id' => 4,
-            'address' => 'alhamdaniah',
-        ]);
+        // Using factories to create 10 hospitals with related services and work schedules
+        Hospital::factory()->count(10)->create()->each(function ($hospital) {
+            // Create hospital services for each hospital
+            \App\Models\HospitalService::factory()->count(5)->create([
+                'hospital_id' => $hospital->id,
+            ]);
+
+            // Create hospital work schedules for each hospital
+            \App\Models\HospitalWorkSchedule::factory()->count(7)->create([
+                'hospital_id' => $hospital->id,
+            ]);
+        });
+
     }
 }

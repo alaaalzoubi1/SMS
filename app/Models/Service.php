@@ -18,5 +18,11 @@ class Service extends Model
     {
         return $this->hasMany(HospitalService::class);
     }
+    public function hospitals()
+    {
+        return $this->belongsToMany(Hospital::class, 'hospital_services', 'service_id', 'hospital_id')
+            ->withPivot('price', 'capacity') // To access the price and capacity from the pivot table
+            ->whereNotNull('hospital_services.price'); // Only include hospitals where the price is not null
+    }
 
 }

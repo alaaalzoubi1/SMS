@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use TarfinLabs\LaravelSpatial\Casts\LocationCast;
 
 class NurseReservation extends Model
 {
@@ -17,14 +18,15 @@ class NurseReservation extends Model
         'nurse_id',
         'nurse_service_id',
         'reservation_type',
-        'location_lat',
-        'location_lng',
+        'location',
         'status',
         'note',
         'start_at',
         'end_at',
     ];
-
+    protected  $casts = [
+        'location' => LocationCast::class
+    ];
     public function user():BelongsTo
     {
         return $this->belongsTo(User::class);
@@ -40,9 +42,9 @@ class NurseReservation extends Model
         return $this->belongsTo(NurseService::class, 'nurse_service_id');
     }
 
-    public function subservices(): BelongsToMany
+    public function subserviceReservations(): BelongsToMany
     {
-        return $this->belongsToMany(NurseSubservice::class, 'nurse_subservices_nurse_reservations', 'nurse_reservation_id', 'subservice_id');
+        return $this->belongsToMany(NurseSubservice::class, 'nurse_subservices_reservations', 'nurse_reservation_id', 'subservice_id');
     }
 
 }

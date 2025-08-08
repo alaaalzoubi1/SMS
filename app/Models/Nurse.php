@@ -62,4 +62,10 @@ class Nurse extends Model
     {
         return $query->where('is_active',true);
     }
+    public function scopeApproved($query)
+    {
+        return $query->whereHas('account', function ($q) {
+            $q->where('is_approved', 'approved');
+        });
+    }
 }

@@ -17,7 +17,7 @@ class HospitalService extends Model
         'capacity',
     ];
 
-    public function hospital()
+    public function hospital(): BelongsTo
     {
         return $this->belongsTo(Hospital::class);
     }

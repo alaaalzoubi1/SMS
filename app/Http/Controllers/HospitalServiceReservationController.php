@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use App\Models\Hospital;
 use App\Models\HospitalServiceReservation;
@@ -186,5 +187,70 @@ class HospitalServiceReservationController extends Controller
         Log::info('Hospital Trashed Reservations fetched:', ['hospital_id' => $hospital->id, 'reservations_count' => $reservations->count()]);
 
         return response()->json($reservations);
+    }
+
+    public function makeReservation(Request $request)
+    {
+        // Validate the incoming data
+        $validated = $request->validate([
+            'hospital_service_id' => 'required|exists:hospital_services,id',
+            'hospital_id' => 'required|exists:hospitals,id',
+            'start_date' => 'required|date',
+            'end_date' => 'required|date|after_or_equal:start_date',
+        ]);
+
+        // Fetch the hospital service and its capacity
+        $hospitalService = HospitalService::find($validated['hospital_service_id']);
+
+        // Check if the hospital service exists
+        if (!$hospitalService) {
+            return response()->json(['message' => 'Hospital service not found'], 404);
+        }
+
+        // Start database transaction
+        DB::beginTransaction();
+
+        try {
+            // Fetch the number of overlapping reservations for this service and the given dates
+            $existingReservationsCount = HospitalServiceReservation::where('hospital_service_id', $validated['hospital_service_id'])
+                ->where('hospital_id', $validated['hospital_id'])
+                ->where(function (Builder $query) use ($validated) {
+                    $query->whereBetween('start_date', [$validated['start_date'], $validated['end_date']])
+                        ->orWhereBetween('end_date', [$validated['start_date'], $validated['end_date']])
+                        ->orWhere(function ($query) use ($validated) {
+                            $query->where('start_date', '<=', $validated['start_date'])
+                                ->where('end_date', '>=', $validated['end_date']);
+                        });
+                })
+                ->count(); // Count reservations in a single query
+
+            // If the existing reservations exceed the capacity, return an error message
+            if ($existingReservationsCount >= $hospitalService->capacity) {
+                DB::rollBack();
+                return response()->json(['message' => 'The service is fully booked for the selected dates.'], 400);
+            }
+
+            // Proceed with making the reservation
+            $reservation = HospitalServiceReservation::create([
+                'user_id' => auth()->user()->user->id,
+                'hospital_service_id' => $validated['hospital_service_id'],
+                'hospital_id' => $validated['hospital_id'],
+                'start_date' => $validated['start_date'],
+                'end_date' => $validated['end_date'],
+                'status' => 'pending',
+            ]);
+
+            // Commit the transaction
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Reservation successful.',
+                'reservation' => $reservation,
+            ], 201);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'An error occurred while making the reservation.'], 500);
+        }
     }
 }

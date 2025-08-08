@@ -25,3 +25,4 @@ npm-debug.log
 Thumbs.db
 yarn-error.log
 storage/firebase/firebase_credentials.json
+config/laravel-spatial.php

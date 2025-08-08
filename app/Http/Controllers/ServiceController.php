@@ -165,4 +165,43 @@ class ServiceController extends Controller
             return response()->json(['message' => 'Failed to restore service', 'error' => $e->getMessage()], 500);
         }
     }
+    public function getServicesWithHospitals(Request $request)
+    {
+        // Validate input if needed (e.g., filter by service name)
+        $validated = $request->validate([
+            'service_name' => 'nullable|string|max:255',
+        ]);
+
+        // Build the query for fetching services with associated hospitals
+        $query = Service::with('hospitals');
+
+        // If service_name filter is provided, apply it
+        if (isset($validated['service_name'])) {
+            $query->where('service_name', 'like', '%' . $validated['service_name'] . '%');
+        }
+
+        // Fetch the results
+        $services = $query->select('services.id', 'services.service_name')
+            ->paginate(10); // Paginate if needed
+
+        // Format the response to include hospitals for each service
+        $formattedServices = $services->map(function ($service) {
+            return [
+                'id' => $service->id,
+                'service_name' => $service->service_name,
+                'hospitals' => $service->hospitals->map(function ($hospital) {
+                    return [
+                        'id' => $hospital->id,
+                        'full_name' => $hospital->full_name,
+                        'address' => $hospital->address,
+                        'price' => $hospital->pivot->price,  // Access price from pivot
+                        'capacity' => $hospital->pivot->capacity, // Access capacity from pivot
+                    ];
+                }),
+            ];
+        });
+
+        // Return the paginated response with formatted data
+        return response()->json($formattedServices);
+    }
 }

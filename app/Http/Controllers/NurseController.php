@@ -74,6 +74,7 @@ class NurseController extends Controller
         // Start building the query for nurses
         $query = Nurse::query()
             ->with(['services.subservices']) // Eager load services and subservices
+            ->Approved()
             ->Active();
 //            ->select('id', 'full_name', 'address','location', 'graduation_type', 'age', 'gender', 'profile_description');
 
@@ -136,11 +137,12 @@ class NurseController extends Controller
     {
         $latitude = $request->input('latitude');
         $longitude = $request->input('longitude');
-        $radius = 50000000; // Start with 1 km
+        $radius = 5000; // Start with 1 km
 
         $point = new Point(lat: $latitude, lng: $longitude, srid: 4326);
 
         $nurses = Nurse::Active()
+            ->Approvved()
             ->withinDistanceTo('location', $point, $radius)
             ->selectDistanceTo('location', $point)
             ->orderByDistanceTo('location', $point, 'asc')

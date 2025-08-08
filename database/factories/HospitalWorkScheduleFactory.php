@@ -1,23 +1,21 @@
 <?php
+// database/factories/HospitalWorkScheduleFactory.php
 
 namespace Database\Factories;
 
+use App\Models\HospitalWorkSchedule;
+use App\Models\Hospital;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
-/**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\HospitalWorkSchedule>
- */
 class HospitalWorkScheduleFactory extends Factory
 {
-    /**
-     * Define the model's default state.
-     *
-     * @return array<string, mixed>
-     */
-    public function definition(): array
+    protected $model = HospitalWorkSchedule::class;
+
+    public function definition()
     {
         return [
-            //
+            'hospital_id' => Hospital::factory(),
+            'day_of_week' => $this->faker->randomElement(['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']),
         ];
     }
 }

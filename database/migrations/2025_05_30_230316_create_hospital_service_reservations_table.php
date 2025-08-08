@@ -19,9 +19,13 @@ class CreateHospitalServiceReservationsTable extends Migration
 
             $table->enum('status', ['pending', 'confirmed', 'cancelled'])->default('pending');
 
-            $table->index('user_id');
-            $table->index('hospital_service_id');
-            $table->index('hospital_id');
+            // Indexes for date columns (for range queries)
+            $table->index('status');
+            $table->index('start_date');  // For querying by start date
+            $table->index('end_date');  // For querying by end date
+
+            // Composite index for checking overlapping reservations by service and hospital
+            $table->index(['hospital_service_id', 'hospital_id', 'start_date', 'end_date']);
 
             $table->timestamps();
             $table->softDeletes();

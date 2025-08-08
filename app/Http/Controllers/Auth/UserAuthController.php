@@ -44,6 +44,7 @@ class UserAuthController extends Controller
             return response()->json([
                 'message' => 'User registered successfully',
                 'token' => $token,
+                'role' => $account->getRoleNames()->first()
             ], 201);
 
         } catch (\Exception $e) {

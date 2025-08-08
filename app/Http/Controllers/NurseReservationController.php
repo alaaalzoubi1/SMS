@@ -6,9 +6,13 @@ use App\Models\Nurse;
 use App\Models\NurseReservation;
 use App\Http\Requests\StoreNurseReservationRequest;
 use App\Http\Requests\UpdateNurseReservationRequest;
+use App\Models\NurseSubserviceReservation;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use App\Http\Requests\NurseReservationRequest;
+use Illuminate\Support\Facades\DB;
+use TarfinLabs\LaravelSpatial\Types\Point;
 
 class NurseReservationController extends Controller
 {
@@ -73,10 +77,66 @@ class NurseReservationController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(StoreNurseReservationRequest $request)
+
+
+    public function store(NurseReservationRequest $request)
     {
-        //
+        DB::beginTransaction();
+
+        try {
+            // Create the main reservation
+            $reservation = new NurseReservation();
+            $reservation->user_id = auth()->user()->user->id;
+            $reservation->nurse_id = $request->nurse_id;
+            $reservation->nurse_service_id = $request->nurse_service_id;
+            $reservation->reservation_type = $request->reservation_type;
+            $reservation->note = $request->note;
+
+            if ($request->filled('start_at')) {
+                $reservation->start_at = $request->start_at;
+            }
+
+            if ($request->filled('end_at')) {
+                $reservation->end_at = $request->end_at;
+            }
+
+            if ($request->filled('lat') && $request->filled('lng')) {
+                $reservation->location = new Point(lat: $request->lat,lng: $request->lng,srid: 4326);
+            }
+            $reservation->status = "pending";
+            $reservation->save();
+
+            // Attach subservices if provided
+            if ($request->filled('subservices')) {
+                $subserviceData = collect($request->subservices)->map(function ($subId) use ($reservation) {
+                    return [
+                        'nurse_reservation_id' => $reservation->id,
+                        'subservice_id' => $subId,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ];
+                })->toArray();
+
+                DB::table('nurse_subservices_reservations')->insert($subserviceData);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Reservation created successfully.',
+                'data' => $reservation->load('nurseService', 'subserviceReservations','nurse.account'),
+            ], 201);
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'message' => 'Failed to create reservation.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
+
 
     /**
      * Display the specified resource.

@@ -112,6 +112,9 @@ class NurseServiceController extends Controller
         if ($request->filled('price')) {
             $query->where('price', '<=', $request->price);
         }
+        $query->whereHas('nurse',function ($q){
+           $q->Active()->Approved();
+        });
 
         $services = $query->select('id', 'name', 'price', 'nurse_id')->paginate(10);
 
