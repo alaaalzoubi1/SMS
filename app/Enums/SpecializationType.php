@@ -5,6 +5,7 @@ namespace App\Enums;
 enum SpecializationType: int
 {
 // تخصصات طبية غير جراحية
+//TODO make a table in the database
     case InternalMedicine             = 1;
     case Cardiology                   = 2;
     case RespiratoryMedicine         = 3;

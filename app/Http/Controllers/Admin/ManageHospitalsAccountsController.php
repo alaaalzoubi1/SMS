@@ -15,27 +15,32 @@ class ManageHospitalsAccountsController extends Controller
 {
     public function createHospitalAccount(Request $request): JsonResponse
     {
-//        try {
+        //TODO : a unique email and phone problem
+        try {
             DB::beginTransaction();
+
             $validator = Validator::make($request->all(), [
                 'hospital_name' => 'required|string|max:255|unique:hospitals,full_name', // تحقق من أن الاسم غير موجود مسبقًا
             ]);
+
             if ($validator->fails()) {
                 return response()->json([
                     'message' => 'Validation failed',
                     'errors' => $validator->errors()
                 ], 422);
             }
+
             // توليد UUID للمستشفى
             $uniqueCode = Str::uuid(); // توليد UUID فريد
+            $temporaryEmail = 'hospital_' . $uniqueCode . '@example.com'; // توليد بريد إلكتروني مؤقت
+            $temporaryPhone = '000-' . $uniqueCode->toString(); // توليد رقم هاتف مؤقت
 
             // إنشاء حساب للمستشفى
             $account = Account::create([
-                'email' => '', // يتم تعيينه لاحقًا
-                'password' => '', // يتم تعيينه لاحقًا
-                'phone_number' => '', // سيتم تعيينه لاحقًا
+                'email' => $temporaryEmail, // تعيين البريد الإلكتروني المؤقت
+                'password' => '', // سيتم تعيينه لاحقًا
+                'phone_number' => $temporaryPhone, // تعيين رقم الهاتف المؤقت
                 'fcm_token' => null, // يمكن ملؤه لاحقًا
-
             ]);
 
             // إنشاء المستشفى مع الكود الفريد
@@ -54,9 +59,10 @@ class ManageHospitalsAccountsController extends Controller
                 'password' => $uniqueCode
             ], 201);
 
-//        } catch (\Exception $e) {
-//            DB::rollBack();
-//            return response()->json(['message' => 'Failed to create hospital. Please try again.'], 500);
-//        }
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Failed to create hospital. Please try again.'], 500);
+        }
     }
+
 }

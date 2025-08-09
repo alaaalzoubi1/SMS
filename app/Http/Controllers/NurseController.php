@@ -155,5 +155,5 @@ class NurseController extends Controller
         ]);
     }
 
-
+//TODO make api is_active
 }
