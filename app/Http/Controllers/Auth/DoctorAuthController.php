@@ -47,7 +47,7 @@ class DoctorAuthController extends Controller
             Doctor::create([
                 'account_id'         => $account->id,
                 'full_name'          => $validated['full_name'],
-                'specialization_type'=> $validated['specialization'],
+                'specialization_id'=> $validated['specialization_id'],
                 'address'            => $validated['address'],
                 'age'                => $validated['age'],
                 'gender'             => $validated['gender'],
@@ -72,22 +72,7 @@ class DoctorAuthController extends Controller
         }
     }
 
-    /**
-     * @throws \Exception
-     */
-    public function specializations(): JsonResponse
-    {
-        $specializations = array_map(function (SpecializationType $spec) {
-            return [
-                'label' => $spec->label(),
-                'value' => $spec->value(),
-            ];
-        }, SpecializationType::cases());
 
-        return response()->json([
-            'specializations' => $specializations,
-        ]);
-    }
 
 
     public function verifyCode(Request $request): JsonResponse
@@ -146,7 +131,7 @@ class DoctorAuthController extends Controller
         $user = auth()->user();
         $doctor = $user->doctor;
         return response()->json(
-            [$user , $doctor]
+            [$user , $doctor , $doctor->specialization]
         );
     }
     public function requestLogin(Request $request): JsonResponse
@@ -226,12 +211,8 @@ class DoctorAuthController extends Controller
         }
 
         // معالجة التخصص (enum) إذا وُجد
-        if (array_key_exists('specialization', $validated)) {
-            $enum = SpecializationType::tryFromArabic($validated['specialization']);
-            if (!$enum) {
-                return response()->json(['message' => 'التخصص غير صالح.'], 422);
-            }
-            $doctorData['specialization_type'] = $enum->value;
+        if (array_key_exists('specialization_id', $validated)) {
+            $doctorData['specialization_id'] = $validated['specialization_id'];
         }
 
         // تنفيذ التحديثات

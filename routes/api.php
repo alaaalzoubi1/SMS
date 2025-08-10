@@ -5,6 +5,7 @@ use App\Http\Controllers\Auth\DoctorAuthController;
 use App\Http\Controllers\Auth\HospitalAuthController;
 use App\Http\Controllers\Auth\NurseAuthController;
 use App\Http\Controllers\Auth\UserAuthController;
+use App\Http\Controllers\SpecializationController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
@@ -13,17 +14,17 @@ use App\Http\Controllers\HospitalController;
 
 use App\Http\Controllers\Auth\ForgotPasswordController;
 
-Route::get('/clear-config', function () {
-    Artisan::call('config:clear');
-    Artisan::call('cache:clear');
-    return 'Cleared!';
-});
-Route::get('/migrate',function (){
-    Artisan::call('migrate:fresh');
-    Artisan::call('db:seed --class=RolesSeeder');
-    Artisan::call('db:seed --class=AdminAccountSeeder');
-    return 'Migrated';
-});
+//Route::get('/clear-config', function () {
+//    Artisan::call('config:clear');
+//    Artisan::call('cache:clear');
+//    return 'Cleared!';
+//});
+//Route::get('/migrate',function (){
+//    Artisan::call('migrate:fresh');
+//    Artisan::call('db:seed --class=RolesSeeder');
+//    Artisan::call('db:seed --class=AdminAccountSeeder');
+//    return 'Migrated';
+//});
 // Throttled routes (limit: 1 request per minute)
 Route::middleware('throttle:100,1')->group(function () {
 
@@ -64,8 +65,8 @@ Route::post('/password/reset', [ForgotPasswordController::class, 'resetPassword'
 
 Route::post('admin/login', [AdminAuthController::class, 'login']);
 
-Route::get('doctor/specializations',[DoctorAuthController::class,'specializations']);
-
+Route::get('doctor/specializations', [SpecializationController::class, 'index']);
+Route::delete('account',[\App\Http\Controllers\AccountController::class,'destroy']);
 
 
 

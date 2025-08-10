@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Doctor extends Model
@@ -20,7 +21,7 @@ class Doctor extends Model
         'address',
         'age',
         'gender',
-        'specialization_type',
+        'specialization_id',
         'license_image_path'
     ];
     protected $casts = [
@@ -43,5 +44,15 @@ class Doctor extends Model
     public function reservations():HasMany
     {
         return $this->hasMany(DoctorReservation::class);
+    }
+    public function specialization():BelongsTo
+    {
+        return $this->BelongsTo(Specialization::class);
+    }
+    public function scopeApproved($query)
+    {
+        return $query->whereHas('account', function ($q) {
+            $q->where('is_approved', 'approved');
+        });
     }
 }

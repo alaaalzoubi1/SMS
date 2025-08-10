@@ -13,10 +13,10 @@ class DoctorController extends Controller
 {
     public function listForUsers(FilterDoctorsRequest $request): JsonResponse
     {
-        $query = Doctor::query()->with('account:id,phone_number');
+        $query = Doctor::query()->Approved()->with('specialization:id,name_en,name_ar,image' , 'account:id,phone_number');
 
-        if ($request->filled('specialization_type')) {
-            $query->where('specialization_type', $request->specialization_type);
+        if ($request->filled('specialization_id')) {
+            $query->where('specialization_id', $request->specialization_id);
         }
 
         if ($request->filled('gender')) {
@@ -31,24 +31,17 @@ class DoctorController extends Controller
             $query->where('full_name', 'like', '%' . $request->full_name . '%');
         }
 
-        $doctors = $query->select('id', 'full_name', 'address', 'age', 'gender', 'specialization_type', 'profile_description', 'account_id')
+        $doctors = $query->select('id', 'full_name', 'address', 'age', 'gender', 'specialization_id', 'profile_description', 'account_id')
             ->paginate(10);
 
         // تعديل specialization_type ليصبح الاسم العربي
         $doctors->getCollection()->transform(function ($doctor) {
-            $doctor->specialization_name = is_int($doctor->specialization_type)
-                ? \App\Enums\SpecializationType::tryFrom($doctor->specialization_type)?->label()
-                : ($doctor->specialization_type instanceof \App\Enums\SpecializationType
-                    ? $doctor->specialization_type->label()
-                    : null);
-
-
 
             // إظهار رقم الهاتف من العلاقة
             $doctor->phone_number = $doctor->account->phone_number ?? null;
 
             // إخفاء القيم غير الضرورية
-            unset($doctor->specialization_type, $doctor->account);
+            unset($doctor->account);
 
             return $doctor;
         });

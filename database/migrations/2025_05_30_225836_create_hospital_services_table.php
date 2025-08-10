@@ -26,7 +26,7 @@ return new class extends Migration
             $table->index('hospital_id');
             $table->index('service_id');
 
-
+            $table->softDeletes();
             $table->timestamps();
         });
 

@@ -25,7 +25,6 @@ class CreateHospitalServiceReservationsTable extends Migration
             $table->index('end_date');  // For querying by end date
 
             // Composite index for checking overlapping reservations by service and hospital
-            $table->index(['hospital_service_id', 'hospital_id', 'start_date', 'end_date']);
 
             $table->timestamps();
             $table->softDeletes();

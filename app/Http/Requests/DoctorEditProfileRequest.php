@@ -18,7 +18,7 @@ class DoctorEditProfileRequest extends FormRequest
             'address'      => 'sometimes|string|max:255',
             'age'          => 'sometimes|integer|min:21|max:99',
             'gender'       => 'sometimes|in:male,female',
-            'specialization' => 'sometimes|string|max:255',
+            'specialization_id' => 'sometimes|integer|exists:specializations,id',
             'profile_description' => 'sometimes|string|max:1000',
         ];
     }

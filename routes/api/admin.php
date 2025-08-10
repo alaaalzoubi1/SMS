@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\ManageHospitalsAccountsController;
 use App\Http\Controllers\Auth\AdminAuthController;
 use App\Http\Controllers\ServiceController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\SpecializationController;
 
 // the URL is api/admin
 
@@ -25,3 +26,10 @@ Route::prefix('service')->group(function () {
     Route::get('/trashed', [ServiceController::class, 'trashed'])->name('service.trashed');
 });
 
+Route::prefix('specializations')->group(function () {
+    Route::get('', [SpecializationController::class, 'index']);
+    Route::get('/{id}', [SpecializationController::class, 'show']);
+    Route::post('', [SpecializationController::class, 'create']);
+    Route::post('/{id}', [SpecializationController::class, 'update']);
+    Route::delete('/{id}', [SpecializationController::class, 'destroy']);
+});

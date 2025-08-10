@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use App\Enums\SpecializationType;
 
@@ -13,21 +14,7 @@ class DoctorRegisterRequest extends FormRequest
         return true;
     }
 
-    protected function prepareForValidation()
-    {
-        if ($this->has('specialization')) {
-            $enumCase = SpecializationType::tryFromArabic($this->input('specialization'));
-            if ($enumCase === null) {
-                throw ValidationException::withMessages([
-                    'specialization' => 'اختصاص الطبيب غير صالح.',
-                ]);
-            }
 
-            $this->merge([
-                'specialization' => $enumCase->value(),
-            ]);
-        }
-    }
 
     public function rules(): array
     {
@@ -39,7 +26,11 @@ class DoctorRegisterRequest extends FormRequest
             'phone_number' => 'required|string|unique:accounts,phone_number',
 
             // بيانات الطبيب
-            'specialization' => 'required|integer|in:' . implode(',', array_map(fn($e) => $e->value(), SpecializationType::cases())),
+            'specialization_id' => [
+                'required',
+                'integer',
+                Rule::exists('specializations', 'id')->whereNull('deleted_at'),  // Exclude soft-deleted records
+            ],
             'address'        => 'required|string|max:255',
             'age'            => 'required|integer|min:21|max:99',
             'gender'         => 'required|in:male,female',
@@ -58,9 +49,11 @@ class DoctorRegisterRequest extends FormRequest
             'phone_number.unique'=> 'رقم الهاتف مستخدم بالفعل.',
             'gender.in'          => 'يجب أن يكون الجنس "male" أو "female".',
             'specialization.in'  => 'اختصاص الطبيب غير صالح.',
+            'specialization_id.exists' => 'الاختصاص المختار غير موجود أو تم حذفه.',
             'license_image.image'=> 'يجب أن تكون صورة صالحة.',
-            'license_image.mimes'=> 'يجب أن يكون امتداد الصورة pdf أو  jpeg أو png أو jpg.',
+            'license_image.mimes'=> 'يجب أن يكون امتداد الصورة pdf أو jpeg أو png أو jpg.',
             'license_image.max'  => 'حجم الصورة لا يجب أن يتجاوز 2 ميجابايت.',
         ];
+
     }
 }

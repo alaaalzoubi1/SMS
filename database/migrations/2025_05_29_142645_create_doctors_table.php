@@ -16,7 +16,7 @@ class CreateDoctorsTable extends Migration
             $table->string('address');
             $table->integer('age');
             $table->enum('gender', ['male', 'female']);
-            $table->unsignedTinyInteger('specialization_type')->nullable()->index();
+            $table->foreignId('specialization_id')->constrained('specializations');
             $table->string('license_image_path')->nullable();
             $table->timestamps();
             $table->softDeletes();

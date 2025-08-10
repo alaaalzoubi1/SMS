@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\NurseAuthController;
+use App\Http\Controllers\NurseController;
 use App\Http\Controllers\NurseReservationController;
 use App\Http\Controllers\NurseServiceController;
 use App\Http\Controllers\NurseSubsercviceController;
@@ -12,7 +13,7 @@ use Illuminate\Support\Facades\Route;
 Route::post('logout', [NurseAuthController::class, 'logout']);
 Route::get('me', [NurseAuthController::class, 'me']);
 Route::post('updateProfile',[NurseAuthController::class,'updateProfile']);
-
+Route::get('activate-deactivate',[NurseController::class,'activate']);
 Route::prefix('services')->group(function () {
     Route::get('/', [NurseServiceController::class, 'index']);
     Route::post('/', [NurseServiceController::class, 'store']);

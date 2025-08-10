@@ -156,4 +156,14 @@ class NurseController extends Controller
     }
 
 //TODO make api is_active
+
+    public function activate(): JsonResponse
+    {
+        $nurse = auth()->user()->nurse;
+        $nurse->is_active = !$nurse->is_active;
+        $nurse->save();
+        return response()->json([
+            'is_active' => $nurse->is_active
+        ]);
+    }
 }
