@@ -8,10 +8,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use TarfinLabs\LaravelSpatial\Casts\LocationCast;
+use TarfinLabs\LaravelSpatial\Traits\HasSpatial;
 
 class NurseReservation extends Model
 {
-    use SoftDeletes , HasFactory;
+    use SoftDeletes , HasFactory , HasSpatial;
 
     protected $fillable = [
         'user_id',

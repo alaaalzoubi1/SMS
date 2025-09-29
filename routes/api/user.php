@@ -43,3 +43,4 @@ Route::prefix('hospitals')->group(function (){
     Route::post('/make-reservation', [HospitalServiceReservationController::class, 'makeReservation']);
 
 });
+Route::get('my-reservations',[\App\Http\Controllers\UserReservationsController::class,'myReservations']);

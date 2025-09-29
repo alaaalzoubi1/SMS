@@ -73,6 +73,7 @@ class NurseAuthController extends Controller
             // Return error response
             return response()->json([
                 'message' => 'Registration failed. Please try again later.',
+
             ], 500);
         }
     }

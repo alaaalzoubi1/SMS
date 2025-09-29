@@ -94,6 +94,15 @@ class NurseController extends Controller
         if ($request->filled('full_name')) {
             $query->where('full_name', 'like', '%' . $request->full_name . '%');
         }
+        if ($request->filled('latitude') && $request->filled('longitude'))
+        {
+            $radius = 5000;
+            $point = new Point(lat: $request->latitude, lng: $request->longitude, srid: 4326);
+            $query->withinDistanceTo('location', $point, $radius)
+                ->selectDistanceTo('location', $point)
+                ->orderByDistanceTo('location', $point, 'asc')
+                ->limit(10);
+        }
 
         // Get the nurses
         $nurses = $query->paginate(10); // Adjust pagination as needed
@@ -133,7 +142,7 @@ class NurseController extends Controller
         // Return the paginated nurses
         return response()->json($nurses);
     }
-    public function getNearestNurses(Request $request)
+    public function getNearestNurses(Request $request): JsonResponse
     {
         $latitude = $request->input('latitude');
         $longitude = $request->input('longitude');
@@ -142,7 +151,7 @@ class NurseController extends Controller
         $point = new Point(lat: $latitude, lng: $longitude, srid: 4326);
 
         $nurses = Nurse::Active()
-            ->Approvved()
+            ->Approved()
             ->withinDistanceTo('location', $point, $radius)
             ->selectDistanceTo('location', $point)
             ->orderByDistanceTo('location', $point, 'asc')

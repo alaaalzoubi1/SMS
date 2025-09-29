@@ -64,5 +64,9 @@ class ManageHospitalsAccountsController extends Controller
             return response()->json(['message' => 'Failed to create hospital. Please try again.'], 500);
         }
     }
+    #todo 1- get all doctors(paginate , 10 per page) 2-doctor with all his information's(using doctor_id) 3-reservations with filters(using doctor_id) (filters : reservation status,start,end)
+    #todo 1- get all hospitals (paginate , 10 per page), 2-hospital with all his information's , 3-reservations with filters (using hospital_id) (filters : reservation status,start,end)
+    #todo 1- get all nurses (paginate , 10 per page), 2-nurses with all his information's (using nurse_id), 3-reservations with filters (using nurse_id) (filters : reservation status,start,end)
+    #todo 1- get all users (paginate , 10 per page), 2-users with all his information's (using nurse_id), 3-reservations with filters (using user_id) (filters : reservation status,start,end)
 
 }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\SendFirebaseNotificationJob;
 use App\Models\Nurse;
 use App\Models\NurseReservation;
 use App\Http\Requests\StoreNurseReservationRequest;
@@ -121,7 +122,20 @@ class NurseReservationController extends Controller
             }
 
             DB::commit();
+            $nurse = $reservation->nurse()->with('account')->first();
+            if ($nurse && $nurse->account && $nurse->account->fcm_token) {
+                $body = sprintf(
+                    "User %s requested %s service.",
+                    auth()->user()->name ?? "Unknown",
+                    $reservation->nurseService->name ?? "a service",
+                );
 
+                SendFirebaseNotificationJob::dispatch(
+                    $nurse->account->fcm_token,
+                    "New Reservation Request",
+                    $body
+                );
+            }
             return response()->json([
                 'message' => 'Reservation created successfully.',
                 'data' => $reservation->load('nurseService', 'subserviceReservations','nurse.account'),

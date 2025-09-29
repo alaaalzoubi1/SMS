@@ -27,6 +27,8 @@ class NurseFilterRequest extends FormRequest
             'graduation_type' => ['nullable', Rule::in(['معهد', 'مدرسة', 'جامعة', 'ماجستير', 'دكتوراه'])],
             'address' => ['nullable', 'string'],
             'full_name' => ['nullable', 'string'],
+            'lat' => ['nullable', 'numeric', 'between:-90,90'],
+            'lng' => ['nullable', 'numeric', 'between:-180,180'],
         ];
     }
 }

@@ -23,7 +23,7 @@ class DoctorFactory extends Factory
             'address' => $this->faker->address,
             'age' => $this->faker->numberBetween(25, 65),
             'gender' => $this->faker->randomElement(['male', 'female']),
-            'specialization_type' => $this->faker->randomElement(array_column(SpecializationType::cases(), 'value')),
+            'specialization_id' => 2,
             'license_image_path' => null,
         ];
     }

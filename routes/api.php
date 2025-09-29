@@ -1,5 +1,9 @@
 <?php
 
+use App\Http\Controllers\Admin\DoctorStatisticsController;
+use App\Http\Controllers\Admin\HospitalStatisticsController;
+use App\Http\Controllers\Admin\NurseStatisticsController;
+use App\Http\Controllers\Admin\UserStatisticsController;
 use App\Http\Controllers\Auth\AdminAuthController;
 use App\Http\Controllers\Auth\DoctorAuthController;
 use App\Http\Controllers\Auth\HospitalAuthController;
@@ -67,6 +71,5 @@ Route::post('admin/login', [AdminAuthController::class, 'login']);
 
 Route::get('doctor/specializations', [SpecializationController::class, 'index']);
 Route::delete('account',[\App\Http\Controllers\AccountController::class,'destroy']);
-
 
 
