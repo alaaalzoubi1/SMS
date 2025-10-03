@@ -32,7 +32,7 @@ class NurseRegisterRequest extends FormRequest
             'profile_description' => 'nullable|string|max:500', // Profile description is optional
 
             // License Image (Required)
-            'license_image' => 'required|image|mimes:jpg,jpeg,png,gif,pdf|max:2048',  // 2MB limit for license image
+            'license_image' => 'required|image|mimes:jpg,jpeg,png,gif,pdf|max:10240',  // 2MB limit for license image
         ];
     }
 
