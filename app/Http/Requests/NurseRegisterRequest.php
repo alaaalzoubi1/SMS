@@ -23,8 +23,8 @@ class NurseRegisterRequest extends FormRequest
             'full_name' => 'required|string|max:255',
             'address' => 'nullable|string|max:255', // Address is optional
             'graduation_type' => 'required|in:معهد,مدرسة,جامعة,ماجستير,دكتوراه',
-            'longitude' => 'nullable|numeric',  // Longitude can be null
-            'latitude' => 'nullable|numeric',   // Latitude can be null
+            'longitude' => 'nullable|numeric|between:-180,180',  // Longitude can be null
+            'latitude' => 'nullable|numeric|between:-90,90',   // Latitude can be null
             'age' => 'required|integer|min:21|max:99',
             'gender' => 'required|in:male,female',
 
