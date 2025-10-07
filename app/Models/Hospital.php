@@ -25,8 +25,8 @@ class Hospital extends Model
         'unique_code',
     ];
     protected $casts = [
-        'created_at' => 'datetime',
-        'updated_at' => 'datetime',
+        'created_at' => 'date',
+        'updated_at' => 'date',
     ];
 
     public function account():BelongsTo
