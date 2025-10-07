@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use App\Models\Hospital;
@@ -39,8 +40,8 @@ class HospitalServiceReservationController extends Controller
                       'service_name' => $reservation->hospitalService->service->service_name ?? 'N/A',
                       'price' => (float) $reservation->hospitalService->price,
                       'status' => $reservation->status,
-                      'start_date' => $reservation->start_date->format('Y-m-d'),
-                      'end_date' => $reservation->end_date->format('Y-m-d'),
+                      'start_date' => Carbon::parse($reservation->start_date)->format('Y-m-d'),
+                      'end_date' => Carbon::parse($reservation->end_date)->format('Y-m-d'),
                   ];
               });
         Log::info('Hospital Service Reservations fetched:', ['hospital_id' => $hospital->id, 'reservations_count' => $reservations->count()]);
