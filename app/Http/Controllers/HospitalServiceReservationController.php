@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use App\Models\Hospital;
@@ -30,7 +31,7 @@ class HospitalServiceReservationController extends Controller
         $reservations = HospitalServiceReservation::where('hospital_id', $hospital->id)
               ->with(['user', 'hospitalService.service'])
               ->orderBy('start_date', 'desc')
-              ->paigenate()
+              ->paginate()
               ->map(function($reservation) {
                   return [
                       'id' => $reservation->id,
@@ -42,7 +43,6 @@ class HospitalServiceReservationController extends Controller
                       'end_date' => $reservation->end_date->format('Y-m-d'),
                   ];
               });
-
         Log::info('Hospital Service Reservations fetched:', ['hospital_id' => $hospital->id, 'reservations_count' => $reservations->count()]);
 
         return response()->json($reservations);

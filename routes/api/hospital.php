@@ -31,7 +31,7 @@ Route::prefix('work-schedules')->controller(HospitalWorkScheduleController::clas
 
 Route::prefix('reservations')->controller(HospitalServiceReservationController::class)->group(function () {
     Route::get('/','index');
-    Route::get('/trashed', [HospitalServiceReservationController::class, 'trashed']);
+    Route::get('/trashed', 'trashed');
     Route::get('/{id}','show');
     Route::patch('/{id}/status','updateStatus');
     Route::delete('/{id}','destroy');
