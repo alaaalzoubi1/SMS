@@ -70,8 +70,8 @@ class HospitalServiceReservationController extends Controller
             'service_name' => $reservation->hospitalService->service->service_name ?? 'N/A',
             'price' => (float) $reservation->hospitalService->price,
             'status' => $reservation->status,
-            'start_date' => $reservation->start_date->format('Y-m-d'),
-            'end_date' => $reservation->end_date->format('Y-m-d'),
+            'start_date' => Carbon::parse($reservation->start_date)->format('Y-m-d'),
+            'end_date' => Carbon::parse($reservation->end_date)->format('Y-m-d'),
         ]);
     }
 
@@ -180,8 +180,8 @@ class HospitalServiceReservationController extends Controller
                     'service_name' => $reservation->hospitalService->service->service_name ?? 'N/A',
                     'price' => (float) $reservation->hospitalService->price,
                     'status' => $reservation->status,
-                    'start_date' => $reservation->start_date->format('Y-m-d'),
-                    'end_date' => $reservation->end_date->format('Y-m-d'),
+                    'start_date' => Carbon::parse($reservation->start_date)->format('Y-m-d'),
+                    'end_date' => Carbon::parse($reservation->end_date)->format('Y-m-d'),
                 ];
             });
 
