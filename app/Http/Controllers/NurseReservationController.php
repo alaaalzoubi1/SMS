@@ -25,6 +25,7 @@ class NurseReservationController extends Controller
     {
         $request->validate([
             'status' => 'nullable|in:pending,approved,rejected,completed',
+            'reservation_type' => 'nullable|in:direct,manual',
             'from' => 'nullable|date',
             'to' => 'nullable|date|after_or_equal:from',
             'per_page' => 'nullable|integer|min:1|max:100',
@@ -36,6 +37,7 @@ class NurseReservationController extends Controller
             ->when($request->status, fn($q) => $q->where('status', $request->status))
             ->when($request->from, fn($q) => $q->whereDate('start_at', '>=', $request->from))
             ->when($request->to, fn($q) => $q->whereDate('start_at', '<=', $request->to))
+            ->when($request->reservation_type,fn($q) => $q->where('reservation_type',$request->reservation_type))
             ->orderBy('start_at', 'desc')
             ->with(['user.account','nurseService', 'subserviceReservations']);
 
