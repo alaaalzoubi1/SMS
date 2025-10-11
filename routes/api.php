@@ -73,3 +73,6 @@ Route::get('doctor/specializations', [SpecializationController::class, 'index'])
 Route::delete('account',[\App\Http\Controllers\AccountController::class,'destroy']);
 
 
+use App\Http\Controllers\FirebaseTestController;
+
+Route::post('/test-fcm', [FirebaseTestController::class, 'sendTestNotification']);
