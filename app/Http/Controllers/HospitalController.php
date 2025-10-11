@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use App\Models\Hospital;
 use App\Models\Account;
@@ -87,7 +88,7 @@ class HospitalController extends Controller
     }
     // Hospital Model
 
-    public function getHospitalsWithServices(Request $request)
+    public function getHospitalsWithServices(Request $request): JsonResponse
     {
         // Validate input filters
         $validated = $request->validate([
@@ -120,7 +121,7 @@ class HospitalController extends Controller
                 'services' => $hospital->services->map(function ($service) {
                     return [
                         'id' => $service->id ,
-                        'name' => $service->service->service_name,
+                        'name' => $service->service->service_name ?? null,
                         'price' => $service->price,
                     ];
                 }),
