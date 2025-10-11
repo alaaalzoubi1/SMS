@@ -14,7 +14,7 @@ use Illuminate\Http\Request;
 use App\Http\Requests\NurseReservationRequest;
 use Illuminate\Support\Facades\DB;
 use TarfinLabs\LaravelSpatial\Types\Point;
-
+use Illuminate\Support\Facades\Log;
 class NurseReservationController extends Controller
 {
     use AuthorizesRequests;
@@ -47,27 +47,53 @@ class NurseReservationController extends Controller
             $query->paginate($perPage)
         );
     }
+
+
     public function updateStatus(Request $request, $id): JsonResponse
     {
         $request->validate([
             'status' => 'required|in:pending,approved,rejected,completed',
         ]);
 
+        $reservation = NurseReservation::where('id', $id)->with(['user.account', 'nurse.account'])->first();
 
-        $reservation = NurseReservation::where('id', $id)
-            ->first();
         if (!$reservation) {
             return response()->json(['message' => 'Reservation not found or unauthorized.'], 404);
         }
-        $this->authorize('manageNurseReservations',$reservation);
+
+        $this->authorize('manageNurseReservations', $reservation);
+
         $reservation->status = $request->status;
         $reservation->save();
+
+        // ✅ إرسال إشعار للمستخدم لما الممرضة تحدث الحالة
+        try {
+            $userAccount = $reservation->user->account ?? null;
+            if ($userAccount && $userAccount->fcm_token) {
+                $title = "تحديث حالة الحجز";
+                $body = match ($reservation->status) {
+                    'approved' => sprintf("تمت الموافقة على حجزك من الممرض %s.", $reservation->nurse->full_name ?? ''),
+                    'rejected' => sprintf("تم رفض حجزك من الممرض %s.", $reservation->nurse->full_name ?? ''),
+                    'completed' => sprintf("تم اكتمال حجزك مع الممرض %s بنجاح.", $reservation->nurse->full_name ?? ''),
+                    default => sprintf("تم تحديث حالة حجزك إلى %s.", $reservation->status),
+                };
+
+                SendFirebaseNotificationJob::dispatch(
+                    $userAccount->fcm_token,
+                    $title,
+                    $body
+                );
+            }
+        } catch (\Throwable $e) {
+            Log::error('Failed to send user notification: ' . $e->getMessage());
+        }
 
         return response()->json([
             'message' => 'Reservation status updated successfully.',
             'data' => $reservation
         ]);
     }
+
 
     /**
      * Show the form for creating a new resource.
@@ -128,7 +154,7 @@ class NurseReservationController extends Controller
             if ($nurse && $nurse->account && $nurse->account->fcm_token) {
                 $body = sprintf(
                     "User %s requested %s service.",
-                    auth()->user()->name ?? "Unknown",
+                    auth()->user()->user->full_name ?? "Unknown",
                     $reservation->nurseService->name ?? "a service",
                 );
 
@@ -146,10 +172,8 @@ class NurseReservationController extends Controller
         } catch (\Throwable $e) {
             DB::rollBack();
 
-            return response()->json([
-                'message' => 'Failed to create reservation.',
-                'error' => $e->getMessage(),
-            ], 500);
+            \Log::error('Reservation creation failed: ' . $e->getMessage());
+            return response()->json(['message' => 'Failed to create reservation.'], 500);
         }
     }
 

@@ -13,29 +13,19 @@ class SendFirebaseNotificationJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    protected string $deviceToken;
+    protected string $token;
     protected string $title;
     protected string $body;
 
-    /**
-     * Create a new job instance.
-     */
-    public function __construct(string $deviceToken, string $title, string $body)
+    public function __construct(string $token, string $title, string $body)
     {
-        $this->deviceToken = $deviceToken;
+        $this->token = $token;
         $this->title = $title;
         $this->body = $body;
     }
 
-    /**
-     * Execute the job.
-     */
-    public function handle(FirebaseService $firebase): void
+    public function handle(FirebaseService $firebaseService): void
     {
-        $firebase->sendNotification(
-            $this->deviceToken,
-            $this->title,
-            $this->body
-        );
+        $firebaseService->sendNotification($this->token, $this->title, $this->body);
     }
 }
