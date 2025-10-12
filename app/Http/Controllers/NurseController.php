@@ -8,6 +8,7 @@ use App\Http\Requests\StoreNurseRequest;
 use App\Http\Requests\UpdateNurseRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use TarfinLabs\LaravelSpatial\Types\Point;
 
@@ -148,16 +149,34 @@ class NurseController extends Controller
         $longitude = $request->input('longitude');
         $radius = 5000; // Start with 1 km
 
-        $point = new Point(lat: $latitude, lng: $longitude, srid: 4326);
 
-        $nurses = Nurse::Active()
-            ->Approved()
-            ->withinDistanceTo('location', $point, $radius)
-            ->selectDistanceTo('location', $point)
-            ->orderByDistanceTo('location', $point, 'asc')
+// حول المسافة التقريبية بالأمتار إلى درجات (~111,000 m لكل درجة)
+        $degRadius = $radius / 111000;
+
+        $nurses = DB::table('nurses')
+            ->selectRaw("
+        nurses.*,
+        ST_AsText(location) as location_text,
+        ST_Distance_Sphere(
+            POINT(?, ?),
+            location
+        ) as distance
+    ", [$longitude, $latitude])
+            ->whereNotNull('location')
+            ->whereRaw("ST_AsText(location) != 'POINT(0 0)'")
+            // 1️⃣ فلتر سريع باستخدام الفهرس (MBR filter)
+            ->whereRaw("MBRWithin(location, ST_Buffer(POINT(?, ?), ?))", [
+                $longitude, $latitude, $degRadius
+            ])
+            // 2️⃣ فلتر دقيق للمسافة الفعلية
+            ->whereRaw("ST_Distance_Sphere(POINT(?, ?), location) <= ?", [
+                $longitude, $latitude, $radius
+            ])
+            ->orderBy('distance')
             ->limit(10)
-            ->get()
-            ->makeHidden(['license_image_path','deleted_at','created_at','updated_at']);
+            ->get();
+
+
 
         return response()->json([
             'nurses' => $nurses,
