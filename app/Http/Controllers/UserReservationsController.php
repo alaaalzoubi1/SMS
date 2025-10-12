@@ -42,21 +42,21 @@ class UserReservationsController extends Controller
                     return is_null($map['nurse'])
                         ? $q->whereRaw('1=0')
                         : $q->where('status', $map['nurse'])
-                            ->with('nurse,nurseService,subserviceReservations')
+                            ->with(['nurse','nurseService','subserviceReservations'])
                             ->orderByDesc('created_at');
                 },
                 'hospitalReservations' => function ($q) use ($map) {
                     return is_null($map['hospital'])
                         ? $q->whereRaw('1=0')
                         : $q->where('status', $map['hospital'])
-                            ->with('hospital,hospitalService')
+                            ->with(['hospital','hospitalService'])
                             ->orderByDesc('created_at');
                 },
                 'doctorReservations' => function ($q) use ($map) {
                     return is_null($map['doctor'])
                         ? $q->whereRaw('1=0')
                         : $q->where('status', $map['doctor'])
-                            ->with(['doctor.specialization,doctorService'])
+                            ->with(['doctor.specialization','doctorService'])
                             ->orderByDesc('created_at');
                 },
             ];
