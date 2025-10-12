@@ -15,7 +15,7 @@ class UserReservationsController extends Controller
 
         $request->validate([
             'status' => ['nullable', Rule::in($allowedApiStatuses)],
-            'type'   => ['nullable', Rule::in($allowedTypes)], // نوع الحجز المطلوب
+            'type'   => ['nullable', Rule::in($allowedTypes)],
         ]);
 
         $statusMap = [
@@ -26,70 +26,70 @@ class UserReservationsController extends Controller
             'completed' => ['nurse' => 'completed','hospital' => null,        'doctor' => 'completed'],
         ];
 
-        $with = [
-            'nurseReservations.nurse',
-            'hospitalReservations.hospital',
-            'doctorReservations.doctor',
-        ];
+        $userId = auth()->user()->user->id;
+        $apiStatus = $request->input('status');
+        $type = $request->input('type');
 
-        // فلترة حسب الحالة
-        if ($request->filled('status')) {
-            $apiStatus = $request->string('status')->toString();
-            $map = $statusMap[$apiStatus];
+        // نحضّر المتغيرات
+        $data = [];
 
-            $with = [
-                'nurseReservations' => function ($q) use ($map) {
-                    return is_null($map['nurse'])
-                        ? $q->whereRaw('1=0')
-                        : $q->where('status', $map['nurse'])
-                            ->with(['nurse','nurseService','subserviceReservations'])
-                            ->orderByDesc('created_at');
-                },
-                'hospitalReservations' => function ($q) use ($map) {
-                    return is_null($map['hospital'])
-                        ? $q->whereRaw('1=0')
-                        : $q->where('status', $map['hospital'])
-                            ->with(['hospital','hospitalService'])
-                            ->orderByDesc('created_at');
-                },
-                'doctorReservations' => function ($q) use ($map) {
-                    return is_null($map['doctor'])
-                        ? $q->whereRaw('1=0')
-                        : $q->where('status', $map['doctor'])
-                            ->with(['doctor.specialization','doctorService'])
-                            ->orderByDesc('created_at');
-                },
-            ];
-        } else {
-            // في حال لم يتم تحديد حالة، نرتب الكل من الأحدث للأقدم
-            $with = [
-                'nurseReservations' => fn($q) => $q->with(['nurse','nurseService','subserviceReservations'])->orderByDesc('created_at'),
-                'hospitalReservations' => fn($q) => $q->with(['hospital','hospitalService'])->orderByDesc('created_at'),
-                'doctorReservations' => fn($q) => $q->with(['doctor.specialization','doctorService'])->orderByDesc('created_at'),
-            ];
-        }
-
-        $user = User::query()
-            ->with($with)
-            ->where('id', auth()->user()->user->id)
-            ->firstOrFail();
-
-        // فلترة حسب نوع الحجز المطلوب من الـ request
-        $response = [];
-
-        switch ($request->input('type')) {
+        switch ($type) {
             case 'nurse':
-                $response['nurse_reservations'] = $user->nurseReservations;
+                $reservations = \App\Models\NurseReservation::query()
+                    ->where('user_id', $userId)
+                    ->with(['nurse', 'nurseService', 'subserviceReservations'])
+                    ->when($apiStatus, function ($q) use ($statusMap, $apiStatus) {
+                        $status = $statusMap[$apiStatus]['nurse'] ?? null;
+                        if ($status) $q->where('status', $status);
+                        else $q->whereRaw('1=0');
+                    })
+                    ->orderByDesc('created_at')
+                    ->get();
+
+                $data['nurse_reservations'] = $reservations;
                 break;
+
             case 'hospital':
-                $response['hospital_reservations'] = $user->hospitalReservations;
+                $reservations = \App\Models\HospitalServiceReservation::query()
+                    ->where('user_id', $userId)
+                    ->with(['hospital', 'hospitalService.service'])
+                    ->when($apiStatus, function ($q) use ($statusMap, $apiStatus) {
+                        $status = $statusMap[$apiStatus]['hospital'] ?? null;
+                        if ($status) $q->where('status', $status);
+                        else $q->whereRaw('1=0');
+                    })
+                    ->orderByDesc('created_at')
+                    ->get();
+
+                $data['hospital_reservations'] = $reservations;
                 break;
+
             case 'doctor':
-                $response['doctor_reservations'] = $user->doctorReservations;
+                $reservations = \App\Models\DoctorReservation::query()
+                    ->where('user_id', $userId)
+                    ->with(['doctor.specialization', 'doctorService'])
+                    ->when($apiStatus, function ($q) use ($statusMap, $apiStatus) {
+                        $status = $statusMap[$apiStatus]['doctor'] ?? null;
+                        if ($status) $q->where('status', $status);
+                        else $q->whereRaw('1=0');
+                    })
+                    ->orderByDesc('created_at')
+                    ->get();
+
+                $data['doctor_reservations'] = $reservations;
                 break;
+
             default:
-                // إذا ما حدد النوع، رجع الكل
-                $response = [
+                // في حال لم يُحدد نوع، رجّع الكل (لكن مع eager loading محدد)
+                $user = \App\Models\User::query()
+                    ->with([
+                        'nurseReservations' => fn($q) => $q->with(['nurse','nurseService','subserviceReservations'])->orderByDesc('created_at'),
+                        'hospitalReservations' => fn($q) => $q->with(['hospital','hospitalService.service'])->orderByDesc('created_at'),
+                        'doctorReservations' => fn($q) => $q->with(['doctor.specialization','doctorService'])->orderByDesc('created_at'),
+                    ])
+                    ->findOrFail($userId);
+
+                $data = [
                     'nurse_reservations'    => $user->nurseReservations,
                     'hospital_reservations' => $user->hospitalReservations,
                     'doctor_reservations'   => $user->doctorReservations,
@@ -97,8 +97,9 @@ class UserReservationsController extends Controller
                 break;
         }
 
-        return response()->json(['data' => $response]);
+        return response()->json(['data' => $data]);
     }
+
 
 
 
