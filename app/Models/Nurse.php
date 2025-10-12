@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Builder;
 use TarfinLabs\LaravelSpatial\Casts\LocationCast;
 use TarfinLabs\LaravelSpatial\Traits\HasSpatial;
+use TarfinLabs\LaravelSpatial\Types\Point;
 
 class Nurse extends Model
 {

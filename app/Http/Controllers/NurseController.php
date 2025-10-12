@@ -74,9 +74,9 @@ class NurseController extends Controller
 
         // Start building the query for nurses
         $query = Nurse::query()
-            ->with(['services.subservices']) // Eager load services and subservices
-            ->Approved()
-            ->Active();
+            ->with(['services.subservices']); // Eager load services and subservices
+//            ->Approved()
+//            ->Active();
 //            ->select('id', 'full_name', 'address','location', 'graduation_type', 'age', 'gender', 'profile_description');
 
         // Apply filters if present
@@ -143,46 +143,59 @@ class NurseController extends Controller
         // Return the paginated nurses
         return response()->json($nurses);
     }
+
     public function getNearestNurses(Request $request): JsonResponse
     {
         $latitude = $request->input('latitude');
         $longitude = $request->input('longitude');
-        $radius = 5000; // Start with 1 km
+        $radius = 5000; // المسافة بالمتر
 
+        // إنشاء النقطة مع SRID صحيح
+        $point = new Point($latitude, $longitude, 4326);
 
-// حول المسافة التقريبية بالأمتار إلى درجات (~111,000 m لكل درجة)
-        $degRadius = $radius / 111000;
-
-        $nurses = DB::table('nurses')
-            ->selectRaw("
-        nurses.*,
-        ST_AsText(location) as location_text,
-        ST_Distance_Sphere(
-            POINT(?, ?),
-            location
-        ) as distance
-    ", [$longitude, $latitude])
+        // استعلام المسافة
+        $nurses = Nurse::query()
+            ->Active()
+            ->Approved()
             ->whereNotNull('location')
-            ->whereRaw("ST_AsText(location) != 'POINT(0 0)'")
-            // 1️⃣ فلتر سريع باستخدام الفهرس (MBR filter)
-            ->whereRaw("MBRWithin(location, ST_Buffer(POINT(?, ?), ?))", [
-                $longitude, $latitude, $degRadius
-            ])
-            // 2️⃣ فلتر دقيق للمسافة الفعلية
-            ->whereRaw("ST_Distance_Sphere(POINT(?, ?), location) <= ?", [
-                $longitude, $latitude, $radius
-            ])
-            ->orderBy('distance')
+            ->whereRaw("ST_AsText(location) != 'POINT(0 0)'") // تجاهل النقاط الفارغة
+            ->withinDistanceTo('location', $point, $radius)   // الحزمة تتعامل مع النقطة بشكل صحيح
+            ->selectDistanceTo('location', $point)
+            ->orderByDistanceTo('location', $point, 'asc')
             ->limit(10)
-            ->get();
-
-
+            ->get()
+            ->makeHidden(['license_image_path', 'deleted_at', 'created_at', 'updated_at']);
 
         return response()->json([
             'nurses' => $nurses,
         ]);
     }
-
+//    public function getNearestNurses(Request $request): JsonResponse
+//    {
+//        $latitude = $request->input('latitude');
+//        $longitude = $request->input('longitude');
+//        $radius = 500000000000; // 5 km
+//
+//        // أنشئ النقطة
+//        $point = new Point($latitude, $longitude, 4326);
+//        $pointWKT = $point->toWkt(); // "POINT(lon lat)"
+//
+//        $nurses = Nurse::
+////            Approved()
+////        Active()
+//            select('*')
+//            ->addSelect(DB::raw("ST_Distance_Sphere(location, ST_GeomFromText(?, 4326)) as distance"))
+//            ->whereNotNull('location')
+//            ->whereRaw("ST_Distance_Sphere(location, ST_GeomFromText(?, 4326)) <= ?", [$pointWKT, $pointWKT, $radius])
+//            ->orderBy('distance', 'asc')
+//            ->limit(10)
+//            ->get()
+//            ->makeHidden(['license_image_path','deleted_at','created_at','updated_at']);
+//
+//        return response()->json([
+//            'nurses' => $nurses,
+//        ]);
+//    }
 //TODO make api is_active
 
     public function activate(): JsonResponse
