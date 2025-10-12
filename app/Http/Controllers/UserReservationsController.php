@@ -63,9 +63,9 @@ class UserReservationsController extends Controller
         } else {
             // في حال لم يتم تحديد حالة، نرتب الكل من الأحدث للأقدم
             $with = [
-                'nurseReservations' => fn($q) => $q->with('nurse')->orderByDesc('created_at'),
-                'hospitalReservations' => fn($q) => $q->with('hospital')->orderByDesc('created_at'),
-                'doctorReservations' => fn($q) => $q->with('doctor')->orderByDesc('created_at'),
+                'nurseReservations' => fn($q) => $q->with(['nurse','nurseService','subserviceReservations'])->orderByDesc('created_at'),
+                'hospitalReservations' => fn($q) => $q->with(['hospital','hospitalService'])->orderByDesc('created_at'),
+                'doctorReservations' => fn($q) => $q->with(['doctor.specialization','doctorService'])->orderByDesc('created_at'),
             ];
         }
 
