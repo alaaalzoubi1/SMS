@@ -26,7 +26,7 @@ return new class extends Migration
 
             $table->enum('reservation_type', ['direct', 'manual']);
 
-            $table->geography('location', subtype: 'point')->nullable();
+            $table->geography('location', subtype: 'point');
 
             $table->enum('status', ['pending', 'accepted', 'rejected', 'completed'])->default('pending');
             $table->text('note')->nullable();
@@ -35,15 +35,12 @@ return new class extends Migration
             $table->timestamp('end_at')->nullable();
             $table->index('user_id');
             $table->index('nurse_id');
-
+            $table->spatialIndex('location');
             $table->softDeletes();
             $table->timestamps();
         });
-        Schema::table('nurse_reservations', function (Blueprint $table) {
-            DB::statement("UPDATE `nurse_reservations` SET `location` = ST_GeomFromText('POINT(0 0)', 4326);");
-            DB::statement("ALTER TABLE `nurse_reservations` CHANGE `location` `location` POINT NOT NULL;");
-            $table->spatialIndex('location');
-        });
+
+
     }
 
     /**

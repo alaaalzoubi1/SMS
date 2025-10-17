@@ -9,9 +9,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Builder;
-use TarfinLabs\LaravelSpatial\Casts\LocationCast;
-use TarfinLabs\LaravelSpatial\Traits\HasSpatial;
-use TarfinLabs\LaravelSpatial\Types\Point;
+use MatanYadaev\EloquentSpatial\Objects\Point;
+use MatanYadaev\EloquentSpatial\Traits\HasSpatial;
+
 
 class Nurse extends Model
 {
@@ -32,7 +32,7 @@ class Nurse extends Model
     ];
 
     protected  $casts = [
-        'location' => LocationCast::class
+        'location' => Point::class
     ];
 
     public function account(): BelongsTo

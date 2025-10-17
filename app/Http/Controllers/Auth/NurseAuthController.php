@@ -12,7 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
-use TarfinLabs\LaravelSpatial\Types\Point;
+use MatanYadaev\EloquentSpatial\Objects\Point;
 use Tymon\JWTAuth\Facades\JWTAuth;
 
 class NurseAuthController extends Controller
@@ -46,7 +46,7 @@ class NurseAuthController extends Controller
                 'full_name'      => $validated['full_name'],  // Name is in Nurse table
                 'address'        => $validated['address'],
                 'graduation_type'=> $validated['graduation_type'],
-                'location'=> new Point( $validated['latitude'], $validated['longitude'], 4326),
+                'location'=> new Point( $validated['latitude'], $validated['longitude']),
                 'age'            => $validated['age'],
                 'gender'         => $validated['gender'],
                 'profile_description' => $validated['profile_description'] ?? null,
@@ -106,7 +106,7 @@ class NurseAuthController extends Controller
     }
     public function login(Request $request): JsonResponse
     {
-        $credentials = $request->only('email', 'password');
+        $credentials = $request->only('email', 'password','fcm_token');
 
         $account = Account::where('email', $credentials['email'])->first();
 
@@ -120,6 +120,8 @@ class NurseAuthController extends Controller
             return response()->json(['message' => 'Your registration is not approved by admin yet.'], 403);
         }
         $token = JWTAuth::fromUser($account);
+        $account->fcm_token = $credentials['fcm_token'];
+        $account->save();
 
         return response()->json([
             'message' => 'Login successful',
@@ -224,7 +226,7 @@ class NurseAuthController extends Controller
         }
 
         if (isset($validated['longitude']) && isset($validated['latitude'])) {
-            $nurse->location = new Point(lat: $validated['latitude'], lng: $validated['longitude'], srid: 4326);
+            $nurse->location = new Point($validated['latitude'],$validated['longitude']);
         }
 
 

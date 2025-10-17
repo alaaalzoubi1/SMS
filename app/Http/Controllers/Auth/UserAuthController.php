@@ -57,7 +57,7 @@ class UserAuthController extends Controller
     }
     public function login(Request $request): JsonResponse
     {
-        $credentials = $request->only('email', 'password');
+        $credentials = $request->only('email', 'password','fcm_token');
 
         $account = Account::where('email', $credentials['email'])->first();
 
@@ -65,9 +65,11 @@ class UserAuthController extends Controller
             return response()->json(['message' => 'Invalid credentials'], 401);
         }
         if (!$account->hasRole('user')) {
-            return response()->json(['message' => 'Not authorized as nurse'], 403);
+            return response()->json(['message' => 'Not authorized as user'], 403);
         }
         $token = JWTAuth::fromUser($account);
+        $account->fcm_token = $credentials['fcm_token'];
+        $account->save();
 
         return response()->json([
             'message' => 'Login successful',

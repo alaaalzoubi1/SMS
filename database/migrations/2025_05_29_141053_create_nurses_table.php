@@ -20,23 +20,16 @@ return new class extends Migration
             $table->string('full_name');
             $table->string('address')->nullable();
             $table->enum('graduation_type',['معهد', 'مدرسة', 'جامعة', 'ماجستير' ,'دكتوراه'])->index();
-            $table->geography('location', subtype: 'point')->nullable();
+            $table->geography('location', subtype: 'point');
             $table->integer('age');
             $table->enum('gender', ['male', 'female'])->index();
             $table->string('profile_description')->nullable();
             $table->string('license_image_path');
             $table->softDeletes();
+            $table->spatialIndex('location');
             $table->timestamps();
         });
-        Schema::table('nurses', function (Blueprint $table) {
-            DB::statement("UPDATE `nurses` SET `location` = ST_GeomFromText('POINT(0 0)', 4326);");
-            DB::statement("ALTER TABLE `nurses` CHANGE `location` `location` POINT NOT NULL;");
-            $table->spatialIndex('location');
-        });
     }
-
-
-
     /**
      * Reverse the migrations.
      */

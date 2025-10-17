@@ -7,8 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use TarfinLabs\LaravelSpatial\Casts\LocationCast;
-use TarfinLabs\LaravelSpatial\Traits\HasSpatial;
+use MatanYadaev\EloquentSpatial\Objects\Point;
+use MatanYadaev\EloquentSpatial\Traits\HasSpatial;
 
 class NurseReservation extends Model
 {
@@ -26,7 +26,7 @@ class NurseReservation extends Model
         'end_at',
     ];
     protected  $casts = [
-        'location' => LocationCast::class
+        'location' => Point::class
     ];
     public function user():BelongsTo
     {

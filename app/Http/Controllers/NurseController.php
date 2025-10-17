@@ -10,7 +10,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
-use TarfinLabs\LaravelSpatial\Types\Point;
+use MatanYadaev\EloquentSpatial\Objects\Point;
 
 class NurseController extends Controller
 {
@@ -98,10 +98,11 @@ class NurseController extends Controller
         if ($request->filled('latitude') && $request->filled('longitude'))
         {
             $radius = 5000;
-            $point = new Point(lat: $request->latitude, lng: $request->longitude, srid: 4326);
-            $query->withinDistanceTo('location', $point, $radius)
-                ->selectDistanceTo('location', $point)
-                ->orderByDistanceTo('location', $point, 'asc')
+            $point = new Point($request->latitude,$request->longitude);
+
+            $query
+                ->withDistanceSphere('location', $point, 'distance_meters') // تضيف المسافة في الـ select
+                ->orderByDistanceSphere('location', $point, 'asc') // ترتيب حسب المسافة
                 ->limit(10);
         }
 
@@ -137,6 +138,7 @@ class NurseController extends Controller
                 'profile_description' => $nurse->profile_description,
                 'location'=>$nurse->location,
                 'services' => $nurse->services,
+                'distance_meters' => $nurse->distance_meters
             ];
         });
 
@@ -151,21 +153,18 @@ class NurseController extends Controller
         $radius = 5000; // المسافة بالمتر
 
         // إنشاء النقطة مع SRID صحيح
-        $point = new Point($latitude, $longitude, 4326);
+        $point = new Point($latitude, $longitude);
 
         // استعلام المسافة
         $nurses = Nurse::query()
             ->Active()
             ->Approved()
             ->whereNotNull('location')
-            ->whereRaw("ST_AsText(location) != 'POINT(0 0)'") // تجاهل النقاط الفارغة
-            ->withinDistanceTo('location', $point, $radius)   // الحزمة تتعامل مع النقطة بشكل صحيح
-            ->selectDistanceTo('location', $point)
-            ->orderByDistanceTo('location', $point, 'asc')
+            ->withDistanceSphere('location', $point, 'distance_meters') // تضيف المسافة في الـ select
+            ->orderByDistanceSphere('location', $point, 'asc') // ترتيب حسب المسافة
             ->limit(10)
             ->get()
             ->makeHidden(['license_image_path', 'deleted_at', 'created_at', 'updated_at']);
-
         return response()->json([
             'nurses' => $nurses,
         ]);
