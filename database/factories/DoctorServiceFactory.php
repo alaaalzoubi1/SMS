@@ -15,7 +15,7 @@ class DoctorServiceFactory extends Factory
     public function definition(): array
     {
         return [
-            'name' => $this->faker->word,               // Name of the service (e.g., "Consultation")
+            'name' => $this->faker->unique()->lexify('Service ???'),
             'price' => $this->faker->randomFloat(2, 50, 500),  // Random price between 50 and 500
             'duration_minutes' => $this->faker->numberBetween(15, 60),  // Random duration between 15 and 60 minutes
         ];
