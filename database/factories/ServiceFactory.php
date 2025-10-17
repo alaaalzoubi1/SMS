@@ -12,7 +12,7 @@ class ServiceFactory extends Factory
     public function definition()
     {
         return [
-            'service_name' => $this->faker->unique()->word,
+            'service_name' =>'Service_' . $this->faker->unique()->numberBetween(1, 999999),
         ];
     }
 }
