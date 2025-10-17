@@ -11,6 +11,6 @@ class DoctorSeeder extends Seeder
 {
     public function run()
     {
-        Doctor::factory()->count(10)->withServices(3)->create();
+        Doctor::factory()->count(100)->withServices(3)->create();
     }
 }

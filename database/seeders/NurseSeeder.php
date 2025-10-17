@@ -14,7 +14,7 @@ class NurseSeeder extends Seeder
     public function run(): void
     {
         Nurse::factory()
-            ->count(10)
+            ->count(100)
             ->withServicesAndSubservices()  // Using the custom method to include services and subservices
             ->create();
     }

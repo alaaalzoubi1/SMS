@@ -14,7 +14,7 @@ class HospitalSeeder extends Seeder
     public function run(): void
     {
         // Using factories to create 10 hospitals with related services and work schedules
-        Hospital::factory()->count(10)->create()->each(function ($hospital) {
+        Hospital::factory()->count(100)->create()->each(function ($hospital) {
             // Create hospital services for each hospital
             \App\Models\HospitalService::factory()->count(5)->create([
                 'hospital_id' => $hospital->id,

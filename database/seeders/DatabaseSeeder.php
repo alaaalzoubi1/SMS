@@ -19,6 +19,7 @@ class DatabaseSeeder extends Seeder
             RolesSeeder::class,
             AdminAccountSeeder::class,
             NurseSeeder::class,
+            SpecializationSeeder::class,
             DoctorSeeder::class,
             HospitalSeeder::class
         ]);
