@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\SendFirebaseNotificationJob;
 use App\Models\Account;
 use App\Models\Doctor;
 use App\Models\DoctorReservation;
@@ -15,6 +16,7 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class DoctorReservationController extends Controller
@@ -178,21 +180,48 @@ class DoctorReservationController extends Controller
             'status' => 'required|in:pending,approved,rejected,cancelled,completed',
         ]);
 
-
         $reservation = DoctorReservation::where('id', $id)
+            ->with(['user.account', 'doctor.account']) // حتى نقدر نرسل إشعار للمستخدم
             ->first();
+
         if (!$reservation) {
             return response()->json(['message' => 'Reservation not found or unauthorized.'], 404);
         }
-        $this->authorize('manageReservations',$reservation);
 
+        $this->authorize('manageReservations', $reservation);
 
         $reservation->status = $request->status;
         $reservation->save();
 
+        // ✅ إرسال إشعار للمستخدم لما الطبيب يحدّث الحالة
+        try {
+            $userAccount = $reservation->user->account ?? null;
+            $doctorName = $reservation->doctor->full_name ?? 'الطبيب';
+
+            if ($userAccount && $userAccount->fcm_token) {
+                $title = "تحديث حالة الحجز من الطبيب";
+                $body = match ($reservation->status) {
+                    'approved' => sprintf("تمت الموافقة على حجزك من %s.", $doctorName),
+                    'rejected' => sprintf("تم رفض حجزك من %s.", $doctorName),
+                    'cancelled' => sprintf("تم إلغاء حجزك من %s.", $doctorName),
+                    'completed' => sprintf("تم اكتمال حجزك مع %s بنجاح.", $doctorName),
+                    default => sprintf("تم تحديث حالة حجزك إلى %s من %s.", $reservation->status, $doctorName),
+                };
+
+                SendFirebaseNotificationJob::dispatch(
+                    $userAccount->fcm_token,
+                    $title,
+                    $body
+                );
+            }
+        } catch (\Throwable $e) {
+            Log::error('Failed to send user notification (doctor): ' . $e->getMessage());
+        }
+
         return response()->json([
             'message' => 'Reservation status updated successfully.',
-            'data' => $reservation
+            'data' => $reservation,
         ]);
     }
+
 }

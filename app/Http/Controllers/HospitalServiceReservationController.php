@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\SendFirebaseNotificationJob;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use App\Models\Hospital;
 use App\Models\HospitalServiceReservation;
@@ -75,37 +77,73 @@ class HospitalServiceReservationController extends Controller
         ]);
     }
 
-    public function updateStatus(Request $request, string $id)
+
+
+    public function updateStatus(Request $request, string $id): JsonResponse
     {
         $hospital = $this->getAuthenticatedHospital();
 
         $reservation = HospitalServiceReservation::where('hospital_id', $hospital->id)
-              ->where('id', $id)
-              ->first();
+            ->where('id', $id)
+            ->with(['user.account']) // حتى نوصل إلى fcm_token للمستخدم
+            ->first();
 
         if (!$reservation) {
             return response()->json(['message' => 'Reservation not found or does not belong to this hospital'], 404);
         }
 
         $request->validate([
-            'status' => 'required|string|in:pending,confirmed,cancelled', // تحديث حالات الـ ENUM
+            'status' => 'required|string|in:pending,confirmed,cancelled',
         ]);
 
         DB::beginTransaction();
         try {
             $reservation->status = $request->status;
             $reservation->save();
+
+            // ✅ إرسال إشعار للمستخدم عند تحديث الحالة من المستشفى
+            try {
+                $userAccount = $reservation->user->account ?? null;
+                if ($userAccount && $userAccount->fcm_token) {
+                    $title = "تحديث حالة حجز المستشفى";
+                    $body = match ($reservation->status) {
+                        'confirmed' => sprintf("تم تأكيد حجزك من المستشفى %s.", $hospital->name ?? ''),
+                        'cancelled' => sprintf("تم إلغاء حجزك من المستشفى %s.", $hospital->name ?? ''),
+                        default => sprintf("تم تحديث حالة حجزك إلى %s من المستشفى %s.", $reservation->status, $hospital->name ?? ''),
+                    };
+
+                    SendFirebaseNotificationJob::dispatch(
+                        $userAccount->fcm_token,
+                        $title,
+                        $body
+                    );
+                }
+            } catch (\Throwable $e) {
+                Log::error('Failed to send user notification: ' . $e->getMessage());
+            }
+
             DB::commit();
 
-            Log::info('Reservation status updated:', ['reservation_id' => $id, 'new_status' => $request->status]);
+            Log::info('Reservation status updated:', [
+                'reservation_id' => $id,
+                'new_status' => $request->status,
+                'hospital_id' => $hospital->id,
+            ]);
 
-            return response()->json(['message' => 'Reservation status updated successfully', 'reservation' => $reservation]);
+            return response()->json([
+                'message' => 'Reservation status updated successfully',
+                'reservation' => $reservation,
+            ]);
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error("Error updating reservation status: " . $e->getMessage());
-            return response()->json(['message' => 'Failed to update reservation status', 'error' => $e->getMessage()], 500);
+            return response()->json([
+                'message' => 'Failed to update reservation status',
+                'error' => $e->getMessage(),
+            ], 500);
         }
     }
+
 
     public function destroy(string $id)
     {

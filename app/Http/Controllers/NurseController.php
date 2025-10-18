@@ -9,6 +9,7 @@ use App\Http\Requests\UpdateNurseRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use MatanYadaev\EloquentSpatial\Objects\Point;
 
@@ -148,6 +149,23 @@ class NurseController extends Controller
 
     public function getNearestNurses(Request $request): JsonResponse
     {
+        $validator = Validator::make($request->all(), [
+            'latitude' => 'required|numeric|between:-90,90',
+            'longitude' => 'required|numeric|between:-180,180',
+        ], [
+            'latitude.required' => 'يجب إدخال خط العرض.',
+            'latitude.numeric' => 'خط العرض يجب أن يكون رقمًا.',
+            'latitude.between' => 'قيمة خط العرض يجب أن تكون بين -90 و 90.',
+            'longitude.required' => 'يجب إدخال خط الطول.',
+            'longitude.numeric' => 'خط الطول يجب أن يكون رقمًا.',
+            'longitude.between' => 'قيمة خط الطول يجب أن تكون بين -180 و 180.',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'errors' => $validator->errors(),
+            ], 422);
+        }
         $latitude = $request->input('latitude');
         $longitude = $request->input('longitude');
         $radius = 5000; // المسافة بالمتر
