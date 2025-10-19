@@ -13,7 +13,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use App\Http\Requests\NurseReservationRequest;
 use Illuminate\Support\Facades\DB;
-use TarfinLabs\LaravelSpatial\Types\Point;
+use MatanYadaev\EloquentSpatial\Objects\Point;
 use Illuminate\Support\Facades\Log;
 class NurseReservationController extends Controller
 {
@@ -130,7 +130,7 @@ class NurseReservationController extends Controller
             }
 
             if ($request->filled('lat') && $request->filled('lng')) {
-                $reservation->location = new Point(lat: $request->lat,lng: $request->lng,srid: 4326);
+                $reservation->location = new Point($request->lat,$request->lng);
             }
             $reservation->status = "pending";
             $reservation->save();

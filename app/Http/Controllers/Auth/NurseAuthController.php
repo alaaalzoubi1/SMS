@@ -19,7 +19,7 @@ class NurseAuthController extends Controller
 {
     public function register(NurseRegisterRequest $request): JsonResponse
     {
-//        try {
+        try {
             // Validate request data
             $validated = $request->validated();
 
@@ -63,19 +63,19 @@ class NurseAuthController extends Controller
             return response()->json([
                 'message' => 'Registration successful. Awaiting admin approval.',
             ], 201);
-//        } catch (\Exception $e) {
-//            // Rollback transaction in case of failure
-//            DB::rollBack();
-//
-//            // Log the error
-//            Log::error('Nurse registration failed: ' . $e->getMessage());
-//
-//            // Return error response
-//            return response()->json([
-//                'message' => 'Registration failed. Please try again later.',
-//
-//            ], 500);
-//        }
+        } catch (\Exception $e) {
+            // Rollback transaction in case of failure
+            DB::rollBack();
+
+            // Log the error
+            Log::error('Nurse registration failed: ' . $e->getMessage());
+
+            // Return error response
+            return response()->json([
+                'message' => 'Registration failed. Please try again later.',
+
+            ], 500);
+        }
     }
 
 

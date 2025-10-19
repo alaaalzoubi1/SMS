@@ -75,9 +75,9 @@ class NurseController extends Controller
 
         // Start building the query for nurses
         $query = Nurse::query()
-            ->with(['services.subservices']); // Eager load services and subservices
-//            ->Approved()
-//            ->Active();
+            ->with(['services.subservices']) // Eager load services and subservices
+            ->Approved()
+            ->Active();
 //            ->select('id', 'full_name', 'address','location', 'graduation_type', 'age', 'gender', 'profile_description');
 
         // Apply filters if present
@@ -168,12 +168,9 @@ class NurseController extends Controller
         }
         $latitude = $request->input('latitude');
         $longitude = $request->input('longitude');
-        $radius = 5000; // المسافة بالمتر
 
-        // إنشاء النقطة مع SRID صحيح
         $point = new Point($latitude, $longitude);
 
-        // استعلام المسافة
         $nurses = Nurse::query()
             ->Active()
             ->Approved()
