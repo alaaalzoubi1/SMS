@@ -38,7 +38,7 @@ class HospitalServiceReservationController extends Controller
               ->map(function($reservation) {
                   return [
                       'id' => $reservation->id,
-                      'user_name' => $reservation->user->name ?? $reservation->user->email ?? 'N/A',
+                      'user_name' => $reservation->user->full_name  ?? 'N/A',
                       'service_name' => $reservation->hospitalService->service->service_name ?? 'N/A',
                       'price' => (float) $reservation->hospitalService->price,
                       'status' => $reservation->status,
