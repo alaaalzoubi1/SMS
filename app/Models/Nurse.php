@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Rateable;
 use Database\Factories\NurseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -16,7 +17,7 @@ use MatanYadaev\EloquentSpatial\Traits\HasSpatial;
 class Nurse extends Model
 {
     /** @use HasFactory<NurseFactory> */
-    use HasFactory,SoftDeletes,HasSpatial;
+    use HasFactory,SoftDeletes,HasSpatial,Rateable;
     protected $fillable = [
         'account_id',
         'full_name',

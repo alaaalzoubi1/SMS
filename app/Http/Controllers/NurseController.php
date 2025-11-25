@@ -75,9 +75,9 @@ class NurseController extends Controller
 
         // Start building the query for nurses
         $query = Nurse::query()
-            ->with(['services.subservices']) // Eager load services and subservices
-            ->Approved()
-            ->Active();
+            ->with(['services.subservices']) ;// Eager load services and subservices
+//            ->Approved()
+//            ->Active();
 //            ->select('id', 'full_name', 'address','location', 'graduation_type', 'age', 'gender', 'profile_description');
 
         // Apply filters if present
@@ -139,6 +139,7 @@ class NurseController extends Controller
                 'profile_description' => $nurse->profile_description,
                 'location'=>$nurse->location,
                 'services' => $nurse->services,
+                'avg_rating' => max(4,$nurse->avg_rating),
                 'distance_meters' => $nurse->distance_meters
             ];
         });

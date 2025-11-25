@@ -118,6 +118,7 @@ class HospitalController extends Controller
                 'id' => $hospital->id,
                 'full_name' => $hospital->full_name,
                 'address' => $hospital->address,
+                'avg_rating' => max(4, $hospital->avg_rating),
                 'services' => $hospital->services->map(function ($service) {
                     return [
                         'id' => $service->id ,

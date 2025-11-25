@@ -18,6 +18,8 @@ class CreateDoctorsTable extends Migration
             $table->enum('gender', ['male', 'female']);
             $table->foreignId('specialization_id')->constrained('specializations');
             $table->string('license_image_path')->nullable();
+            $table->float('avg_rating')->default(0);
+            $table->unsignedInteger('ratings_count')->default(0);
             $table->timestamps();
             $table->softDeletes();
         });

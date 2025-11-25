@@ -34,13 +34,11 @@ class DoctorController extends Controller
         $doctors = $query->select('id', 'full_name', 'address', 'age', 'gender', 'specialization_id', 'profile_description', 'account_id')
             ->paginate(10);
 
-        // تعديل specialization_type ليصبح الاسم العربي
         $doctors->getCollection()->transform(function ($doctor) {
+            $doctor->avg_rating = max(4,$doctor->avg_rating);
 
-            // إظهار رقم الهاتف من العلاقة
             $doctor->phone_number = $doctor->account->phone_number ?? null;
 
-            // إخفاء القيم غير الضرورية
             unset($doctor->account);
 
             return $doctor;

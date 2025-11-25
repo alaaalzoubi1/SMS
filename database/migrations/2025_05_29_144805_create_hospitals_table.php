@@ -17,6 +17,8 @@ return new class extends Migration
             $table->string('full_name');
             $table->uuid('unique_code')->unique();
             $table->string('address');
+            $table->float('avg_rating')->default(0);
+            $table->unsignedInteger('ratings_count')->default(0);
             $table->softDeletes();
             $table->timestamps();
         });

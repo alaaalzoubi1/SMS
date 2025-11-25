@@ -59,3 +59,5 @@ Route::prefix('user')->group(function (){
     Route::get('/{id}/reservations',[UserStatisticsController::class,'userReservations']);
 });
 
+Route::get('entity-rates',[\App\Http\Controllers\RatingController::class,'entityRatings']);
+

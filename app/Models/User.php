@@ -18,6 +18,17 @@ class User extends Model
         'gender',
     ];
 
+    protected static function booted()
+    {
+        static::deleting(function ($user) {
+            if ($user->isForceDeleting()) {
+                $user->ratings()->forceDelete();
+            } else {
+                $user->ratings()->delete();
+            }
+        });
+    }
+
     public function account():BelongsTo
     {
         return $this->belongsTo(Account::class);

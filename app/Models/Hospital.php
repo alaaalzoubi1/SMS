@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Rateable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -13,7 +14,7 @@ use Illuminate\Support\Facades\Validator;
 class Hospital extends Model
 {
     /** @use HasFactory<\Database\Factories\HospitalFactory> */
-    use HasFactory,SoftDeletes;
+    use HasFactory,SoftDeletes,Rateable;
 
     protected $fillable = [
         'account_id',
