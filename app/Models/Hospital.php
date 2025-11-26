@@ -10,17 +10,20 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Validator;
+use MatanYadaev\EloquentSpatial\Objects\Point;
+use MatanYadaev\EloquentSpatial\Traits\HasSpatial;
 
 class Hospital extends Model
 {
     /** @use HasFactory<\Database\Factories\HospitalFactory> */
-    use HasFactory,SoftDeletes,Rateable;
+    use HasFactory,SoftDeletes,Rateable,HasSpatial;
 
     protected $fillable = [
         'account_id',
         'address',
         'full_name',
-        'unique_code'
+        'unique_code',
+        'location'
     ];
     protected $hidden = [
         'unique_code',
@@ -28,6 +31,7 @@ class Hospital extends Model
     protected $casts = [
         'start_date' => 'date',
         'end_date' => 'date',
+        'location' => Point::class
     ];
 
     public function account():BelongsTo

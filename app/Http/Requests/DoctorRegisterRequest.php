@@ -35,6 +35,8 @@ class DoctorRegisterRequest extends FormRequest
             'age'            => 'required|integer|min:21|max:99',
             'gender'         => 'required|in:male,female',
             'profile_description' => 'nullable|string',
+            'latitude' => 'required|numeric|between:-90,90',
+            'longitude' => 'required|numeric|between:-180,180',
 
             // صورة الرخصة (اختيارية)
             'license_image'  => 'required|image|mimes:jpeg,png,jpg,pdf|max:2048',

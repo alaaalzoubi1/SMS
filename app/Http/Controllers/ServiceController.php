@@ -196,6 +196,7 @@ class ServiceController extends Controller
                         'address' => $hospital->address,
                         'price' => $hospital->pivot->price,  // Access price from pivot
                         'capacity' => $hospital->pivot->capacity, // Access capacity from pivot
+                        'location' => $hospital->location,
                     ];
                 }),
             ];

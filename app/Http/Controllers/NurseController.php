@@ -176,8 +176,8 @@ class NurseController extends Controller
             ->Active()
             ->Approved()
             ->whereNotNull('location')
-            ->withDistanceSphere('location', $point, 'distance_meters') // تضيف المسافة في الـ select
-            ->orderByDistanceSphere('location', $point, 'asc') // ترتيب حسب المسافة
+            ->withDistanceSphere('location', $point, 'distance_meters')
+            ->orderByDistanceSphere('location', $point, 'asc')
             ->limit(10)
             ->get()
             ->makeHidden(['license_image_path', 'deleted_at', 'created_at', 'updated_at']);

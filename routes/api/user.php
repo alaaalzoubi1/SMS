@@ -26,6 +26,7 @@ Route::prefix('doctors')->group(function (){
     Route::get('{doctor_id}/services',[DoctorServiceController::class,'getDoctorServices']);
     Route::get('{doctor_id}/available-dates',[DoctorWorkScheduleController::class,'getAvailableDates']);
     Route::post('reserve',[DoctorReservationController::class,'reserve']);
+    Route::get('nearest',[DoctorController::class,'getNearestDoctors']);
 });
 
 Route::prefix('nurses')->group(function (){
@@ -38,10 +39,12 @@ Route::prefix('nurses')->group(function (){
 });
 Route::prefix('hospitals')->group(function (){
     Route::get('/',[HospitalController::class,'getHospitalsWithServices']);
+    Route::get('nearest',[HospitalController::class,'getNearestHospitals']);
     Route::get('/services',[ServiceController::class,'getServicesWithHospitals']);
     Route::get('{hospitalId}/available-dates',[HospitalWorkScheduleController::class,'getAvailableDates']);
     Route::get('/{hospitalId}',[HospitalController::class,'getHospitalServices']);
     Route::post('/make-reservation', [HospitalServiceReservationController::class, 'makeReservation']);
+
 
 });
 Route::prefix('ratings')->group(function (){

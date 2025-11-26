@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
+use MatanYadaev\EloquentSpatial\Objects\Point;
 
 class HospitalController extends Controller
 {
@@ -109,7 +110,7 @@ class HospitalController extends Controller
         }
 
         // Paginate the results
-        $hospitals = $query->select('hospitals.id', 'hospitals.full_name', 'hospitals.address')
+        $hospitals = $query->select('hospitals.id', 'hospitals.full_name', 'hospitals.address','hospitals.location','hospitals.avg_rating')
             ->paginate(10);
 
         // Format the response to map it into a clean structure
@@ -119,6 +120,7 @@ class HospitalController extends Controller
                 'full_name' => $hospital->full_name,
                 'address' => $hospital->address,
                 'avg_rating' => max(4, $hospital->avg_rating),
+                'location' => $hospital->location,
                 'services' => $hospital->services->map(function ($service) {
                     return [
                         'id' => $service->id ,
@@ -160,6 +162,41 @@ class HospitalController extends Controller
             'hospital_id' => $hospital->id,
             'hospital_name' => $hospital->full_name,
             'services' => $formattedServices,
+        ]);
+    }
+    public function getNearestHospitals(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'latitude' => 'required|numeric|between:-90,90',
+            'longitude' => 'required|numeric|between:-180,180',
+        ], [
+            'latitude.required' => 'يجب إدخال خط العرض.',
+            'latitude.numeric' => 'خط العرض يجب أن يكون رقمًا.',
+            'latitude.between' => 'قيمة خط العرض يجب أن تكون بين -90 و 90.',
+            'longitude.required' => 'يجب إدخال خط الطول.',
+            'longitude.numeric' => 'خط الطول يجب أن يكون رقمًا.',
+            'longitude.between' => 'قيمة خط الطول يجب أن تكون بين -180 و 180.',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+        $latitude = $request->input('latitude');
+        $longitude = $request->input('longitude');
+
+        $point = new Point($latitude, $longitude);
+
+        $hospitals = Hospital::query()
+            ->whereNotNull('location')
+            ->withDistanceSphere('location', $point, 'distance_meters')
+            ->orderByDistanceSphere('location', $point, 'asc')
+            ->limit(10)
+            ->get()
+            ->makeHidden(['license_image_path', 'deleted_at', 'created_at', 'updated_at']);
+        return response()->json([
+            'hospitals' => $hospitals,
         ]);
     }
 

@@ -20,6 +20,8 @@ class CreateDoctorsTable extends Migration
             $table->string('license_image_path')->nullable();
             $table->float('avg_rating')->default(0);
             $table->unsignedInteger('ratings_count')->default(0);
+            $table->geography('location', subtype: 'point');
+            $table->spatialIndex('location');
             $table->timestamps();
             $table->softDeletes();
         });

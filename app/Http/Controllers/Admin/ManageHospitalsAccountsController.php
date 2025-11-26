@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use MatanYadaev\EloquentSpatial\Objects\Point;
 
 class ManageHospitalsAccountsController extends Controller
 {
@@ -43,12 +44,12 @@ class ManageHospitalsAccountsController extends Controller
                 'fcm_token' => null, // يمكن ملؤه لاحقًا
             ]);
 
-            // إنشاء المستشفى مع الكود الفريد
             $hospital = Hospital::create([
                 'account_id' => $account->id,
                 'full_name' => $request->hospital_name, // اسم المستشفى
                 'unique_code' => $uniqueCode,  // الرمز الفريد
-                'address' => ''
+                'address' => '',
+                'location'=> new Point(0 , 0),
             ]);
 
             DB::commit();

@@ -10,10 +10,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use MatanYadaev\EloquentSpatial\Objects\Point;
+use MatanYadaev\EloquentSpatial\Traits\HasSpatial;
 
 class Doctor extends Model
 {
-    use HasFactory, SoftDeletes,Rateable;
+    use HasFactory, SoftDeletes,Rateable,HasSpatial;
 
     protected $fillable = [
         'account_id',
@@ -23,10 +25,12 @@ class Doctor extends Model
         'age',
         'gender',
         'specialization_id',
-        'license_image_path'
+        'license_image_path',
+        'location'
     ];
     protected $casts = [
         'specialization_type' => SpecializationType::class,
+        'location' => Point::class
     ];
 
     // Doctor belongs to Account

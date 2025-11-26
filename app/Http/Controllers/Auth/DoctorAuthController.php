@@ -15,6 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use MatanYadaev\EloquentSpatial\Objects\Point;
 use Spatie\LaravelOptions\Options;
 use Tymon\JWTAuth\Facades\JWTAuth;
 
@@ -53,6 +54,7 @@ class DoctorAuthController extends Controller
                 'gender'             => $validated['gender'],
                 'profile_description' => $validated['profile_description'],
                 'license_image_path' => $licensePath,
+                'location'=> new Point( $validated['latitude'], $validated['longitude']),
             ]);
 
             $account->assignRole('doctor');

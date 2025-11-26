@@ -19,6 +19,8 @@ return new class extends Migration
             $table->string('address');
             $table->float('avg_rating')->default(0);
             $table->unsignedInteger('ratings_count')->default(0);
+            $table->geography('location', subtype: 'point');
+            $table->spatialIndex('location');
             $table->softDeletes();
             $table->timestamps();
         });

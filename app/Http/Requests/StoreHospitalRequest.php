@@ -28,6 +28,8 @@ class StoreHospitalRequest extends FormRequest
             'email'          => 'required|email|unique:accounts,email' ,
             'phone_number'  => 'required|string|unique:accounts,phone_number',
             'password'     => 'required|string|min:8|confirmed',
+            'latitude' => 'required|numeric|between:-90,90',
+            'longitude' => 'required|numeric|between:-180,180',
         ];
     }
 

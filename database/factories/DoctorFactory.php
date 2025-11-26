@@ -9,6 +9,7 @@ use App\Models\Account;
 use App\Models\DoctorService;
 use App\Enums\SpecializationType;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use MatanYadaev\EloquentSpatial\Objects\Point;
 
 class DoctorFactory extends Factory
 {
@@ -23,6 +24,7 @@ class DoctorFactory extends Factory
             'address' => $this->faker->address,
             'age' => $this->faker->numberBetween(25, 65),
             'gender' => $this->faker->randomElement(['male', 'female']),
+            'location' => new Point($this->faker->latitude(), $this->faker->longitude() ),
             'specialization_id' => \App\Models\Specialization::inRandomOrder()->value('id') ?? 1,
             'license_image_path' => null,
         ];

@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
+use MatanYadaev\EloquentSpatial\Objects\Point;
 use Tymon\JWTAuth\Facades\JWTAuth;
 
 class HospitalAuthController extends Controller
@@ -44,6 +45,7 @@ class HospitalAuthController extends Controller
             $hospital->update([
                 'full_name' => $validated['hospital_name'], // Update hospital name
                 'address' => $validated['address'], // Update address
+                'location'=> new Point( $validated['latitude'], $validated['longitude']),
             ]);
 
             // Step 5: Update account data
