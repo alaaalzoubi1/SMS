@@ -13,6 +13,7 @@ class CreateDoctorsTable extends Migration
             $table->foreignId('account_id')->constrained('accounts');
             $table->string('full_name');
             $table->string('profile_description')->nullable();
+            $table->string('profile_image_path')->nullable();
             $table->string('address');
             $table->integer('age');
             $table->enum('gender', ['male', 'female']);

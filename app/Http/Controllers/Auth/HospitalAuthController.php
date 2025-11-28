@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use MatanYadaev\EloquentSpatial\Objects\Point;
 use Tymon\JWTAuth\Facades\JWTAuth;
@@ -21,12 +22,12 @@ class HospitalAuthController extends Controller
 {
     public function updateHospitalData(StoreHospitalRequest $request): JsonResponse
     {
-        // Step 1: The request is already validated via the form request class
-
         try {
             DB::beginTransaction();
+
             $validated = $request->validated();
-            // Step 2: Find hospital by name and unique_code
+
+            // Step 1: Find hospital
             $hospital = Hospital::where('full_name', $validated['hospital_name'])
                 ->where('unique_code', $validated['unique_code'])
                 ->first();
@@ -35,43 +36,67 @@ class HospitalAuthController extends Controller
                 return response()->json(['message' => 'Hospital not found or invalid code.'], 404);
             }
 
-            // Step 3: Find associated account
             $account = $hospital->account;
-            if ($account->is_approved === 'approved')
+
+            if ($account->is_approved === 'approved') {
                 return response()->json([
                     'message' => 'account already have been created'
                 ]);
-            // Step 4: Update hospital data
+            }
+
+            $profileImagePath = $hospital->profile_image_path;
+
+            if ($request->hasFile('profile_image')) {
+                $file = $request->file('profile_image');
+                $filename = uniqid('hospital_profile_') . '.' . $file->getClientOriginalExtension();
+
+                // Save new file
+                $newPath = $file->storeAs('hospitals/profile_images', $filename, 'public');
+
+                // Delete old file if exists
+                if ($profileImagePath && Storage::disk('public')->exists($profileImagePath)) {
+                    Storage::disk('public')->delete($profileImagePath);
+                }
+
+                $profileImagePath = $newPath;
+            }
+
+            // Step 4: Update hospital
             $hospital->update([
-                'full_name' => $validated['hospital_name'], // Update hospital name
-                'address' => $validated['address'], // Update address
-                'location'=> new Point( $validated['latitude'], $validated['longitude']),
+                'full_name' => $validated['hospital_name'],
+                'address'   => $validated['address'],
+                'location'  => new Point($validated['latitude'], $validated['longitude']),
+                'profile_image_path' => $profileImagePath,
             ]);
 
-            // Step 5: Update account data
             $account->update([
-                'email' => $validated['email'],
+                'email'        => $validated['email'],
                 'phone_number' => $validated['phone_number'],
                 'password'     => Hash::make($validated['password']),
-                'is_approved' => 'approved'
+                'is_approved'  => 'approved'
             ]);
+
             $account->assignRole('hospital');
+
             $token = JWTAuth::fromUser($account);
+
             DB::commit();
 
             return response()->json([
-                'message' => 'Hospital data updated successfully.',
-                'hospital' => $hospital,
-                'account' => $account,
-                'token' => $token
-            ], 200);
-
+                'message'  => 'Hospital data updated successfully.',
+                'hospital' => $hospital->fresh(),
+                'account'  => $account->fresh(),
+                'token'    => $token,
+            ]);
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Hospital update failed: ' . $e->getMessage());
-            return response()->json(['message' => 'An error occurred. Please try again later.'], 500);
+            return response()->json([
+                'message' => 'An error occurred. Please try again later.'
+            ], 500);
         }
     }
+
 
     public function login(Request $request): JsonResponse
     {
@@ -167,27 +192,46 @@ class HospitalAuthController extends Controller
         $accountData = [];
         $hospitalData = [];
 
-        // تحديث الحقول في حساب المستخدم
+        // full_name
         if (array_key_exists('full_name', $validated)) {
             $hospitalData['full_name'] = $validated['full_name'];
         }
 
+        // phone_number
         if (array_key_exists('phone_number', $validated)) {
             $accountData['phone_number'] = $validated['phone_number'];
         }
 
-        // تحديث الحقول في جدول الأطباء
-        $field = 'address';
-        if (array_key_exists($field, $validated)) {
-            $hospitalData[$field] = $validated[$field];
+        // address
+        if (array_key_exists('address', $validated)) {
+            $hospitalData['address'] = $validated['address'];
         }
 
+        // معالجة رفع الصورة
+        if ($request->hasFile('profile_image')) {
 
-        // تنفيذ التحديثات
+            // مسار الصورة القديمة
+            $oldImage = $hospital->profile_image_path;
+
+            // رفع الصورة الجديدة
+            $file = $request->file('profile_image');
+            $filename = uniqid('hospital_profile_') . '.' . $file->getClientOriginalExtension();
+            $newPath = $file->storeAs('hospitals/profile_images', $filename, 'public');
+
+            $hospitalData['profile_image_path'] = $newPath;
+
+            // حذف القديمة إن وجدت
+            if ($oldImage && Storage::disk('public')->exists($oldImage)) {
+                Storage::disk('public')->delete($oldImage);
+            }
+        }
+
+        // تحديث الحساب (accounts)
         if (!empty($accountData)) {
             $account->update($accountData);
         }
 
+        // تحديث بيانات المستشفى
         if (!empty($hospitalData)) {
             $hospital->update($hospitalData);
         }
@@ -198,4 +242,5 @@ class HospitalAuthController extends Controller
             'account' => $account
         ]);
     }
+
 }

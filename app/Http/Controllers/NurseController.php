@@ -18,66 +18,15 @@ class NurseController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
-    {
-        //
-    }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(StoreNurseRequest $request)
-    {
-        //
-    }
-
-    /**
-     * Display the specified resource.
-     */
-    public function show(Nurse $nurse)
-    {
-        //
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Nurse $nurse)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(UpdateNurseRequest $request, Nurse $nurse)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Nurse $nurse)
-    {
-        //
-    }
     public function listForUsers(NurseFilterRequest $request): JsonResponse
     {
 
         // Start building the query for nurses
         $query = Nurse::query()
-            ->with(['services.subservices']) ;// Eager load services and subservices
-//            ->Approved()
-//            ->Active();
+            ->with(['services.subservices']) // Eager load services and subservices
+            ->Approved()
+            ->Active();
 //            ->select('id', 'full_name', 'address','location', 'graduation_type', 'age', 'gender', 'profile_description');
 
         // Apply filters if present
@@ -140,7 +89,8 @@ class NurseController extends Controller
                 'location'=>$nurse->location,
                 'services' => $nurse->services,
                 'avg_rating' => max(4,$nurse->avg_rating),
-                'distance_meters' => $nurse->distance_meters
+                'distance_meters' => $nurse->distance_meters,
+                'profile_image' => $nurse->profile_image_path
             ];
         });
 

@@ -23,7 +23,8 @@ class Hospital extends Model
         'address',
         'full_name',
         'unique_code',
-        'location'
+        'location',
+        'profile_image_path'
     ];
     protected $hidden = [
         'unique_code',

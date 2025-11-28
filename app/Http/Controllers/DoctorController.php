@@ -33,7 +33,7 @@ class DoctorController extends Controller
             $query->where('full_name', 'like', '%' . $request->full_name . '%');
         }
 
-        $doctors = $query->select('id', 'full_name', 'address', 'age', 'gender', 'specialization_id', 'profile_description', 'account_id','location')
+        $doctors = $query->select('id', 'full_name', 'address', 'age', 'gender', 'specialization_id', 'profile_description', 'account_id','location','profile_image_path')
             ->paginate(10);
 
         $doctors->getCollection()->transform(function ($doctor) {
@@ -85,62 +85,5 @@ class DoctorController extends Controller
         return response()->json([
             'doctors' => $doctors,
         ]);
-    }
-
-
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
-    {
-        //
-    }
-
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(StoreDoctorRequest $request)
-    {
-        //
-    }
-
-    /**
-     * Display the specified resource.
-     */
-    public function show(Doctor $doctor)
-    {
-        //
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Doctor $doctor)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(UpdateDoctorRequest $request, Doctor $doctor)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Doctor $doctor)
-    {
-        //
     }
 }

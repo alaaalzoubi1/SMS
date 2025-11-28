@@ -26,7 +26,8 @@ class Doctor extends Model
         'gender',
         'specialization_id',
         'license_image_path',
-        'location'
+        'location',
+        'profile_image_path'
     ];
     protected $casts = [
         'specialization_type' => SpecializationType::class,

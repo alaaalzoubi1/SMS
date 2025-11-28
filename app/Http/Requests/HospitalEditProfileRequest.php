@@ -26,6 +26,7 @@ class HospitalEditProfileRequest extends FormRequest
             'full_name'    => 'sometimes|required|string|max:255',
             'phone_number' => 'sometimes|required|string|unique:accounts,phone_number,',
             'address'      => 'sometimes|required|string|max:255',
+            'profile_image' => 'sometimes|nullable|image|mimes:jpeg,jpg,png|max:10240',
         ];
     }
 }

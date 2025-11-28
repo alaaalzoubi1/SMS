@@ -26,68 +26,7 @@ class HospitalController extends Controller
         return $hospital;
     }
 
-    public function getProfile()
-    {
-        $account = auth()->user();
-        $hospital = $account->hospital;
-        $workSchedules = $hospital->workSchedules;
 
-        return response()->json([
-            'id' => $hospital->id,
-            'email' => $account->email,
-            'account_id' => $hospital->account_id,
-            'address' => $hospital->address,
-            'contact_number' => $account?->phone_number,
-            'work_schedules' => $workSchedules ? $workSchedules->map(function($schedule) {
-                return [
-                    'id' => $schedule->id,
-                    'day_of_week' => $schedule->day_of_week,
-                ];
-            }) : [],
-        ]);
-    }
-
-    public function updateProfile(Request $request)
-    {
-        $hospital = $this->getAuthenticatedHospital();
-
-        $request->validate([
-            'address' => 'sometimes|string|max:255',
-            'contact_number' => 'sometimes|string|max:20',
-        ]);
-
-        DB::beginTransaction();
-
-        try {
-            if ($request->has('address')) {
-                $hospital->address = $request->input('address');
-                $hospital->save();
-            }
-
-            $account = $hospital->account;
-            if ($account && $request->has('phone_number')) {
-                $account->phone_number = $request->input('phone_number');
-                $account->save();
-            }
-
-            DB::commit();
-
-            return response()->json([
-                'message' => 'Hospital profile updated successfully',
-                'hospital' => [
-                    'id' => $hospital->id,
-                    'account_id' => $hospital->account_id,
-                    'address' => $hospital->address,
-                    'contact_number' => $account ? $account->phone_number : null,
-                ]
-            ]);
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json(['message' => 'Failed to update hospital profile'], 500);
-        }
-    }
-    // Hospital Model
 
     public function getHospitalsWithServices(Request $request): JsonResponse
     {
@@ -110,7 +49,7 @@ class HospitalController extends Controller
         }
 
         // Paginate the results
-        $hospitals = $query->select('hospitals.id', 'hospitals.full_name', 'hospitals.address','hospitals.location','hospitals.avg_rating')
+        $hospitals = $query->select('hospitals.id', 'hospitals.full_name', 'hospitals.address','hospitals.location','hospitals.avg_rating','hospitals.profile_image_path')
             ->paginate(10);
 
         // Format the response to map it into a clean structure

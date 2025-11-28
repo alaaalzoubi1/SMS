@@ -15,6 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use MatanYadaev\EloquentSpatial\Objects\Point;
 use Spatie\LaravelOptions\Options;
 use Tymon\JWTAuth\Facades\JWTAuth;
@@ -37,7 +38,6 @@ class DoctorAuthController extends Controller
                 'fcm_token'    => $request->fcm_token ?? null,
             ]);
 
-            // تخزين صورة الرخصة
             $licensePath = null;
             if ($request->hasFile('license_image')) {
                 $licenseFile = $request->file('license_image');
@@ -45,16 +45,24 @@ class DoctorAuthController extends Controller
                 $licensePath = $licenseFile->storeAs('doctors/licenses', $filename, 'public');
             }
 
+            $profileImagePath = null;
+            if ($request->hasFile('profile_image')) {
+                $profileFile = $request->file('profile_image');
+                $filename = uniqid('profile_') . '.' . $profileFile->getClientOriginalExtension();
+                $profileImagePath = $profileFile->storeAs('doctors/profile_images', $filename, 'public');
+            }
+
             Doctor::create([
-                'account_id'         => $account->id,
-                'full_name'          => $validated['full_name'],
-                'specialization_id'=> $validated['specialization_id'],
-                'address'            => $validated['address'],
-                'age'                => $validated['age'],
-                'gender'             => $validated['gender'],
-                'profile_description' => $validated['profile_description'],
-                'license_image_path' => $licensePath,
-                'location'=> new Point( $validated['latitude'], $validated['longitude']),
+                'account_id'           => $account->id,
+                'full_name'            => $validated['full_name'],
+                'specialization_id'    => $validated['specialization_id'],
+                'address'              => $validated['address'],
+                'age'                  => $validated['age'],
+                'gender'               => $validated['gender'],
+                'profile_description'  => $validated['profile_description'],
+                'license_image_path'   => $licensePath,
+                'profile_image_path'   => $profileImagePath,
+                'location'             => new Point($validated['latitude'], $validated['longitude']),
             ]);
 
             $account->assignRole('doctor');
@@ -77,30 +85,31 @@ class DoctorAuthController extends Controller
 
 
 
-    public function verifyCode(Request $request): JsonResponse
-    {
-        $request->validate([
-            'email' => 'required|email',
-            'code' => 'required|string'
-        ]);
 
-        $account = Account::where('email', $request->email)
-            ->where('verification_code', $request->code)
-            ->first();
-
-        if (!$account || $account->is_approved != 'approved') {
-            return response()->json(['message' => 'Invalid code or not approved.'], 401);
-        }
-
-        $account->update(['verification_code' => null]);
-
-        $token = JWTAuth::fromUser($account);
-
-        return response()->json([
-            'access_token' => $token,
-            'token_type' => 'bearer',
-        ]);
-    }
+//    public function verifyCode(Request $request): JsonResponse
+//    {
+//        $request->validate([
+//            'email' => 'required|email',
+//            'code' => 'required|string'
+//        ]);
+//
+//        $account = Account::where('email', $request->email)
+//            ->where('verification_code', $request->code)
+//            ->first();
+//
+//        if (!$account || $account->is_approved != 'approved') {
+//            return response()->json(['message' => 'Invalid code or not approved.'], 401);
+//        }
+//
+//        $account->update(['verification_code' => null]);
+//
+//        $token = JWTAuth::fromUser($account);
+//
+//        return response()->json([
+//            'access_token' => $token,
+//            'token_type' => 'bearer',
+//        ]);
+//    }
     public function login(Request $request): JsonResponse
     {
         $credentials = $request->only('email', 'password');
@@ -196,7 +205,6 @@ class DoctorAuthController extends Controller
         $accountData = [];
         $doctorData = [];
 
-        // تحديث الحقول في حساب المستخدم
         if (array_key_exists('full_name', $validated)) {
             $doctorData['full_name'] = $validated['full_name'];
         }
@@ -205,19 +213,28 @@ class DoctorAuthController extends Controller
             $accountData['phone_number'] = $validated['phone_number'];
         }
 
-        // تحديث الحقول في جدول الأطباء
         foreach (['address', 'age', 'gender', 'profile_description'] as $field) {
             if (array_key_exists($field, $validated)) {
                 $doctorData[$field] = $validated[$field];
             }
         }
 
-        // معالجة التخصص (enum) إذا وُجد
         if (array_key_exists('specialization_id', $validated)) {
             $doctorData['specialization_id'] = $validated['specialization_id'];
         }
 
-        // تنفيذ التحديثات
+        if ($request->hasFile('profile_image')) {
+            if ($doctor->profile_image_path && Storage::disk('public')->exists($doctor->profile_image_path)) {
+                Storage::disk('public')->delete($doctor->profile_image_path);
+            }
+
+            $profileFile = $request->file('profile_image');
+            $filename = uniqid('profile_') . '.' . $profileFile->getClientOriginalExtension();
+            $path = $profileFile->storeAs('doctors/profile_images', $filename, 'public');
+
+            $doctorData['profile_image_path'] = $path;
+        }
+
         if (!empty($accountData)) {
             $account->update($accountData);
         }
@@ -231,8 +248,4 @@ class DoctorAuthController extends Controller
             'doctor' => $doctor->fresh(),
         ]);
     }
-
-
-
-
 }

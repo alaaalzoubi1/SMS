@@ -25,7 +25,6 @@ class DoctorRegisterRequest extends FormRequest
             'password'     => 'required|string|min:8|confirmed',
             'phone_number' => 'required|string|unique:accounts,phone_number',
 
-            // بيانات الطبيب
             'specialization_id' => [
                 'required',
                 'integer',
@@ -38,8 +37,9 @@ class DoctorRegisterRequest extends FormRequest
             'latitude' => 'required|numeric|between:-90,90',
             'longitude' => 'required|numeric|between:-180,180',
 
-            // صورة الرخصة (اختيارية)
             'license_image'  => 'required|image|mimes:jpeg,png,jpg,pdf|max:2048',
+            'profile_image' => 'nullable|image|mimes:jpeg,png,jpg|max:10240',
+
 
         ];
     }
@@ -54,7 +54,10 @@ class DoctorRegisterRequest extends FormRequest
             'specialization_id.exists' => 'الاختصاص المختار غير موجود أو تم حذفه.',
             'license_image.image'=> 'يجب أن تكون صورة صالحة.',
             'license_image.mimes'=> 'يجب أن يكون امتداد الصورة pdf أو jpeg أو png أو jpg.',
-            'license_image.max'  => 'حجم الصورة لا يجب أن يتجاوز 2 ميجابايت.',
+            'license_image.max'  => 'حجم الصورة لا يجب أن يتجاوز 10 ميجابايت.',
+            'profile_image.image' => 'يجب أن تكون صورة صالحة.',
+            'profile_image.mimes' => 'يجب أن يكون امتداد الصورة jpeg أو png أو jpg.',
+            'profile_image.max'   => 'حجم الصورة لا يجب أن يتجاوز 2 ميجابايت.',
         ];
 
     }

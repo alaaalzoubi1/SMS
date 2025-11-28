@@ -20,6 +20,7 @@ return new class extends Migration
             $table->float('avg_rating')->default(0);
             $table->unsignedInteger('ratings_count')->default(0);
             $table->geography('location', subtype: 'point');
+            $table->string('profile_image_path')->nullable();
             $table->spatialIndex('location');
             $table->softDeletes();
             $table->timestamps();

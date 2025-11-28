@@ -30,6 +30,7 @@ class StoreHospitalRequest extends FormRequest
             'password'     => 'required|string|min:8|confirmed',
             'latitude' => 'required|numeric|between:-90,90',
             'longitude' => 'required|numeric|between:-180,180',
+            'profile_image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:10240',
         ];
     }
 

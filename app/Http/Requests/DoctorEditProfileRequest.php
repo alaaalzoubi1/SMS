@@ -2,6 +2,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class DoctorEditProfileRequest extends FormRequest
 {
@@ -18,8 +19,13 @@ class DoctorEditProfileRequest extends FormRequest
             'address'      => 'sometimes|string|max:255',
             'age'          => 'sometimes|integer|min:21|max:99',
             'gender'       => 'sometimes|in:male,female',
-            'specialization_id' => 'sometimes|integer|exists:specializations,id',
+            'specialization_id' => [
+                'sometimes',
+                'integer',
+                Rule::exists('specializations', 'id')->whereNull('deleted_at'),
+            ],
             'profile_description' => 'sometimes|string|max:1000',
+            'profile_image' => 'sometimes|image|mimes:jpeg,png,jpg|max:10240',
         ];
     }
 
@@ -28,6 +34,9 @@ class DoctorEditProfileRequest extends FormRequest
         return [
             'phone_number.unique' => 'رقم الهاتف مستخدم من قبل.',
             'gender.in' => 'القيمة المدخلة للجنس غير صحيحة.',
+            'profile_image.image' => 'يجب أن تكون صورة صالحة.',
+            'profile_image.mimes' => 'يجب أن تكون الصورة jpeg أو png أو jpg.',
+            'profile_image.max'   => 'حجم الصورة لا يجب أن يتجاوز 10 ميجابايت.',
         ];
     }
 }

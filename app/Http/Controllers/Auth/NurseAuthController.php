@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use MatanYadaev\EloquentSpatial\Objects\Point;
 use Tymon\JWTAuth\Facades\JWTAuth;
 
@@ -20,13 +21,9 @@ class NurseAuthController extends Controller
     public function register(NurseRegisterRequest $request): JsonResponse
     {
         try {
-            // Validate request data
             $validated = $request->validated();
-
-            // Start transaction
             DB::beginTransaction();
 
-            // Create Account (This will remain the same)
             $account = Account::create([
                 'email'        => $validated['email'],
                 'password'     => Hash::make($validated['password']),
@@ -34,49 +31,54 @@ class NurseAuthController extends Controller
                 'fcm_token'    => $request->fcm_token ?? null,
             ]);
 
-            // Handle the license image upload
             $licenseImagePath = null;
             if ($request->hasFile('license_image')) {
-                $licenseImagePath = $request->file('license_image')->store('nurses/licenses', 'public');
+                $licenseImagePath = $request->file('license_image')->store(
+                    'nurses/licenses',
+                    'public'
+                );
             }
 
-            // Create Nurse with the new structure
-            $nurse = Nurse::create([
+            $profileImagePath = null;
+            if ($request->hasFile('profile_image')) {
+                $profileImagePath = $request->file('profile_image')->store(
+                    'nurses/profile_images',
+                    'public'
+                );
+            }
+
+            Nurse::create([
                 'account_id'     => $account->id,
-                'full_name'      => $validated['full_name'],  // Name is in Nurse table
+                'full_name'      => $validated['full_name'],
                 'address'        => $validated['address'],
                 'graduation_type'=> $validated['graduation_type'],
-                'location'=> new Point( $validated['latitude'], $validated['longitude']),
+                'location'       => new Point($validated['latitude'], $validated['longitude']),
                 'age'            => $validated['age'],
                 'gender'         => $validated['gender'],
                 'profile_description' => $validated['profile_description'] ?? null,
                 'license_image_path'  => $licenseImagePath,
+                'profile_image_path'  => $profileImagePath,
             ]);
 
-            // Assign role to the nurse account
             $account->assignRole('nurse');
 
-            // Commit transaction
             DB::commit();
 
-            // Return success response
             return response()->json([
                 'message' => 'Registration successful. Awaiting admin approval.',
             ], 201);
-        } catch (\Exception $e) {
-            // Rollback transaction in case of failure
-            DB::rollBack();
 
-            // Log the error
+        } catch (\Exception $e) {
+
+            DB::rollBack();
             Log::error('Nurse registration failed: ' . $e->getMessage());
 
-            // Return error response
             return response()->json([
                 'message' => 'Registration failed. Please try again later.',
-
             ], 500);
         }
     }
+
 
 
 
@@ -195,11 +197,11 @@ class NurseAuthController extends Controller
     public function updateProfile(Request $request): JsonResponse
     {
         $account = auth()->user();
-        $nurse = $account->nurse; // الحصول على السجلات الخاصة بالممرض المرتبط بالحساب الحالي
+        $nurse = $account->nurse;
 
-        // التحقق من البيانات المدخلة
+        // Validate request fields including optional image
         $validated = $request->validate([
-            'phone_number' => 'sometimes|string|unique:accounts,phone_number',
+            'phone_number' => 'sometimes|string|unique:accounts,phone_number,' . $account->id,
             'full_name' => 'sometimes|string|max:255',
             'address' => 'nullable|string|max:255',
             'graduation_type' => 'sometimes|in:معهد,مدرسة,جامعة,ماجستير,دكتوراه',
@@ -208,11 +210,17 @@ class NurseAuthController extends Controller
             'age' => 'sometimes|integer|min:21|max:99',
             'gender' => 'sometimes|in:male,female',
             'profile_description' => 'nullable|string|max:500',
+
+            // New rule for profile image
+            'profile_image' => 'sometimes|image|mimes:jpg,jpeg,png,gif|max:20480', // 20 MB
         ]);
-        if (isset($validated['phone_number']))     {
+
+        // ========== UPDATE ACCOUNT ==========
+        if (isset($validated['phone_number'])) {
             $account->phone_number = $validated['phone_number'];
         }
-        // تحديث الحقول في جدول الممرض
+
+        // ========== UPDATE NURSE INFO ==========
         if (isset($validated['full_name'])) {
             $nurse->full_name = $validated['full_name'];
         }
@@ -226,10 +234,8 @@ class NurseAuthController extends Controller
         }
 
         if (isset($validated['longitude']) && isset($validated['latitude'])) {
-            $nurse->location = new Point($validated['latitude'],$validated['longitude']);
+            $nurse->location = new Point($validated['latitude'], $validated['longitude']);
         }
-
-
 
         if (isset($validated['age'])) {
             $nurse->age = $validated['age'];
@@ -242,16 +248,29 @@ class NurseAuthController extends Controller
         if (isset($validated['profile_description'])) {
             $nurse->profile_description = $validated['profile_description'];
         }
-        // حفظ التغييرات
+
+        if ($request->hasFile('profile_image')) {
+
+            if ($nurse->profile_image_path && Storage::disk('public')->exists($nurse->profile_image_path)) {
+                Storage::disk('public')->delete($nurse->profile_image_path);
+            }
+
+            $path = $request->file('profile_image')->store('nurses/profile_images', 'public');
+
+            $nurse->profile_image_path = $path;
+        }
+
+        // Save both models
         $account->save();
         $nurse->save();
 
         return response()->json([
             'message' => 'Profile updated successfully.',
             'phone_number' => $account->phone_number,
-            'nurse' => $nurse,
+            'nurse' => $nurse->fresh(),
         ]);
     }
+
 
 
 }
