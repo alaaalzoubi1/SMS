@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
 
             RolesSeeder::class,
             AdminAccountSeeder::class,
+            ProvinceSeeder::class,
             NurseSeeder::class,
             SpecializationSeeder::class,
             DoctorSeeder::class,

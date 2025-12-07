@@ -33,31 +33,38 @@ class NurseAuthController extends Controller
 
             $licenseImagePath = null;
             if ($request->hasFile('license_image')) {
-                $licenseImagePath = $request->file('license_image')->store(
+                $licenseFile = $request->file('license_image');
+                $filename = uniqid('nurse_license_') . '.' . $licenseFile->getClientOriginalExtension();
+                $licenseImagePath = $licenseFile->storeAs(
                     'nurses/licenses',
-                    'public'
+                    $filename,
+                    'private'
                 );
             }
 
             $profileImagePath = null;
             if ($request->hasFile('profile_image')) {
-                $profileImagePath = $request->file('profile_image')->store(
+                $profileFile = $request->file('profile_image');
+                $filename = uniqid('nurse_profile_') . '.' . $profileFile->getClientOriginalExtension();
+                $profileImagePath = $profileFile->storeAs(
                     'nurses/profile_images',
+                    $filename,
                     'public'
                 );
             }
 
             Nurse::create([
-                'account_id'     => $account->id,
-                'full_name'      => $validated['full_name'],
-                'address'        => $validated['address'],
-                'graduation_type'=> $validated['graduation_type'],
-                'location'       => new Point($validated['latitude'], $validated['longitude']),
-                'age'            => $validated['age'],
-                'gender'         => $validated['gender'],
+                'account_id'          => $account->id,
+                'full_name'           => $validated['full_name'],
+                'address'             => $validated['address'],
+                'graduation_type'     => $validated['graduation_type'],
+                'location'            => new Point($validated['latitude'], $validated['longitude']),
+                'age'                 => $validated['age'],
+                'gender'              => $validated['gender'],
                 'profile_description' => $validated['profile_description'] ?? null,
                 'license_image_path'  => $licenseImagePath,
                 'profile_image_path'  => $profileImagePath,
+                'province_id' => $validated['province_id'],
             ]);
 
             $account->assignRole('nurse');
@@ -78,6 +85,7 @@ class NurseAuthController extends Controller
             ], 500);
         }
     }
+
 
 
 
@@ -213,6 +221,7 @@ class NurseAuthController extends Controller
 
             // New rule for profile image
             'profile_image' => 'sometimes|image|mimes:jpg,jpeg,png,gif|max:20480', // 20 MB
+            'province_id' => 'sometimes|integer|exists:provinces,id'
         ]);
 
         // ========== UPDATE ACCOUNT ==========
@@ -248,7 +257,10 @@ class NurseAuthController extends Controller
         if (isset($validated['profile_description'])) {
             $nurse->profile_description = $validated['profile_description'];
         }
-
+        if (isset($validated['province_id']))
+        {
+            $nurse->province_id = $validated['province_id'];
+        }
         if ($request->hasFile('profile_image')) {
 
             if ($nurse->profile_image_path && Storage::disk('public')->exists($nurse->profile_image_path)) {

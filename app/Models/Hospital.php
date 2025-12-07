@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Scopes\ProvinceScope;
 use App\Rateable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -26,6 +27,12 @@ class Hospital extends Model
         'location',
         'profile_image_path'
     ];
+
+    protected static function booted()
+    {
+        static::addGlobalScope(new ProvinceScope);
+    }
+
     protected $hidden = [
         'unique_code',
     ];
@@ -52,6 +59,11 @@ class Hospital extends Model
         return $this->belongsToMany(Service::class, 'hospital_services', 'hospital_id', 'service_id')
             ->withPivot('price', 'capacity') // Include pivot data (price and capacity)
             ->whereNotNull('hospital_services.price'); // Only include services with a price
+    }
+
+    public function province(): BelongsTo
+    {
+        return $this->belongsTo(Province::class);
     }
 
 }

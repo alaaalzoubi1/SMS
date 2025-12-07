@@ -5,6 +5,7 @@ use App\Http\Controllers\NurseController;
 use App\Http\Controllers\NurseReservationController;
 use App\Http\Controllers\NurseServiceController;
 use App\Http\Controllers\NurseSubsercviceController;
+use App\Http\Controllers\ProvinceController;
 use Illuminate\Support\Facades\Route;
 
 // the URL is api/nurse
@@ -33,3 +34,4 @@ Route::prefix('reservations')->group(callback: function (){
     Route::patch('/updateStatus/{id}', [NurseReservationController::class, 'updateStatus']);
 
 });
+Route::get('provinces', [ProvinceController::class, 'index']);

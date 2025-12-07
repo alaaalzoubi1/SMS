@@ -5,6 +5,7 @@ namespace Database\Factories;
 use App\Models\Account;
 use App\Models\NurseService;
 use App\Models\NurseSubservice;
+use App\Models\Province;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use MatanYadaev\EloquentSpatial\Objects\Point;
 
@@ -22,6 +23,7 @@ class NurseFactory extends Factory
     {
         return [
             'account_id' => Account::factory(),
+            'province_id' => Province::inRandomOrder()->value('id'),
             'full_name' => $this->faker->name,
             'is_active'=> $this->faker->boolean ,
             'address' => $this->faker->address,

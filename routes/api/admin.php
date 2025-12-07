@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\ManageHospitalsAccountsController;
 use App\Http\Controllers\Admin\NurseStatisticsController;
 use App\Http\Controllers\Admin\UserStatisticsController;
 use App\Http\Controllers\Auth\AdminAuthController;
+use App\Http\Controllers\ProvinceController;
 use App\Http\Controllers\ServiceController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\SpecializationController;
@@ -40,9 +41,11 @@ Route::prefix('specializations')->group(function () {
 
 
 Route::prefix('doctor')->group(function (){
+    Route::get('/{id}/license', [DoctorStatisticsController::class, 'getDoctorLicense']);
     Route::get('/all',[DoctorStatisticsController::class,'doctors']);
     Route::get('/{id}',[DoctorStatisticsController::class,'doctor']);
     Route::get('/{id}/reservations',[DoctorStatisticsController::class,'doctorReservations']);
+
 });
 Route::prefix('hospital')->group(function (){
     Route::get('/all',[HospitalStatisticsController::class,'hospitals']);
@@ -50,6 +53,7 @@ Route::prefix('hospital')->group(function (){
     Route::get('/{id}/reservations',[HospitalStatisticsController::class,'hospitalReservations']);
 });
 Route::prefix('nurse')->group(function (){
+    Route::get('/{id}/license', [NurseStatisticsController::class, 'getNurseLicense']);
     Route::get('/all',[NurseStatisticsController::class,'nurses']);
     Route::get('/{id}',[NurseStatisticsController::class,'nurse']);
     Route::get('/{id}/reservations',[NurseStatisticsController::class,'nurseReservations']);
@@ -58,6 +62,11 @@ Route::prefix('user')->group(function (){
     Route::get('/all',[UserStatisticsController::class,'users']);
     Route::get('/{id}/reservations',[UserStatisticsController::class,'userReservations']);
 });
+Route::prefix('provinces')->group(function () {
+    Route::get('/', [ProvinceController::class, 'index']);
+    Route::patch('/', [ProvinceController::class, 'update']);
+    Route::post('/', [ProvinceController::class, 'store']);
+    Route::delete('/{id}', [ProvinceController::class, 'destroy']);
+});
 
 Route::get('entity-rates',[\App\Http\Controllers\RatingController::class,'entityRatings']);
-

@@ -177,11 +177,12 @@ class DoctorReservationController extends Controller
     public function updateStatus(Request $request, $id): JsonResponse
     {
         $request->validate([
-            'status' => 'required|in:pending,approved,rejected,cancelled,completed',
+            'status' => 'required|in:approved,cancelled,completed',
+            'reason' => 'required_if:status,cancelled|string|max:1000',
         ]);
 
         $reservation = DoctorReservation::where('id', $id)
-            ->with(['user.account', 'doctor.account']) // حتى نقدر نرسل إشعار للمستخدم
+            ->with(['user.account', 'doctor.account', 'cancellation'])
             ->first();
 
         if (!$reservation) {
@@ -190,22 +191,32 @@ class DoctorReservationController extends Controller
 
         $this->authorize('manageReservations', $reservation);
 
+        if ($reservation->status !== 'pending') {
+            return response()->json([
+                'message' => 'Cannot change status unless it is pending.'
+            ], 403);
+        }
+
         $reservation->status = $request->status;
         $reservation->save();
 
-        // ✅ إرسال إشعار للمستخدم لما الطبيب يحدّث الحالة
+        if ($request->status === 'cancelled') {
+            $reservation->cancellation()->create([
+                'reason' => $request->reason,
+            ]);
+        }
+
         try {
             $userAccount = $reservation->user->account ?? null;
             $doctorName = $reservation->doctor->full_name ?? 'الطبيب';
 
             if ($userAccount && $userAccount->fcm_token) {
                 $title = "تحديث حالة الحجز من الطبيب";
+
                 $body = match ($reservation->status) {
                     'approved' => sprintf("تمت الموافقة على حجزك من %s.", $doctorName),
-                    'rejected' => sprintf("تم رفض حجزك من %s.", $doctorName),
-                    'cancelled' => sprintf("تم إلغاء حجزك من %s.", $doctorName),
+                    'cancelled' => sprintf("تم إلغاء حجزك من %s. السبب: %s", $doctorName, $request->reason),
                     'completed' => sprintf("تم اكتمال حجزك مع %s بنجاح.", $doctorName),
-                    default => sprintf("تم تحديث حالة حجزك إلى %s من %s.", $reservation->status, $doctorName),
                 };
 
                 SendFirebaseNotificationJob::dispatch(
@@ -220,8 +231,9 @@ class DoctorReservationController extends Controller
 
         return response()->json([
             'message' => 'Reservation status updated successfully.',
-            'data' => $reservation,
+            'data' => $reservation->fresh(),
         ]);
     }
+
 
 }

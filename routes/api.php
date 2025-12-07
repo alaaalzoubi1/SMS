@@ -77,3 +77,4 @@ use App\Http\Controllers\FirebaseTestController;
 
 Route::post('/test-fcm', [FirebaseTestController::class, 'sendTestNotification']);
 Route::get('my-rates',[\App\Http\Controllers\RatingController::class,'myRatings']);
+

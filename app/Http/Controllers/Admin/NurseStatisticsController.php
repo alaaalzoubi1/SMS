@@ -46,4 +46,21 @@ class NurseStatisticsController extends Controller
             $query->paginate($perPage)
         );
     }
+    public function getNurseLicense($nurseId)
+    {
+        $nurse = Nurse::findOrFail($nurseId);
+
+        if (!$nurse->license_image_path) {
+            abort(404, 'لا توجد شهادة مخزنة لهذا الممرض');
+        }
+
+        $path = storage_path('app/private/' . $nurse->license_image_path);
+
+        if (!file_exists($path)) {
+            abort(404, 'ملف الشهادة غير موجود');
+        }
+
+        return response()->file($path);
+    }
+
 }

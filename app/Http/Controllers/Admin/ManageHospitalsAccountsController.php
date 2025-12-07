@@ -16,12 +16,11 @@ class ManageHospitalsAccountsController extends Controller
 {
     public function createHospitalAccount(Request $request): JsonResponse
     {
-        //TODO : a unique email and phone problem
         try {
             DB::beginTransaction();
 
             $validator = Validator::make($request->all(), [
-                'hospital_name' => 'required|string|max:255|unique:hospitals,full_name', // تحقق من أن الاسم غير موجود مسبقًا
+                'hospital_name' => 'required|string|max:255|unique:hospitals,full_name',
             ]);
 
             if ($validator->fails()) {
@@ -31,25 +30,24 @@ class ManageHospitalsAccountsController extends Controller
                 ], 422);
             }
 
-            // توليد UUID للمستشفى
-            $uniqueCode = Str::uuid(); // توليد UUID فريد
-            $temporaryEmail = 'hospital_' . $uniqueCode . '@example.com'; // توليد بريد إلكتروني مؤقت
-            $temporaryPhone = '000-' . $uniqueCode->toString(); // توليد رقم هاتف مؤقت
+            $uniqueCode = Str::uuid();
+            $temporaryEmail = 'hospital_' . $uniqueCode . '@example.com';
+            $temporaryPhone = '000-' . $uniqueCode->toString();
 
-            // إنشاء حساب للمستشفى
             $account = Account::create([
-                'email' => $temporaryEmail, // تعيين البريد الإلكتروني المؤقت
-                'password' => '', // سيتم تعيينه لاحقًا
-                'phone_number' => $temporaryPhone, // تعيين رقم الهاتف المؤقت
-                'fcm_token' => null, // يمكن ملؤه لاحقًا
+                'email' => $temporaryEmail,
+                'password' => '',
+                'phone_number' => $temporaryPhone,
+                'fcm_token' => null,
             ]);
 
             $hospital = Hospital::create([
                 'account_id' => $account->id,
-                'full_name' => $request->hospital_name, // اسم المستشفى
-                'unique_code' => $uniqueCode,  // الرمز الفريد
+                'full_name' => $request->hospital_name,
+                'unique_code' => $uniqueCode,
                 'address' => '',
                 'location'=> new Point(0 , 0),
+                'province_id' => 1,
             ]);
 
             DB::commit();

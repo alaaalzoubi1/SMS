@@ -8,6 +8,7 @@ use App\Models\Doctor;
 use App\Models\Account;
 use App\Models\DoctorService;
 use App\Enums\SpecializationType;
+use App\Models\Province;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use MatanYadaev\EloquentSpatial\Objects\Point;
 
@@ -19,6 +20,7 @@ class DoctorFactory extends Factory
     {
         return [
             'account_id' => Account::factory(),  // Create an associated Account
+            'province_id' => Province::inRandomOrder()->value('id'),
             'full_name' => $this->faker->name,
             'profile_description' => $this->faker->sentence,
             'address' => $this->faker->address,

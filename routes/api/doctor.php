@@ -4,6 +4,7 @@ use App\Http\Controllers\Auth\DoctorAuthController;
 use App\Http\Controllers\DoctorReservationController;
 use App\Http\Controllers\DoctorServiceController;
 use App\Http\Controllers\DoctorWorkScheduleController;
+use App\Http\Controllers\ProvinceController;
 use Illuminate\Support\Facades\Route;
 
 // the base URL is api/doctor
@@ -39,3 +40,4 @@ Route::prefix('reservations')->group(callback: function (){
     Route::patch('/updateStatus/{id}', [DoctorReservationController::class, 'updateStatus']);
 
 });
+Route::get('provinces', [ProvinceController::class, 'index']);

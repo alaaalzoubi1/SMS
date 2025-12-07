@@ -8,7 +8,7 @@ class CreateDoctorReservationsTable extends Migration
     public function up(): void
     {
         Schema::create('doctor_reservations', function (Blueprint $table) {
-            $table->id(); // uniqueId (Primary Key)
+            $table->id();
 
             $table->foreignId('user_id')->constrained('users');
             $table->foreignId('doctor_service_id')->constrained('doctor_services');
@@ -19,7 +19,7 @@ class CreateDoctorReservationsTable extends Migration
             $table->time('start_time')->nullable();
             $table->time('end_time')->nullable();
 
-            $table->enum('status', ['pending', 'approved', 'rejected', 'cancelled', 'completed'])->default('pending');
+            $table->enum('status', ['pending', 'approved','cancelled', 'completed'])->default('pending');
 
             $table->index('doctor_id');
             $table->index('user_id');

@@ -1,6 +1,6 @@
 <?php
 
 return [
-    'default_srid'     => null,
-    'with_wkt_options' => false,
+    'default_srid'     => 4326,
+    'with_wkt_options' => false,//false
 ];

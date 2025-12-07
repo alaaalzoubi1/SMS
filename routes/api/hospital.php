@@ -2,6 +2,7 @@
 
 
 use App\Http\Controllers\Auth\HospitalAuthController;
+use App\Http\Controllers\ProvinceController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\HospitalController;
 use App\Http\Controllers\HospitalServiceController;
@@ -37,3 +38,4 @@ Route::prefix('reservations')->controller(HospitalServiceReservationController::
     Route::delete('/{id}','destroy');
     Route::patch('/{id}/restore','restore');
 });
+Route::get('provinces', [ProvinceController::class, 'index']);

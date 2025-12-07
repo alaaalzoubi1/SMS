@@ -42,14 +42,22 @@ class DoctorAuthController extends Controller
             if ($request->hasFile('license_image')) {
                 $licenseFile = $request->file('license_image');
                 $filename = uniqid('license_') . '.' . $licenseFile->getClientOriginalExtension();
-                $licensePath = $licenseFile->storeAs('doctors/licenses', $filename, 'public');
+                $licensePath = $licenseFile->storeAs(
+                    'doctors/licenses',
+                    $filename,
+                    'private'
+                );
             }
 
             $profileImagePath = null;
             if ($request->hasFile('profile_image')) {
                 $profileFile = $request->file('profile_image');
                 $filename = uniqid('profile_') . '.' . $profileFile->getClientOriginalExtension();
-                $profileImagePath = $profileFile->storeAs('doctors/profile_images', $filename, 'public');
+                $profileImagePath = $profileFile->storeAs(
+                    'doctors/profile_images',
+                    $filename,
+                    'public'
+                );
             }
 
             Doctor::create([
@@ -60,9 +68,10 @@ class DoctorAuthController extends Controller
                 'age'                  => $validated['age'],
                 'gender'               => $validated['gender'],
                 'profile_description'  => $validated['profile_description'],
-                'license_image_path'   => $licensePath,
                 'profile_image_path'   => $profileImagePath,
+                'license_image_path'   => $licensePath,
                 'location'             => new Point($validated['latitude'], $validated['longitude']),
+                'province_id' => $validated['province_id']
             ]);
 
             $account->assignRole('doctor');
@@ -72,6 +81,7 @@ class DoctorAuthController extends Controller
             return response()->json([
                 'message' => 'تم التسجيل بنجاح. بانتظار موافقة الإدارة.',
             ], 201);
+
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Doctor registration failed: ' . $e->getMessage());
@@ -81,6 +91,7 @@ class DoctorAuthController extends Controller
             ], 500);
         }
     }
+
 
 
 
@@ -221,6 +232,9 @@ class DoctorAuthController extends Controller
 
         if (array_key_exists('specialization_id', $validated)) {
             $doctorData['specialization_id'] = $validated['specialization_id'];
+        }
+        if (array_key_exists('province_id',$validated)){
+            $doctorData['province_id'] = $validated['province_id'];
         }
 
         if ($request->hasFile('profile_image')) {

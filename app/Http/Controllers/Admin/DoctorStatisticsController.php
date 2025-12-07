@@ -45,4 +45,32 @@ class DoctorStatisticsController extends Controller
             $query->paginate($perPage)
         );
     }
+    public function getDoctorLicense($doctorId)
+    {
+        $doctor = Doctor::findOrFail($doctorId);
+
+        if (!$doctor->license_image_path) {
+            return response()->json([
+                'message' => 'لا توجد شهادة مخزنة لهذا الطبيب'
+            ], 404);
+        }
+
+        $path = storage_path('app/private/' . $doctor->license_image_path);
+
+        if (!file_exists($path)) {
+            return response()->json([
+                'message' => 'ملف الشهادة غير موجود'
+            ], 404);
+        }
+
+        $mimeType = mime_content_type($path);
+        $fileName = basename($path);
+
+        return response()->file($path, [
+            'Content-Type' => $mimeType,
+            'Content-Disposition' => "inline; filename=\"$fileName\""
+        ]);
+    }
+
+
 }

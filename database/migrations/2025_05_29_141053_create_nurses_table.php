@@ -16,6 +16,7 @@ return new class extends Migration
         Schema::create('nurses', function (Blueprint $table) {
             $table->id();
             $table->foreignId('account_id')->constrained('accounts');
+            $table->foreignId('province_id')->constrained('provinces');
             $table->boolean('is_active')->default(true)->index();
             $table->string('full_name');
             $table->string('profile_image_path')->nullable();

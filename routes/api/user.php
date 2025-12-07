@@ -11,6 +11,7 @@ use App\Http\Controllers\HospitalWorkScheduleController;
 use App\Http\Controllers\NurseController;
 use App\Http\Controllers\NurseReservationController;
 use App\Http\Controllers\NurseServiceController;
+use App\Http\Controllers\ProvinceController;
 use App\Http\Controllers\RatingController;
 use App\Http\Controllers\ServiceController;
 use Illuminate\Support\Facades\Route;
@@ -51,3 +52,4 @@ Route::prefix('ratings')->group(function (){
     Route::post('',[RatingController::class,'store']);
 });
 Route::get('my-reservations',[\App\Http\Controllers\UserReservationsController::class,'myReservations']);
+Route::get('provinces', [ProvinceController::class, 'index']);

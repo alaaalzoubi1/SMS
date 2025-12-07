@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Scopes\ProvinceScope;
 use App\Rateable;
 use Database\Factories\NurseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -37,6 +38,16 @@ class Nurse extends Model
         'location' => Point::class
     ];
 
+    protected $hidden = [
+        'license_image_path'
+    ];
+
+    protected static function booted()
+    {
+        static::addGlobalScope(new ProvinceScope);
+    }
+
+
     public function account(): BelongsTo
     {
         return $this->belongsTo(Account::class);
@@ -70,5 +81,11 @@ class Nurse extends Model
         return $query->whereHas('account', function ($q) {
             $q->where('is_approved', 'approved');
         });
+    }
+
+
+    public function province(): BelongsTo
+    {
+        return $this->belongsTo(Province::class);
     }
 }

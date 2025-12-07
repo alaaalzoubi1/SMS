@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('hospitals', function (Blueprint $table) {
             $table->id();
             $table->foreignId('account_id')->constrained('accounts');
+            $table->foreignId('province_id')->constrained('provinces');
             $table->string('full_name');
             $table->uuid('unique_code')->unique();
             $table->string('address');

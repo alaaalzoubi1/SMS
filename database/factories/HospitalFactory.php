@@ -5,6 +5,7 @@ namespace Database\Factories;
 
 use App\Models\Hospital;
 use App\Models\Account;
+use App\Models\Province;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 use MatanYadaev\EloquentSpatial\Objects\Point;
@@ -17,6 +18,7 @@ class HospitalFactory extends Factory
     {
         return [
             'account_id' => Account::factory(), // Assuming Account factory exists
+            'province_id' => Province::inRandomOrder()->value('id'),
             'full_name' => $this->faker->company,
             'unique_code' => Str::uuid(),
             'address' => $this->faker->address,

@@ -34,6 +34,7 @@ class NurseRegisterRequest extends FormRequest
             // License Image (Required)
             'license_image' => 'required|image|mimes:jpg,jpeg,png,gif,pdf|max:10240',  // 2MB limit for license image
             'profile_image' => 'sometimes|nullable|image|mimes:jpg,jpeg,png|max:10240',
+            'province_id' => 'required|integer|exists:provinces,id'
         ];
     }
 

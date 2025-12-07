@@ -11,6 +11,7 @@ class CreateDoctorsTable extends Migration
         Schema::create('doctors', function (Blueprint $table) {
             $table->id();
             $table->foreignId('account_id')->constrained('accounts');
+            $table->foreignId('province_id')->constrained('provinces');
             $table->string('full_name');
             $table->string('profile_description')->nullable();
             $table->string('profile_image_path')->nullable();

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\SpecializationType;
+use App\Models\Scopes\ProvinceScope;
 use App\Rateable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -33,6 +34,15 @@ class Doctor extends Model
         'specialization_type' => SpecializationType::class,
         'location' => Point::class
     ];
+    protected $hidden = [
+        'license_image_path'
+    ];
+
+    protected static function booted()
+    {
+        static::addGlobalScope(new ProvinceScope);
+    }
+
 
     // Doctor belongs to Account
     public function account() : BelongsTo
@@ -60,5 +70,10 @@ class Doctor extends Model
         return $query->whereHas('account', function ($q) {
             $q->where('is_approved', 'approved');
         });
+    }
+
+    public function province(): BelongsTo
+    {
+        return $this->belongsTo(Province::class);
     }
 }
