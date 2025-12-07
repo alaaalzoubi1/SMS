@@ -26,6 +26,7 @@ class DoctorEditProfileRequest extends FormRequest
             ],
             'profile_description' => 'sometimes|string|max:1000',
             'profile_image' => 'sometimes|image|mimes:jpeg,png,jpg|max:10240',
+            'province_id' => 'sometimes|integer|exists:provinces,id'
         ];
     }
 

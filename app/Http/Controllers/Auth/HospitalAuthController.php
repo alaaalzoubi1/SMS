@@ -67,6 +67,7 @@ class HospitalAuthController extends Controller
                 'address'   => $validated['address'],
                 'location'  => new Point($validated['latitude'], $validated['longitude']),
                 'profile_image_path' => $profileImagePath,
+                'province_id' => $validated['province_id']
             ]);
 
             $account->update([
@@ -192,46 +193,41 @@ class HospitalAuthController extends Controller
         $accountData = [];
         $hospitalData = [];
 
-        // full_name
         if (array_key_exists('full_name', $validated)) {
             $hospitalData['full_name'] = $validated['full_name'];
         }
 
-        // phone_number
         if (array_key_exists('phone_number', $validated)) {
             $accountData['phone_number'] = $validated['phone_number'];
         }
 
-        // address
         if (array_key_exists('address', $validated)) {
             $hospitalData['address'] = $validated['address'];
         }
+        if (array_key_exists('province_id',$validated))
+        {
+            $hospitalData['province_id'] = $validated['province_id'];
+        }
 
-        // معالجة رفع الصورة
         if ($request->hasFile('profile_image')) {
 
-            // مسار الصورة القديمة
             $oldImage = $hospital->profile_image_path;
 
-            // رفع الصورة الجديدة
             $file = $request->file('profile_image');
             $filename = uniqid('hospital_profile_') . '.' . $file->getClientOriginalExtension();
             $newPath = $file->storeAs('hospitals/profile_images', $filename, 'public');
 
             $hospitalData['profile_image_path'] = $newPath;
 
-            // حذف القديمة إن وجدت
             if ($oldImage && Storage::disk('public')->exists($oldImage)) {
                 Storage::disk('public')->delete($oldImage);
             }
         }
 
-        // تحديث الحساب (accounts)
         if (!empty($accountData)) {
             $account->update($accountData);
         }
 
-        // تحديث بيانات المستشفى
         if (!empty($hospitalData)) {
             $hospital->update($hospitalData);
         }

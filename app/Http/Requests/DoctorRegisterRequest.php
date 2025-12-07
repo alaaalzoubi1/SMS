@@ -39,6 +39,7 @@ class DoctorRegisterRequest extends FormRequest
 
             'license_image'  => 'required|image|mimes:jpeg,png,jpg,pdf|max:2048',
             'profile_image' => 'nullable|image|mimes:jpeg,png,jpg|max:10240',
+            'province_id' => 'required|integer|exists:provinces,id',
 
 
         ];
