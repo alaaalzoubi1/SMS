@@ -27,6 +27,7 @@ class Hospital extends Model
         'location',
         'profile_image_path',
         'reservation_confirmation_deadline',
+        'province_id'
     ];
 
     protected static function booted()
