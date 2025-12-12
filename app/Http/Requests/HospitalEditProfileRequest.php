@@ -27,7 +27,8 @@ class HospitalEditProfileRequest extends FormRequest
             'phone_number' => 'sometimes|required|string|unique:accounts,phone_number,',
             'address'      => 'sometimes|required|string|max:255',
             'profile_image' => 'sometimes|nullable|image|mimes:jpeg,jpg,png|max:10240',
-            'province_id' => 'sometimes|required|integer|exists:provinces,id'
+            'province_id' => 'sometimes|required|integer|exists:provinces,id',
+            'reservation_confirmation_deadline' => 'sometimes|required|numeric'
         ];
     }
 }

@@ -22,6 +22,7 @@ return new class extends Migration
             $table->unsignedInteger('ratings_count')->default(0);
             $table->geography('location', subtype: 'point');
             $table->string('profile_image_path')->nullable();
+            $table->double('reservation_confirmation_deadline')->nullable();
             $table->spatialIndex('location');
             $table->softDeletes();
             $table->timestamps();

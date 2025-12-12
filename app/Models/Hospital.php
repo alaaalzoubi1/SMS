@@ -25,7 +25,8 @@ class Hospital extends Model
         'full_name',
         'unique_code',
         'location',
-        'profile_image_path'
+        'profile_image_path',
+        'reservation_confirmation_deadline',
     ];
 
     protected static function booted()

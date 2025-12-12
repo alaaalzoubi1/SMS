@@ -28,7 +28,7 @@ return new class extends Migration
 
             $table->geography('location', subtype: 'point');
 
-            $table->enum('status', ['pending', 'accepted', 'rejected', 'completed'])->default('pending');
+            $table->enum('status', ['pending', 'accepted','cancelled', 'rejected', 'completed'])->default('pending');
             $table->text('note')->nullable();
 
             $table->timestamp('start_at')->nullable();

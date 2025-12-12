@@ -67,7 +67,8 @@ class HospitalAuthController extends Controller
                 'address'   => $validated['address'],
                 'location'  => new Point($validated['latitude'], $validated['longitude']),
                 'profile_image_path' => $profileImagePath,
-                'province_id' => $validated['province_id']
+                'province_id' => $validated['province_id'],
+                'reservation_confirmation_deadline' => $validated['reservation_confirmation_deadline']
             ]);
 
             $account->update([
@@ -207,6 +208,10 @@ class HospitalAuthController extends Controller
         if (array_key_exists('province_id',$validated))
         {
             $hospitalData['province_id'] = $validated['province_id'];
+        }
+        if (array_key_exists('reservation_confirmation_deadline',$validated))
+        {
+            $hospital['reservation_confirmation_deadline'] = $validated['reservation_confirmation_deadline'];
         }
 
         if ($request->hasFile('profile_image')) {

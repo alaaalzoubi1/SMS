@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Jobs\SendFirebaseNotificationJob;
+use App\Models\HospitalCancellation;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -85,7 +86,7 @@ class HospitalServiceReservationController extends Controller
 
         $reservation = HospitalServiceReservation::where('hospital_id', $hospital->id)
             ->where('id', $id)
-            ->with(['user.account']) // حتى نوصل إلى fcm_token للمستخدم
+            ->with(['user.account', 'service'])
             ->first();
 
         if (!$reservation) {
@@ -93,54 +94,123 @@ class HospitalServiceReservationController extends Controller
         }
 
         $request->validate([
-            'status' => 'required|string|in:pending,confirmed,cancelled',
+            'status' => 'required|string|in:pending,confirmed,accepted,cancelled,finished',
+            'reason' => 'required_if:status,cancelled|string'
         ]);
+
+        $newStatus = $request->status;
+        $oldStatus = $reservation->status;
 
         DB::beginTransaction();
         try {
-            $reservation->status = $request->status;
-            $reservation->save();
+            /* ───────────────────────────────
+               RULE 1 — CANCELLED
+               ─────────────────────────────── */
+            if ($newStatus === 'cancelled') {
 
-            // ✅ إرسال إشعار للمستخدم عند تحديث الحالة من المستشفى
-            try {
-                $userAccount = $reservation->user->account ?? null;
-                if ($userAccount && $userAccount->fcm_token) {
-                    $title = "تحديث حالة حجز المستشفى";
-                    $body = match ($reservation->status) {
-                        'confirmed' => sprintf("تم تأكيد حجزك من المستشفى %s.", $hospital->name ?? ''),
-                        'cancelled' => sprintf("تم إلغاء حجزك من المستشفى %s.", $hospital->name ?? ''),
-                        default => sprintf("تم تحديث حالة حجزك إلى %s من المستشفى %s.", $reservation->status, $hospital->name ?? ''),
-                    };
-
-                    SendFirebaseNotificationJob::dispatch(
-                        $userAccount->fcm_token,
-                        $title,
-                        $body
-                    );
+                if (!in_array($oldStatus, ['pending', 'accepted'])) {
+                    return response()->json(['message' => 'Cannot cancel unless status is pending or accepted'], 422);
                 }
-            } catch (\Throwable $e) {
-                Log::error('Failed to send user notification: ' . $e->getMessage());
+                if (!$request->reason) {
+                    return response()->json(['message' => 'Cancellation reason is required'], 422);
+                }
+                HospitalCancellation::create([
+                    'reservation_id' => $reservation->id,
+                    'reason' => $request->reason
+                ]);
+
+                $this->notifyUser($reservation,
+                    "إلغاء حجز",
+                    "تم إلغاء حجزك من المستشفى {$hospital->name}. السبب: {$request->reason}"
+                );
             }
+
+            /* ───────────────────────────────
+               RULE 2 — ACCEPTED
+               ─────────────────────────────── */
+            if ($newStatus === 'accepted') {
+
+                if ($oldStatus !== 'pending') {
+                    return response()->json(['message' => 'Reservation must be pending to be accepted'], 422);
+                }
+
+                $deadlineHours = $hospital->reservation_confirmation_deadline;
+                $body = "تم قبول طلب الحجز، يجب تثبيت الحجز خلال {$deadlineHours} ساعة وإلا سيتم إلغاؤه تلقائياً.";
+
+                $this->notifyUser($reservation, "قبول الحجز", $body);
+            }
+
+            /* ───────────────────────────────
+               RULE 3 — CONFIRMED
+               ─────────────────────────────── */
+            if ($newStatus === 'confirmed') {
+
+                if ($oldStatus !== 'accepted') {
+                    return response()->json(['message' => 'Reservation must be accepted before confirming'], 422);
+                }
+
+                $reservation->start_date = now();
+
+                $service = $reservation->service;
+                if ($service->capacity <= 0) {
+                    return response()->json(['message' => 'No capacity remaining for this service'], 422);
+                }
+                $service->capacity -= 1;
+                $service->save();
+
+                $this->notifyUser(
+                    $reservation,
+                    "تأكيد الحجز",
+                    "تم تثبيت حجزك من المستشفى {$hospital->name}."
+                );
+            }
+
+            /* ───────────────────────────────
+               RULE 4 — FINISHED
+               ─────────────────────────────── */
+            if ($newStatus === 'finished') {
+
+                if ($oldStatus !== 'confirmed') {
+                    return response()->json(['message' => 'Reservation must be confirmed before finishing'], 422);
+                }
+
+                $service = $reservation->service;
+                $service->capacity += 1;
+                $service->save();
+
+                $this->notifyUser(
+                    $reservation,
+                    "انتهاء الحجز",
+                    "تم إنهاء الحجز الخاص بك في المستشفى {$hospital->name}."
+                );
+            }
+
+            $reservation->status = $newStatus;
+            $reservation->save();
 
             DB::commit();
 
-            Log::info('Reservation status updated:', [
-                'reservation_id' => $id,
-                'new_status' => $request->status,
-                'hospital_id' => $hospital->id,
-            ]);
-
             return response()->json([
                 'message' => 'Reservation status updated successfully',
-                'reservation' => $reservation,
+                'reservation' => $reservation
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error("Error updating reservation status: " . $e->getMessage());
-            return response()->json([
-                'message' => 'Failed to update reservation status',
-                'error' => $e->getMessage(),
-            ], 500);
+            Log::error("Error updating reservation: " . $e->getMessage());
+
+            return response()->json(['message' => 'Failed to update status'], 500);
+        }
+    }
+
+    private function notifyUser($reservation, string $title, string $body)
+    {
+        try {
+            $token = $reservation->user->account->fcm_token ?? null;
+            if ($token) {
+                SendFirebaseNotificationJob::dispatch($token, $title, $body);
+            }
+        } catch (\Throwable $e) {
+            Log::error("Failed to send notification: " . $e->getMessage());
         }
     }
 
@@ -228,68 +298,32 @@ class HospitalServiceReservationController extends Controller
         return response()->json($reservations);
     }
 
+
     public function makeReservation(Request $request)
     {
-        // Validate the incoming data
         $validated = $request->validate([
             'hospital_service_id' => 'required|exists:hospital_services,id',
-            'hospital_id' => 'required|exists:hospitals,id',
-            'start_date' => 'required|date',
-            'end_date' => 'required|date|after_or_equal:start_date',
         ]);
 
-        // Fetch the hospital service and its capacity
-        $hospitalService = HospitalService::find($validated['hospital_service_id']);
+        $hospitalService = HospitalService::with('hospital')
+            ->where('id', $validated['hospital_service_id'])
+            ->first();
 
-        // Check if the hospital service exists
-        if (!$hospitalService) {
-            return response()->json(['message' => 'Hospital service not found'], 404);
-        }
-
-        // Start database transaction
-        DB::beginTransaction();
-
-        try {
-            // Fetch the number of overlapping reservations for this service and the given dates
-            $existingReservationsCount = HospitalServiceReservation::where('hospital_service_id', $validated['hospital_service_id'])
-                ->where('hospital_id', $validated['hospital_id'])
-                ->where(function (Builder $query) use ($validated) {
-                    $query->whereBetween('start_date', [$validated['start_date'], $validated['end_date']])
-                        ->orWhereBetween('end_date', [$validated['start_date'], $validated['end_date']])
-                        ->orWhere(function ($query) use ($validated) {
-                            $query->where('start_date', '<=', $validated['start_date'])
-                                ->where('end_date', '>=', $validated['end_date']);
-                        });
-                })
-                ->count(); // Count reservations in a single query
-
-            // If the existing reservations exceed the capacity, return an error message
-            if ($existingReservationsCount >= $hospitalService->capacity) {
-                DB::rollBack();
-                return response()->json(['message' => 'The service is fully booked for the selected dates.'], 400);
-            }
-
-            // Proceed with making the reservation
-            $reservation = HospitalServiceReservation::create([
-                'user_id' => auth()->user()->user->id,
-                'hospital_service_id' => $validated['hospital_service_id'],
-                'hospital_id' => $validated['hospital_id'],
-                'start_date' => $validated['start_date'],
-                'end_date' => $validated['end_date'],
-                'status' => 'pending',
-            ]);
-
-            // Commit the transaction
-            DB::commit();
-
+        if ($hospitalService->capacity <= 0) {
             return response()->json([
-                'message' => 'Reservation successful.',
-                'reservation' => $reservation,
-            ], 201);
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json(['message' => 'An error occurred while making the reservation.'], 500);
+                'message' => 'لا يوجد سعة كافية في المشفى حالياً'
+            ]);
         }
+
+        $validated['user_id'] = auth()->user()->user->id;
+        $validated['hospital_id'] = $hospitalService->hospital_id;
+
+        HospitalServiceReservation::create($validated);
+
+
+        return response()->json([
+            'message' => "تم إنشاء الحجز بنجاح،بعد موافقة المشفى عليه يجب تثبيت الحجز خلال مدة أقصاها {$hospitalService->hospital->reservation_confirmation_deadline} ساعة"
+        ]);
     }
+
 }

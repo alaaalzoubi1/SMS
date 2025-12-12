@@ -45,6 +45,7 @@ class NurseReservationRequest extends FormRequest
                     $query->where('service_id', $this->nurse_service_id);
                 }),
             ],
+            'confirm' => 'sometimes|required|boolean',
         ];
     }
 

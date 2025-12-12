@@ -20,10 +20,10 @@ class UserReservationsController extends Controller
 
         $statusMap = [
             'pending'   => ['nurse' => 'pending',  'hospital' => 'pending',   'doctor' => 'pending'],
-            'approved'  => ['nurse' => 'accepted', 'hospital' => 'confirmed', 'doctor' => 'approved'],
-            'cancelled' => ['nurse' => null,       'hospital' => 'cancelled', 'doctor' => 'cancelled'],
-            'rejected'  => ['nurse' => 'rejected', 'hospital' => null,        'doctor' => 'rejected'],
-            'completed' => ['nurse' => 'completed','hospital' => null,        'doctor' => 'completed'],
+            'approved'  => ['nurse' => 'accepted', 'hospital' => ['confirmed','accepted'], 'doctor' => 'approved'],
+            'cancelled' => ['nurse' => 'cancelled','hospital' => 'cancelled', 'doctor' => 'cancelled'],
+            'rejected'  => ['nurse' => 'rejected', 'hospital' => null,        'doctor' => null],
+            'completed' => ['nurse' => 'completed','hospital' => 'finished',  'doctor' => 'completed'],
         ];
 
         $userId = auth()->user()->user->id;

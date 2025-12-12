@@ -36,7 +36,6 @@ Route::prefix('nurses')->group(function (){
     Route::get('nearest',[NurseController::class,'getNearestNurses']);
     Route::get('{nurseId}/services',[NurseServiceController::class,'getNurseServicesWithSubservices']);
     Route::post('reserve',[NurseReservationController::class,'store']);
-
 });
 Route::prefix('hospitals')->group(function (){
     Route::get('/',[HospitalController::class,'getHospitalsWithServices']);

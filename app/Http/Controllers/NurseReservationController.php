@@ -114,8 +114,21 @@ class NurseReservationController extends Controller
 
         try {
             // Create the main reservation
+            $userId = auth()->user()->user->id;
+            if (!$request->comfirm){
+                $previousReservation = NurseReservation::where('user_id' , $userId)
+                    ->where('status','pending')
+                    ->exists();
+                if ($previousReservation)
+                {
+                    return response()->json([
+                        'message' => 'لديك بالفعل طلب بحالة قيد الانتظار هل تريد المتابعة فعلاً!'
+                    ]);
+                }
+            }
+
             $reservation = new NurseReservation();
-            $reservation->user_id = auth()->user()->user->id;
+            $reservation->user_id = $userId;
             $reservation->nurse_id = $request->nurse_id;
             $reservation->nurse_service_id = $request->nurse_service_id;
             $reservation->reservation_type = $request->reservation_type;

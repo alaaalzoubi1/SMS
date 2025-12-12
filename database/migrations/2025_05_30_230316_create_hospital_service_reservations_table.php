@@ -14,17 +14,16 @@ class CreateHospitalServiceReservationsTable extends Migration
             $table->foreignId('hospital_service_id')->constrained('hospital_services');
             $table->foreignId('hospital_id')->constrained('hospitals');
 
-            $table->date('start_date');
-            $table->date('end_date');
+            $table->dateTime('start_date')->nullable();
+            $table->dateTime('end_date')->nullable();
 
-            $table->enum('status', ['pending', 'confirmed', 'cancelled'])->default('pending');
+            $table->enum('status', ['pending', 'confirmed', 'accepted' , 'cancelled','finished'])->default('pending');
 
             // Indexes for date columns (for range queries)
             $table->index('status');
             $table->index('start_date');  // For querying by start date
             $table->index('end_date');  // For querying by end date
 
-            // Composite index for checking overlapping reservations by service and hospital
 
             $table->timestamps();
             $table->softDeletes();
