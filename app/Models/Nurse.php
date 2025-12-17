@@ -31,7 +31,8 @@ class Nurse extends Model
         'gender',
         'profile_description',
         'license_image_path',
-        'profile_image_path'
+        'profile_image_path',
+        'province_id'
     ];
 
     protected  $casts = [
