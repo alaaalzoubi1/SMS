@@ -9,6 +9,7 @@ use App\Http\Controllers\Auth\DoctorAuthController;
 use App\Http\Controllers\Auth\HospitalAuthController;
 use App\Http\Controllers\Auth\NurseAuthController;
 use App\Http\Controllers\Auth\UserAuthController;
+use App\Http\Controllers\ProvinceController;
 use App\Http\Controllers\SpecializationController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
@@ -30,7 +31,9 @@ use App\Http\Controllers\Auth\ForgotPasswordController;
 //    return 'Migrated';
 //});
 // Throttled routes (limit: 1 request per minute)
-Route::middleware('throttle:100,1')->group(function () {
+Route::middleware('throttle:1,0.1')->group(function () {
+    Route::get('provinces', [ProvinceController::class, 'index']);
+
 
     Route::post('/password/forgot', [ForgotPasswordController::class, 'requestResetCode']);
 

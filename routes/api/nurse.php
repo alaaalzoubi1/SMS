@@ -10,28 +10,28 @@ use Illuminate\Support\Facades\Route;
 
 // the URL is api/nurse
 
+Route::middleware('throttle:1,0.1')->group(function () {
+    Route::post('logout', [NurseAuthController::class, 'logout']);
+    Route::get('me', [NurseAuthController::class, 'me']);
+    Route::post('updateProfile', [NurseAuthController::class, 'updateProfile']);
+    Route::get('activate-deactivate', [NurseController::class, 'activate']);
+    Route::prefix('services')->group(function () {
+        Route::get('/', [NurseServiceController::class, 'index']);
+        Route::post('/', [NurseServiceController::class, 'store']);
+        Route::post('/{id}', [NurseServiceController::class, 'update']);
+        Route::delete('/{id}', [NurseServiceController::class, 'destroy']);
+    });
 
-Route::post('logout', [NurseAuthController::class, 'logout']);
-Route::get('me', [NurseAuthController::class, 'me']);
-Route::post('updateProfile',[NurseAuthController::class,'updateProfile']);
-Route::get('activate-deactivate',[NurseController::class,'activate']);
-Route::prefix('services')->group(function () {
-    Route::get('/', [NurseServiceController::class, 'index']);
-    Route::post('/', [NurseServiceController::class, 'store']);
-    Route::post('/{id}', [NurseServiceController::class, 'update']);
-    Route::delete('/{id}', [NurseServiceController::class, 'destroy']);
+    Route::prefix('sub-services')->group(function () {
+        Route::get('/{service_id}', [NurseSubsercviceController::class, 'index']);
+        Route::post('/', [NurseSubsercviceController::class, 'store']);
+        Route::post('/{id}', [NurseSubsercviceController::class, 'update']);
+        Route::delete('/{id}', [NurseSubsercviceController::class, 'destroy']);
+    });
+
+    Route::prefix('reservations')->group(callback: function () {
+        Route::get('/', [NurseReservationController::class, 'index']);
+        Route::patch('/updateStatus/{id}', [NurseReservationController::class, 'updateStatus']);
+
+    });
 });
-
-Route::prefix('sub-services')->group(function () {
-    Route::get('/{service_id}', [NurseSubsercviceController::class, 'index']);
-    Route::post('/', [NurseSubsercviceController::class, 'store']);
-    Route::post('/{id}', [NurseSubsercviceController::class, 'update']);
-    Route::delete('/{id}', [NurseSubsercviceController::class, 'destroy']);
-});
-
-Route::prefix('reservations')->group(callback: function (){
-    Route::get('/',[NurseReservationController::class,'index']);
-    Route::patch('/updateStatus/{id}', [NurseReservationController::class, 'updateStatus']);
-
-});
-Route::get('provinces', [ProvinceController::class, 'index']);
