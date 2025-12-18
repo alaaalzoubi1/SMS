@@ -8,7 +8,6 @@ use App\Http\Controllers\HospitalController;
 use App\Http\Controllers\HospitalServiceController;
 use App\Http\Controllers\HospitalWorkScheduleController;
 use App\Http\Controllers\HospitalServiceReservationController;
-Route::middleware('throttle:1,0.1')->group(function () {
 // the URL is api/hospital
     Route::post('logout', [HospitalAuthController::class, 'logout']);
     Route::get('me', [HospitalAuthController::class, 'me']);
@@ -38,4 +37,3 @@ Route::middleware('throttle:1,0.1')->group(function () {
         Route::delete('/{id}', 'destroy');
         Route::patch('/{id}/restore', 'restore');
     });
-});

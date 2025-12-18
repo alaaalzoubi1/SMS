@@ -10,7 +10,6 @@ use Illuminate\Support\Facades\Route;
 
 // the URL is api/nurse
 
-Route::middleware('throttle:1,0.1')->group(function () {
     Route::post('logout', [NurseAuthController::class, 'logout']);
     Route::get('me', [NurseAuthController::class, 'me']);
     Route::post('updateProfile', [NurseAuthController::class, 'updateProfile']);
@@ -34,4 +33,3 @@ Route::middleware('throttle:1,0.1')->group(function () {
         Route::patch('/updateStatus/{id}', [NurseReservationController::class, 'updateStatus']);
 
     });
-});

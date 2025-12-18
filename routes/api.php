@@ -31,7 +31,6 @@ use App\Http\Controllers\Auth\ForgotPasswordController;
 //    return 'Migrated';
 //});
 // Throttled routes (limit: 1 request per minute)
-Route::middleware('throttle:1,0.1')->group(function () {
     Route::get('provinces', [ProvinceController::class, 'index']);
 
 
@@ -65,7 +64,6 @@ Route::middleware('throttle:1,0.1')->group(function () {
         Route::post('request-login', [UserAuthController::class, 'requestLogin']);
         Route::post('verify-login', [UserAuthController::class, 'verifyLogin']);
     });
-});
 
 
 Route::post('/password/reset', [ForgotPasswordController::class, 'resetPassword']);

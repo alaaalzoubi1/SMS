@@ -17,7 +17,6 @@ use App\Http\Controllers\ServiceController;
 use Illuminate\Support\Facades\Route;
 
 // the URL is api/user
-Route::middleware('throttle:1,0.1')->group(function () {
     Route::get('logout', [UserAuthController::class, 'logout']);
     Route::get('me', [UserAuthController::class, 'me']);
     Route::post('updateProfile', [UserAuthController::class, 'updateProfile']);
@@ -51,4 +50,3 @@ Route::middleware('throttle:1,0.1')->group(function () {
         Route::post('', [RatingController::class, 'store']);
     });
     Route::get('my-reservations', [\App\Http\Controllers\UserReservationsController::class, 'myReservations']);
-});
