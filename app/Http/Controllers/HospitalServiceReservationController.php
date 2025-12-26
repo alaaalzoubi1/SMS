@@ -151,7 +151,7 @@ class HospitalServiceReservationController extends Controller
 
                 $reservation->start_date = now();
 
-                $service = $reservation->service;
+                $service = $reservation->hospitalService;
                 if ($service->capacity <= 0) {
                     return response()->json(['message' => 'No capacity remaining for this service'], 422);
                 }
@@ -174,7 +174,7 @@ class HospitalServiceReservationController extends Controller
                     return response()->json(['message' => 'Reservation must be confirmed before finishing'], 422);
                 }
 
-                $service = $reservation->service;
+                $service = $reservation->hospitalService;
                 $service->capacity += 1;
                 $service->save();
 
