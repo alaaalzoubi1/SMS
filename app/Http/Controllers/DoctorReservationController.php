@@ -181,59 +181,91 @@ class DoctorReservationController extends Controller
             'reason' => 'required_if:status,cancelled|string|max:1000',
         ]);
 
-        $reservation = DoctorReservation::where('id', $id)
-            ->with(['user.account', 'doctor.account', 'cancellation'])
-            ->first();
+        $reservation = DoctorReservation::with([
+            'user.account',
+            'doctor.account',
+            'cancellation'
+        ])
+            ->find($id);
 
         if (!$reservation) {
-            return response()->json(['message' => 'Reservation not found or unauthorized.'], 404);
+            return response()->json([
+                'message' => 'Reservation not found or unauthorized.'
+            ], 404);
         }
 
         $this->authorize('manageReservations', $reservation);
 
-        if ($reservation->status !== 'pending') {
-            return response()->json([
-                'message' => 'Cannot change status unless it is pending.'
-            ], 403);
+        // ---- Status transition rules ----
+        if ($request->status === 'completed') {
+            if ($reservation->status !== 'approved') {
+                return response()->json([
+                    'message' => 'Reservation must be approved before completing.'
+                ], 403);
+            }
+        } else {
+            if ($reservation->status !== 'pending') {
+                return response()->json([
+                    'message' => 'Cannot change status unless it is pending.'
+                ], 403);
+            }
         }
 
+        // ---- Update status ----
         $reservation->status = $request->status;
         $reservation->save();
 
+        // ---- Cancellation reason ----
         if ($request->status === 'cancelled') {
             $reservation->cancellation()->create([
                 'reason' => $request->reason,
             ]);
         }
 
-        try {
-            $userAccount = $reservation->user->account ?? null;
-            $doctorName = $reservation->doctor->full_name ?? 'الطبيب';
-
-            if ($userAccount && $userAccount->fcm_token) {
-                $title = "تحديث حالة الحجز من الطبيب";
-
-                $body = match ($reservation->status) {
-                    'approved' => sprintf("تمت الموافقة على حجزك من %s.", $doctorName),
-                    'cancelled' => sprintf("تم إلغاء حجزك من %s. السبب: %s", $doctorName, $request->reason),
-                    'completed' => sprintf("تم اكتمال حجزك مع %s بنجاح.", $doctorName),
-                };
-
-                SendFirebaseNotificationJob::dispatch(
-                    $userAccount->fcm_token,
-                    $title,
-                    $body
-                );
-            }
-        } catch (\Throwable $e) {
-            Log::error('Failed to send user notification (doctor): ' . $e->getMessage());
-        }
+        // ---- Send notification ----
+        $this->notifyUser($reservation, $request->reason);
 
         return response()->json([
             'message' => 'Reservation status updated successfully.',
             'data' => $reservation->fresh(),
         ]);
     }
+
+    private function notifyUser(DoctorReservation $reservation, ?string $reason = null): void
+    {
+        try {
+            $userAccount = $reservation->user->account ?? null;
+
+            if (!$userAccount || !$userAccount->fcm_token) {
+                return;
+            }
+
+            $doctorName = $reservation->doctor->full_name ?? 'الطبيب';
+
+            $title = 'تحديث حالة الحجز من الطبيب';
+
+            $body = match ($reservation->status) {
+                'approved'  => sprintf('تمت الموافقة على حجزك من %s.', $doctorName),
+                'cancelled' => sprintf(
+                    'تم إلغاء حجزك من %s. السبب: %s',
+                    $doctorName,
+                    $reason
+                ),
+                'completed' => sprintf('تم اكتمال حجزك مع %s بنجاح.', $doctorName),
+            };
+
+            SendFirebaseNotificationJob::dispatch(
+                $userAccount->fcm_token,
+                $title,
+                $body
+            );
+
+        } catch (\Throwable $e) {
+            Log::error('Failed to send user notification (doctor): ' . $e->getMessage());
+        }
+    }
+
+
 
 
 }
