@@ -173,7 +173,7 @@ class HospitalServiceReservationController extends Controller
                 if ($oldStatus !== 'confirmed') {
                     return response()->json(['message' => 'Reservation must be confirmed before finishing'], 422);
                 }
-
+                $reservation->end_date = now();
                 $service = $reservation->hospitalService;
                 $service->capacity += 1;
                 $service->save();
