@@ -86,7 +86,7 @@ class HospitalServiceReservationController extends Controller
 
         $reservation = HospitalServiceReservation::where('hospital_id', $hospital->id)
             ->where('id', $id)
-            ->with(['user.account', 'service'])
+            ->with(['user.account', 'hospitalService.service'])
             ->first();
 
         if (!$reservation) {
