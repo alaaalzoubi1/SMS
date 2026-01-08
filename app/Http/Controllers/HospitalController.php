@@ -37,7 +37,7 @@ class HospitalController extends Controller
         ]);
 
         // Build the query
-        $query = Hospital::with('services.service','province');
+        $query = Hospital::with(['services.service','province']);
 
         // Apply filters if provided
         if (isset($validated['full_name'])) {

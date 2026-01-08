@@ -15,7 +15,7 @@ class DoctorController extends Controller
 {
     public function listForUsers(FilterDoctorsRequest $request): JsonResponse
     {
-        $query = Doctor::query()->with('specialization:id,name_en,name_ar,image' , 'account:id,phone_number')->Approved();
+        $query = Doctor::query()->with(['specialization:id,name_en,name_ar,image' , 'account:id,phone_number','province'])->Approved();
 
         if ($request->filled('specialization_id')) {
             $query->where('specialization_id', $request->specialization_id);
