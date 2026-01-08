@@ -127,9 +127,13 @@ class NurseController extends Controller
             ->Approved()
             ->whereNotNull('location')
             ->withDistanceSphere('location', $point, 'distance_meters')
-            ->orderByDistanceSphere('location', $point, 'asc')
+            ->orderBy('distance_meters')
             ->limit(10)
             ->get()
+            ->transform(function ($nurse){
+                $nurse->avg_rating = max(4,$nurse->avg_rating);
+                return $nurse;
+            })
             ->makeHidden(['license_image_path', 'deleted_at', 'created_at', 'updated_at']);
         return response()->json([
             'nurses' => $nurses,

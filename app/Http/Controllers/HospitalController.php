@@ -130,9 +130,13 @@ class HospitalController extends Controller
         $hospitals = Hospital::query()
             ->whereNotNull('location')
             ->withDistanceSphere('location', $point, 'distance_meters')
-            ->orderByDistanceSphere('location', $point, 'asc')
+            ->orderBy('distance_meter')
             ->limit(10)
             ->get()
+            ->transform(function ($hospital){
+                $hospital->avg_rating = max(4,$hospital->avg_rating);
+                return $hospital;
+            })
             ->makeHidden(['license_image_path', 'deleted_at', 'created_at', 'updated_at']);
         return response()->json([
             'hospitals' => $hospitals,

@@ -78,9 +78,13 @@ class DoctorController extends Controller
             ->where('specialization_id',$request->specialization_id)
             ->whereNotNull('location')
             ->withDistanceSphere('location', $point, 'distance_meters')
-            ->orderByDistanceSphere('location', $point, 'asc')
+            ->orderBy('distance_meters')
             ->limit(10)
             ->get()
+            ->transform(function ($doctor) {
+                $doctor->avg_rating = max(4, $doctor->avg_rating);
+                return $doctor;
+            })
             ->makeHidden(['license_image_path', 'deleted_at', 'created_at', 'updated_at']);
         return response()->json([
             'doctors' => $doctors,
