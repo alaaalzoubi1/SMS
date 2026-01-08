@@ -130,7 +130,7 @@ class HospitalController extends Controller
         $hospitals = Hospital::query()
             ->whereNotNull('location')
             ->withDistanceSphere('location', $point, 'distance_meters')
-            ->orderBy('distance_meter')
+            ->orderBy('distance_meters')
             ->limit(10)
             ->get()
             ->transform(function ($hospital){
