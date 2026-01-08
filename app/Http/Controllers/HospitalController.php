@@ -30,49 +30,66 @@ class HospitalController extends Controller
 
     public function getHospitalsWithServices(Request $request): JsonResponse
     {
-        // Validate input filters
+        // Validate filters
         $validated = $request->validate([
             'full_name' => 'nullable|string|max:255',
-            'address' => 'nullable|string|max:255',
+            'address'   => 'nullable|string|max:255',
         ]);
 
-        // Build the query
-        $query = Hospital::with(['services.service','province']);
+        $query = Hospital::query()
+            ->with([
+                'services.service',
+                'province:id,name_ar,name_en'
+            ]);
 
-        // Apply filters if provided
-        if (isset($validated['full_name'])) {
+        // Filters
+        if (!empty($validated['full_name'])) {
             $query->where('full_name', 'like', '%' . $validated['full_name'] . '%');
         }
 
-        if (isset($validated['address'])) {
+        if (!empty($validated['address'])) {
             $query->where('address', 'like', '%' . $validated['address'] . '%');
         }
 
-        // Paginate the results
-        $hospitals = $query->select('hospitals.id', 'hospitals.full_name', 'hospitals.address','hospitals.location','hospitals.avg_rating','hospitals.profile_image_path')
-            ->paginate(10);
+        // Pagination + formatting بدون كسر الميتاداتا
+        $hospitals = $query
+            ->select([
+                'id',
+                'full_name',
+                'address',
+                'location',
+                'avg_rating',
+                'profile_image_path',
+                'province_id',
+            ])
+            ->paginate(10)
+            ->through(function ($hospital) {
+                return [
+                    'id'         => $hospital->id,
+                    'full_name'  => $hospital->full_name,
+                    'address'    => $hospital->address,
+                    'avg_rating' => max(4, $hospital->avg_rating),
+                    'location'   => $hospital->location,
 
-        // Format the response to map it into a clean structure
-        $formattedHospitals = $hospitals->map(function ($hospital) {
-            return [
-                'id' => $hospital->id,
-                'full_name' => $hospital->full_name,
-                'address' => $hospital->address,
-                'avg_rating' => max(4, $hospital->avg_rating),
-                'location' => $hospital->location,
-                'services' => $hospital->services->map(function ($service) {
-                    return [
-                        'id' => $service->id ,
-                        'name' => $service->service->service_name ?? null,
-                        'price' => $service->price,
-                    ];
-                }),
-            ];
-        });
+                    'province' => $hospital->province ? [
+                        'id'      => $hospital->province->id,
+                        'name_ar' => $hospital->province->name_ar,
+                        'name_en' => $hospital->province->name_en,
+                    ] : null,
 
-        // Return the paginated response
-        return response()->json($formattedHospitals);
+                    'services' => $hospital->services->map(function ($service) {
+                        return [
+                            'id'    => $service->id,
+                            'name'  => $service->service->service_name ?? null,
+                            'price' => $service->price,
+                        ];
+                    }),
+                ];
+            });
+
+        return response()->json($hospitals);
     }
+
 
     public function getHospitalServices(Request $request, $hospitalId): \Illuminate\Http\JsonResponse
     {

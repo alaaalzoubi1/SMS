@@ -24,7 +24,7 @@ class NurseController extends Controller
 
         // Start building the query for nurses
         $query = Nurse::query()
-            ->with(['services.subservices']) // Eager load services and subservices
+            ->with(['services.subservices','province']) // Eager load services and subservices
             ->Approved()
             ->Active();
 //            ->select('id', 'full_name', 'address','location', 'graduation_type', 'age', 'gender', 'profile_description');
@@ -90,7 +90,8 @@ class NurseController extends Controller
                 'services' => $nurse->services,
                 'avg_rating' => max(4,$nurse->avg_rating),
                 'distance_meters' => $nurse->distance_meters,
-                'profile_image' => $nurse->profile_image_path
+                'profile_image' => $nurse->profile_image_path,
+                'province' => $nurse->province
             ];
         });
 
