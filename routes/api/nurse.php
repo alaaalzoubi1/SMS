@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Route;
     Route::get('me', [NurseAuthController::class, 'me']);
     Route::post('updateProfile', [NurseAuthController::class, 'updateProfile']);
     Route::get('activate-deactivate', [NurseController::class, 'activate']);
+    Route::patch('refresh-location',[NurseController::class,'refreshLocation']);
     Route::prefix('services')->group(function () {
         Route::get('/', [NurseServiceController::class, 'index']);
         Route::post('/', [NurseServiceController::class, 'store']);
