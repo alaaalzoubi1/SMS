@@ -37,7 +37,7 @@ class UserReservationsController extends Controller
             case 'nurse':
                 $reservations = \App\Models\NurseReservation::query()
                     ->where('user_id', $userId)
-                    ->with(['nurse', 'nurseService', 'subserviceReservations'])
+                    ->with(['nurse','nurse.account:id,phone_number', 'nurseService', 'subserviceReservations'])
                     ->when($apiStatus, function ($q) use ($statusMap, $apiStatus) {
                         $status = $statusMap[$apiStatus]['nurse'] ?? null;
                         if ($status) $q->where('status', $status);

@@ -177,4 +177,17 @@ class NurseController extends Controller
             'is_active' => $nurse->is_active
         ]);
     }
+    public function refreshLocation(Request $request)
+    {
+         $request->validate([
+            'latitude' => 'required|numeric|between:-90,90',
+            'longitude' => 'required|numeric|between:-180,180',
+        ]);
+        $nurse = auth()->user()->nurse;
+        $location = new Point($request->latitude,$request->longitude);
+        $nurse->update(['location' => $location]);
+        return response()->json([
+            'message' => 'location updated successfully'
+        ]);
+    }
 }
