@@ -52,10 +52,10 @@ class NurseReservationController extends Controller
     public function updateStatus(Request $request, $id): JsonResponse
     {
         $request->validate([
-            'status' => 'required|in:pending,approved,rejected,completed',
+            'status' => 'required|in:pending,accepted,cancelled,rejected,finished',
         ]);
 
-        $reservation = NurseReservation::where('id', $id)->with(['user.account', 'nurse.account'])->first();
+        $reservation = NurseReservation::with(['user.account', 'nurse.account'])->find($id);
 
         if (!$reservation) {
             return response()->json(['message' => 'Reservation not found or unauthorized.'], 404);
@@ -63,29 +63,42 @@ class NurseReservationController extends Controller
 
         $this->authorize('manageNurseReservations', $reservation);
 
-        $reservation->status = $request->status;
+        $currentStatus = $reservation->status;
+        $newStatus = $request->status;
+
+        $allowedTransitions = [
+            'pending'   => ['accepted', 'rejected', 'cancelled'],
+            'accepted'  => ['finished', 'cancelled'],
+            'rejected'  => [],
+            'cancelled' => [],
+            'finished'  => [],
+        ];
+
+        if (!in_array($newStatus, $allowedTransitions[$currentStatus])) {
+            return response()->json(['message' => "Cannot change status from $currentStatus to $newStatus."], 400);
+        }
+
+        $reservation->status = $newStatus;
         $reservation->save();
 
-        // ✅ إرسال إشعار للمستخدم لما الممرضة تحدث الحالة
         try {
             $userAccount = $reservation->user->account ?? null;
+            $nurseName = $reservation->nurse->full_name ?? '';
+
             if ($userAccount && $userAccount->fcm_token) {
                 $title = "تحديث حالة الحجز";
-                $body = match ($reservation->status) {
-                    'approved' => sprintf("تمت الموافقة على حجزك من الممرض %s.", $reservation->nurse->full_name ?? ''),
-                    'rejected' => sprintf("تم رفض حجزك من الممرض %s.", $reservation->nurse->full_name ?? ''),
-                    'completed' => sprintf("تم اكتمال حجزك مع الممرض %s بنجاح.", $reservation->nurse->full_name ?? ''),
-                    default => sprintf("تم تحديث حالة حجزك إلى %s.", $reservation->status),
+                $body = match ($newStatus) {
+                    'accepted'  => "تمت الموافقة على حجزك من الممرض $nurseName. يرجى تثبيت الحجز خلال المهلة المحددة.",
+                    'rejected'  => "تم رفض حجزك من الممرض $nurseName.",
+                    'cancelled' => "تم إلغاء حجزك من الممرض $nurseName.",
+                    'finished'  => "تم اكتمال حجزك مع الممرض $nurseName بنجاح.",
+                    default     => "تم تحديث حالة حجزك إلى $newStatus.",
                 };
 
-                SendFirebaseNotificationJob::dispatch(
-                    $userAccount->fcm_token,
-                    $title,
-                    $body
-                );
+                SendFirebaseNotificationJob::dispatch($userAccount->fcm_token, $title, $body);
             }
         } catch (\Throwable $e) {
-            Log::error('Failed to send user notification: ' . $e->getMessage());
+            Log::error('Failed to send notification: ' . $e->getMessage());
         }
 
         return response()->json([
@@ -93,6 +106,7 @@ class NurseReservationController extends Controller
             'data' => $reservation
         ]);
     }
+
 
 
     /**
