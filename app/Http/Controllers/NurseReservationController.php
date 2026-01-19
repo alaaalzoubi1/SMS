@@ -52,7 +52,7 @@ class NurseReservationController extends Controller
     public function updateStatus(Request $request, $id): JsonResponse
     {
         $request->validate([
-            'status' => 'required|in:pending,accepted,cancelled,rejected,finished',
+            'status' => 'required|in:pending,accepted,cancelled,rejected,completed',
         ]);
 
         $reservation = NurseReservation::with(['user.account', 'nurse.account'])->find($id);
@@ -68,10 +68,10 @@ class NurseReservationController extends Controller
 
         $allowedTransitions = [
             'pending'   => ['accepted', 'rejected', 'cancelled'],
-            'accepted'  => ['finished', 'cancelled'],
+            'accepted'  => ['completed', 'cancelled'],
             'rejected'  => [],
             'cancelled' => [],
-            'finished'  => [],
+            'completed'  => [],
         ];
 
         if (!in_array($newStatus, $allowedTransitions[$currentStatus])) {
@@ -91,7 +91,7 @@ class NurseReservationController extends Controller
                     'accepted'  => "تمت الموافقة على حجزك من الممرض $nurseName. يرجى تثبيت الحجز خلال المهلة المحددة.",
                     'rejected'  => "تم رفض حجزك من الممرض $nurseName.",
                     'cancelled' => "تم إلغاء حجزك من الممرض $nurseName.",
-                    'finished'  => "تم اكتمال حجزك مع الممرض $nurseName بنجاح.",
+                    'completed'  => "تم اكتمال حجزك مع الممرض $nurseName بنجاح.",
                     default     => "تم تحديث حالة حجزك إلى $newStatus.",
                 };
 
