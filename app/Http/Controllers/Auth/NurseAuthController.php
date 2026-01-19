@@ -147,7 +147,7 @@ class NurseAuthController extends Controller
     public function me(): JsonResponse
     {
         $user = auth()->user();
-        $nurse = $user->nurse;
+        $nurse = $user->nurse->province;
         return response()->json(
             [$user , $nurse]
         );
