@@ -40,7 +40,7 @@ class NurseReservation extends Model
 
     public function nurseService():BelongsTo
     {
-        return $this->belongsTo(NurseService::class);
+        return $this->belongsTo(NurseService::class)->withTrashed();
     }
 
     public function subserviceReservations(): BelongsToMany
