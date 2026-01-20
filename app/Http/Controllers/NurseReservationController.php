@@ -127,9 +127,8 @@ class NurseReservationController extends Controller
         DB::beginTransaction();
 
         try {
-            // Create the main reservation
             $userId = auth()->user()->user->id;
-            if (!$request->comfirm){
+            if (!$request->confirm){
                 $previousReservation = NurseReservation::where('user_id' , $userId)
                     ->where('status','pending')
                     ->exists();
