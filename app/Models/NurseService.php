@@ -22,10 +22,6 @@ class NurseService extends Model
     {
         return $this->belongsTo(Nurse::class);
     }
-    public function subservices():HasMany
-    {
-        return $this->hasMany(NurseSubservice::class,'service_id');
-    }
     public function reservations(): HasMany
     {
         return $this->hasMany(NurseReservation::class, 'nurse_service_id');

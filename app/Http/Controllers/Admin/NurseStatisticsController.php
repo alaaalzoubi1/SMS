@@ -38,7 +38,7 @@ class NurseStatisticsController extends Controller
             ->when($request->from, fn($q) => $q->whereDate('start_at', '>=', $request->from))
             ->when($request->to, fn($q) => $q->whereDate('start_at', '<=', $request->to))
             ->orderBy('start_at', 'desc')
-            ->with(['user.account', 'nurseService','subserviceReservations']);
+            ->with(['user.account', 'nurseService:id,name']);
 
         $perPage = $request->input('per_page', 10);
 

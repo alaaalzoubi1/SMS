@@ -6,6 +6,7 @@ use App\Http\Requests\NurseFilterRequest;
 use App\Models\Nurse;
 use App\Http\Requests\StoreNurseRequest;
 use App\Http\Requests\UpdateNurseRequest;
+use App\Models\NurseReservation;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -67,13 +68,6 @@ class NurseController extends Controller
                     'id' => $service->id,
                     'name' => $service->name,
                     'price' => $service->price,
-                    'subservices' => $service->subservices->map(function ($subservice) {
-                        return [
-                            'id' => $subservice->id,
-                            'name' => $subservice->name,
-                            'price' => $subservice->price,
-                        ];
-                    })
                 ];
             });
 
@@ -140,34 +134,6 @@ class NurseController extends Controller
             'nurses' => $nurses,
         ]);
     }
-//    public function getNearestNurses(Request $request): JsonResponse
-//    {
-//        $latitude = $request->input('latitude');
-//        $longitude = $request->input('longitude');
-//        $radius = 500000000000; // 5 km
-//
-//        // أنشئ النقطة
-//        $point = new Point($latitude, $longitude, 4326);
-//        $pointWKT = $point->toWkt(); // "POINT(lon lat)"
-//
-//        $nurses = Nurse::
-////            Approved()
-////        Active()
-//            select('*')
-//            ->addSelect(DB::raw("ST_Distance_Sphere(location, ST_GeomFromText(?, 4326)) as distance"))
-//            ->whereNotNull('location')
-//            ->whereRaw("ST_Distance_Sphere(location, ST_GeomFromText(?, 4326)) <= ?", [$pointWKT, $pointWKT, $radius])
-//            ->orderBy('distance', 'asc')
-//            ->limit(10)
-//            ->get()
-//            ->makeHidden(['license_image_path','deleted_at','created_at','updated_at']);
-//
-//        return response()->json([
-//            'nurses' => $nurses,
-//        ]);
-//    }
-//TODO make api is_active
-
     public function activate(): JsonResponse
     {
         $nurse = auth()->user()->nurse;
@@ -188,6 +154,64 @@ class NurseController extends Controller
         $nurse->update(['location' => $location]);
         return response()->json([
             'message' => 'location updated successfully'
+        ]);
+    }
+    public function statistics(Request $request): JsonResponse
+    {
+        $request->validate([
+            'range' => 'nullable|in:today,month,year,custom',
+            'from'  => 'required_if:range,custom|date',
+            'to'    => 'required_if:range,custom|date|after_or_equal:from',
+        ]);
+
+        $nurse = Nurse::where('account_id', auth()->id())->firstOrFail();
+
+        $range = $request->input('range', 'today');
+
+        switch ($range) {
+            case 'today':
+                $from = now()->startOfDay();
+                $to   = now()->endOfDay();
+                break;
+
+            case 'month':
+                $from = now()->startOfMonth();
+                $to   = now()->endOfMonth();
+                break;
+
+            case 'year':
+                $from = now()->startOfYear();
+                $to   = now()->endOfYear();
+                break;
+
+            case 'custom':
+                $from = $request->from;
+                $to   = $request->to;
+                break;
+
+            default:
+                $from = now()->startOfDay();
+                $to   = now()->endOfDay();
+        }
+
+        $stats = NurseReservation::where('nurse_id', $nurse->id)
+            ->whereBetween('created_at', [$from, $to])
+            ->selectRaw("
+            COUNT(*) as total_reservations,
+            SUM(status = 'pending') as pending_count,
+            SUM(status = 'accepted') as accepted_count,
+            SUM(status = 'completed') as completed_count,
+            SUM(status = 'rejected') as rejected_count,
+            SUM(status = 'cancelled') as cancelled_count,
+            SUM(CASE WHEN status = 'completed' THEN price ELSE 0 END) as total_revenue
+        ")
+            ->first();
+
+        return response()->json([
+            'range' => $range,
+            'from'  => $from,
+            'to'    => $to,
+            'data'  => $stats
         ]);
     }
 }

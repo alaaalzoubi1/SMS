@@ -20,6 +20,7 @@ class DatabaseSeeder extends Seeder
             AdminAccountSeeder::class,
             ProvinceSeeder::class,
             NurseSeeder::class,
+            NurseReservationSeeder::class,
             SpecializationSeeder::class,
             DoctorSeeder::class,
             HospitalSeeder::class

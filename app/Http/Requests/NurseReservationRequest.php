@@ -38,13 +38,6 @@ class NurseReservationRequest extends FormRequest
             'note' => ['nullable', 'string'],
             'lat' => ['required', 'numeric', 'between:-90,90'],
             'lng' => ['required', 'numeric', 'between:-180,180'],
-            'subservices' => ['nullable', 'array'],
-            'subservices.*' => [
-                'integer',
-                Rule::exists('nurse_subservices', 'id')->where(function ($query) {
-                    $query->where('service_id', $this->nurse_service_id);
-                }),
-            ],
             'confirm' => 'sometimes|boolean',
         ];
     }

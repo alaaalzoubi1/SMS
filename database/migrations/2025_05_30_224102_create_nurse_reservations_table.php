@@ -25,7 +25,7 @@ return new class extends Migration
                 ->constrained('nurse_services');
 
             $table->enum('reservation_type', ['direct', 'manual']);
-
+            $table->decimal('price', 10, 2);
             $table->geography('location', subtype: 'point');
 
             $table->enum('status', ['pending', 'accepted','cancelled', 'rejected', 'completed'])->default('pending');
@@ -35,6 +35,8 @@ return new class extends Migration
             $table->timestamp('end_at')->nullable();
             $table->index('user_id');
             $table->index('nurse_id');
+            $table->index(['nurse_id', 'status']);
+            $table->index(['nurse_id', 'created_at']);
             $table->spatialIndex('location');
             $table->softDeletes();
             $table->timestamps();

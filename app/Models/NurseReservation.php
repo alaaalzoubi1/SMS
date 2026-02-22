@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use MatanYadaev\EloquentSpatial\Objects\Point;
 use MatanYadaev\EloquentSpatial\Traits\HasSpatial;
@@ -32,20 +33,17 @@ class NurseReservation extends Model
     {
         return $this->belongsTo(User::class);
     }
-
     public function nurse():BelongsTo
     {
         return $this->belongsTo(Nurse::class);
     }
-
     public function nurseService():BelongsTo
     {
         return $this->belongsTo(NurseService::class)->withTrashed();
     }
-
-    public function subserviceReservations(): BelongsToMany
+    public function cancellation(): HasOne
     {
-        return $this->belongsToMany(NurseSubservice::class, 'nurse_subservices_reservations', 'nurse_reservation_id', 'subservice_id');
+        return $this->hasOne(NurseCancellation::class, 'reservation_id');
     }
 
 }

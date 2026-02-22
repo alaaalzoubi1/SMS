@@ -23,7 +23,7 @@ class NurseServiceController extends Controller
     {
         $nurse = Nurse::where('account_id', Auth::id())->firstOrFail();
 
-        $services = NurseService::with('subservices')->where('nurse_id', $nurse->id)->paginate(10);
+        $services = NurseService::where('nurse_id', $nurse->id)->paginate(10);
         return response()->json($services);
     }
 
@@ -125,7 +125,7 @@ class NurseServiceController extends Controller
     public function getNurseServicesWithSubservices($nurseId)
     {
         // Retrieve the nurse with the services and subservices
-        $nurse = Nurse::with(['services.subservices'])->find($nurseId);
+        $nurse = Nurse::with(['services'])->find($nurseId);
 
         if (!$nurse) {
             return response()->json(['message' => 'Nurse not found'], 404);
@@ -137,13 +137,6 @@ class NurseServiceController extends Controller
                 'service_id' => $service->id,
                 'service_name' => $service->name,
                 'service_price' => $service->price,
-                'subservices' => $service->subservices->map(function ($subservice) {
-                    return [
-                        'subservice_id' => $subservice->id,
-                        'subservice_name' => $subservice->name,
-                        'subservice_price' => $subservice->price,
-                    ];
-                })
             ];
         });
 

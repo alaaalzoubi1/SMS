@@ -123,6 +123,7 @@ class NurseAuthController extends Controller
         if (!$account || !Hash::check($credentials['password'], $account->password)) {
             return response()->json(['message' => 'Invalid credentials'], 401);
         }
+        $account->assignRole('nurse');
         if (!$account->hasRole('nurse')) {
             return response()->json(['message' => 'Not authorized as nurse'], 403);
         }

@@ -11,24 +11,21 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('nurse_subservices', function (Blueprint $table) {
+        Schema::create('nurse_cancellations', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('service_id')
-                ->constrained('nurse_services');
-            $table->string('name');
-            $table->decimal('price', 8, 2);
-            $table->softDeletes();
-            $table->index('service_id');
+            $table->foreignId('reservation_id')
+                ->constrained('nurse_reservations')
+                ->onDelete('cascade');
+            $table->text('reason');
             $table->timestamps();
         });
-
     }
 
     /**
      * Reverse the migrations.
      */
     public function down(): void
-    {
-        Schema::dropIfExists('nurse_subsercvices');
-    }
+{
+    Schema::dropIfExists('nurse_cancellations');
+}
 };

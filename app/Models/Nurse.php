@@ -36,7 +36,9 @@ class Nurse extends Model
     ];
 
     protected  $casts = [
-        'location' => Point::class
+        'location' => Point::class,
+        'start_at' => 'datetime',
+        'end_at' => 'datetime',
     ];
 
     protected $hidden = [

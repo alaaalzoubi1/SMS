@@ -15,7 +15,6 @@ class NurseSeeder extends Seeder
     {
         Nurse::factory()
             ->count(100)
-            ->withServicesAndSubservices()  // Using the custom method to include services and subservices
             ->create();
     }
 }

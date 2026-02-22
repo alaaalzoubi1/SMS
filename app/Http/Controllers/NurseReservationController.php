@@ -7,6 +7,7 @@ use App\Models\Nurse;
 use App\Models\NurseReservation;
 use App\Http\Requests\StoreNurseReservationRequest;
 use App\Http\Requests\UpdateNurseReservationRequest;
+use App\Models\NurseService;
 use App\Models\NurseSubserviceReservation;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
@@ -39,7 +40,7 @@ class NurseReservationController extends Controller
             ->when($request->to, fn($q) => $q->whereDate('start_at', '<=', $request->to))
             ->when($request->reservation_type,fn($q) => $q->where('reservation_type',$request->reservation_type))
             ->orderBy('created_at', 'desc')
-            ->with(['user.account','nurseService', 'subserviceReservations']);
+            ->with(['user.account','nurseService:id,name']);
 
         $perPage = $request->input('per_page', 10);
 
@@ -53,58 +54,94 @@ class NurseReservationController extends Controller
     {
         $request->validate([
             'status' => 'required|in:pending,accepted,cancelled,rejected,completed',
+            'reason' => 'required_if:status,cancelled,rejected|string'
         ]);
 
-        $reservation = NurseReservation::with(['user.account', 'nurse.account'])->find($id);
-
-        if (!$reservation) {
-            return response()->json(['message' => 'Reservation not found or unauthorized.'], 404);
-        }
-
-        $this->authorize('manageNurseReservations', $reservation);
-
-        $currentStatus = $reservation->status;
-        $newStatus = $request->status;
-
-        $allowedTransitions = [
-            'pending'   => ['accepted', 'rejected', 'cancelled'],
-            'accepted'  => ['completed', 'cancelled'],
-            'rejected'  => [],
-            'cancelled' => [],
-            'completed'  => [],
-        ];
-
-        if (!in_array($newStatus, $allowedTransitions[$currentStatus])) {
-            return response()->json(['message' => "Cannot change status from $currentStatus to $newStatus."], 400);
-        }
-
-        $reservation->status = $newStatus;
-        $reservation->save();
+        DB::beginTransaction();
 
         try {
-            $userAccount = $reservation->user->account ?? null;
-            $nurseName = $reservation->nurse->full_name ?? '';
 
-            if ($userAccount && $userAccount->fcm_token) {
-                $title = "تحديث حالة الحجز";
-                $body = match ($newStatus) {
-                    'accepted'  => "تمت الموافقة على حجزك من الممرض $nurseName. يرجى تثبيت الحجز خلال المهلة المحددة.",
-                    'rejected'  => "تم رفض حجزك من الممرض $nurseName.",
-                    'cancelled' => "تم إلغاء حجزك من الممرض $nurseName.",
-                    'completed'  => "تم اكتمال حجزك مع الممرض $nurseName بنجاح.",
-                    default     => "تم تحديث حالة حجزك إلى $newStatus.",
-                };
+            $reservation = NurseReservation::with(['user.account', 'nurse.account'])
+                ->find($id);
 
-                SendFirebaseNotificationJob::dispatch($userAccount->fcm_token, $title, $body);
+            if (!$reservation) {
+                return response()->json(['message' => 'Reservation not found or unauthorized.'], 404);
             }
-        } catch (\Throwable $e) {
-            Log::error('Failed to send notification: ' . $e->getMessage());
-        }
 
-        return response()->json([
-            'message' => 'Reservation status updated successfully.',
-            'data' => $reservation
-        ]);
+            $this->authorize('manageNurseReservations', $reservation);
+
+            $currentStatus = $reservation->status;
+            $newStatus = $request->status;
+
+            $allowedTransitions = [
+                'pending'   => ['accepted', 'rejected', 'cancelled'],
+                'accepted'  => ['completed', 'cancelled'],
+                'rejected'  => [],
+                'cancelled' => [],
+                'completed' => [],
+            ];
+
+            if (!in_array($newStatus, $allowedTransitions[$currentStatus])) {
+                return response()->json([
+                    'message' => "Cannot change status from $currentStatus to $newStatus."
+                ], 400);
+            }
+
+            $reservation->update([
+                'status' => $newStatus
+            ]);
+
+            if (in_array($newStatus, ['cancelled', 'rejected'])) {
+
+                $reservation->cancellation()->updateOrCreate(
+                    ['reservation_id' => $reservation->id],
+                    ['reason' => $request->reason]
+                );
+            }
+
+            DB::commit();
+
+            try {
+                $userAccount = $reservation->user->account ?? null;
+                $nurseName = $reservation->nurse->full_name ?? '';
+
+                if ($userAccount && $userAccount->fcm_token) {
+
+                    $title = "تحديث حالة الحجز";
+
+                    $body = match ($newStatus) {
+                        'accepted'  => "تمت الموافقة على حجزك من الممرض $nurseName.",
+                        'rejected'  => "تم رفض حجزك من الممرض $nurseName. السبب: {$request->reason}",
+                        'cancelled' => "تم إلغاء حجزك من الممرض $nurseName. السبب: {$request->reason}",
+                        'completed' => "تم اكتمال حجزك مع الممرض $nurseName بنجاح.",
+                        default     => "تم تحديث حالة حجزك إلى $newStatus.",
+                    };
+
+                    SendFirebaseNotificationJob::dispatch(
+                        $userAccount->fcm_token,
+                        $title,
+                        $body
+                    );
+                }
+
+            } catch (\Throwable $e) {
+                Log::error('Failed to send notification: ' . $e->getMessage());
+            }
+
+            return response()->json([
+                'message' => 'Reservation status updated successfully.',
+                'data' => $reservation->load('cancellation')
+            ]);
+
+        } catch (\Throwable $e) {
+
+            DB::rollBack();
+            Log::error($e->getMessage());
+
+            return response()->json([
+                'message' => 'Failed to update reservation status.'
+            ], 500);
+        }
     }
 
 
@@ -139,11 +176,13 @@ class NurseReservationController extends Controller
                     ]);
                 }
             }
+            $service = NurseService::find($request->nurse_service_id);
 
             $reservation = new NurseReservation();
             $reservation->user_id = $userId;
             $reservation->nurse_id = $request->nurse_id;
             $reservation->nurse_service_id = $request->nurse_service_id;
+            $reservation->price = $service->price;
             $reservation->reservation_type = $request->reservation_type;
             $reservation->note = $request->note;
 
@@ -161,19 +200,6 @@ class NurseReservationController extends Controller
             $reservation->status = "pending";
             $reservation->save();
 
-            // Attach subservices if provided
-            if ($request->filled('subservices')) {
-                $subserviceData = collect($request->subservices)->map(function ($subId) use ($reservation) {
-                    return [
-                        'nurse_reservation_id' => $reservation->id,
-                        'subservice_id' => $subId,
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ];
-                })->toArray();
-
-                DB::table('nurse_subservices_reservations')->insert($subserviceData);
-            }
 
             DB::commit();
             $nurse = $reservation->nurse()->with('account')->first();
@@ -192,13 +218,13 @@ class NurseReservationController extends Controller
             }
             return response()->json([
                 'message' => 'Reservation created successfully.',
-                'data' => $reservation->load('nurseService', 'subserviceReservations','nurse.account'),
+                'data' => $reservation->load('nurseService','nurse.account'),
             ], 201);
 
         } catch (\Throwable $e) {
             DB::rollBack();
 
-            \Log::error('Reservation creation failed: ' . $e->getMessage());
+            Log::error('Reservation creation failed: ' . $e->getMessage());
             return response()->json(['message' => 'Failed to create reservation.'], 500);
         }
     }

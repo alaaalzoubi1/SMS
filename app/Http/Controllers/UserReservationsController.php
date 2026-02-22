@@ -37,7 +37,7 @@ class UserReservationsController extends Controller
             case 'nurse':
                 $reservations = \App\Models\NurseReservation::query()
                     ->where('user_id', $userId)
-                    ->with(['nurse','nurse.account:id,phone_number', 'nurseService', 'subserviceReservations'])
+                    ->with(['nurse','nurse.account:id,phone_number', 'nurseService:id,name'])
                     ->when($apiStatus, function ($q) use ($statusMap, $apiStatus) {
                         $status = $statusMap[$apiStatus]['nurse'] ?? null;
                         if ($status) $q->where('status', $status);
@@ -83,7 +83,7 @@ class UserReservationsController extends Controller
                 // في حال لم يُحدد نوع، رجّع الكل (لكن مع eager loading محدد)
                 $user = \App\Models\User::query()
                     ->with([
-                        'nurseReservations' => fn($q) => $q->with(['nurse','nurseService','subserviceReservations'])->orderByDesc('created_at'),
+                        'nurseReservations' => fn($q) => $q->with(['nurse','nurseService:id,name'])->orderByDesc('created_at'),
                         'hospitalReservations' => fn($q) => $q->with(['hospital','hospitalService.service'])->orderByDesc('created_at'),
                         'doctorReservations' => fn($q) => $q->with(['doctor.specialization','doctorService'])->orderByDesc('created_at'),
                     ])

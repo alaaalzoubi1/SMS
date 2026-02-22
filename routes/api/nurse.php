@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Route;
     Route::post('updateProfile', [NurseAuthController::class, 'updateProfile']);
     Route::get('activate-deactivate', [NurseController::class, 'activate']);
     Route::patch('refresh-location',[NurseController::class,'refreshLocation']);
+    Route::get('statistics',[NurseController::class,'statistics']);
     Route::prefix('services')->group(function () {
         Route::get('/', [NurseServiceController::class, 'index']);
         Route::post('/', [NurseServiceController::class, 'store']);
@@ -22,12 +23,12 @@ use Illuminate\Support\Facades\Route;
         Route::delete('/{id}', [NurseServiceController::class, 'destroy']);
     });
 
-    Route::prefix('sub-services')->group(function () {
-        Route::get('/{service_id}', [NurseSubsercviceController::class, 'index']);
-        Route::post('/', [NurseSubsercviceController::class, 'store']);
-        Route::post('/{id}', [NurseSubsercviceController::class, 'update']);
-        Route::delete('/{id}', [NurseSubsercviceController::class, 'destroy']);
-    });
+//    Route::prefix('sub-services')->group(function () {
+//        Route::get('/{service_id}', [NurseSubsercviceController::class, 'index']);
+//        Route::post('/', [NurseSubsercviceController::class, 'store']);
+//        Route::post('/{id}', [NurseSubsercviceController::class, 'update']);
+//        Route::delete('/{id}', [NurseSubsercviceController::class, 'destroy']);
+//    });
 
     Route::prefix('reservations')->group(callback: function () {
         Route::get('/', [NurseReservationController::class, 'index']);

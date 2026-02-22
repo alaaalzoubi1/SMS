@@ -37,14 +37,5 @@ class NurseFactory extends Factory
     }
 
     // Create nurse with services and subservices
-    public function withServicesAndSubservices(int $servicesCount = 2, int $subservicesCount = 3): NurseFactory
-    {
-        return $this->has(
-            NurseService::factory()
-                ->count($servicesCount)
-                ->has(
-                    NurseSubservice::factory()
-                        ->count($subservicesCount)
-                ,'subservices'), 'services');
-    }
+
 }

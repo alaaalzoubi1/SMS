@@ -13,17 +13,8 @@ class NurseReservationSeeder extends Seeder
      */
     public function run(): void
     {
-         NurseReservation::create([
-            'user_id' => 1,
-            'nurse_id' => 1,
-            'nurse_service_id' => 1,
-            'reservation_type' => 'direct',
-            'location_lat' => 33,
-            'location_lng' => 36,
-            'status' => 'pending',
-            'note' => 'Test',
-            'start_at' => now()->addDays(1),
-            'end_at' => now()->addDays(1)->addHour(),
-        ]);
+         NurseReservation::factory()
+             ->count(100)
+             ->create();
     }
 }
