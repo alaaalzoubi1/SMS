@@ -22,56 +22,42 @@ class NurseController extends Controller
 
     public function listForUsers(NurseFilterRequest $request): JsonResponse
     {
-
-        // Start building the query for nurses
         $query = Nurse::query()
-            ->with(['services','province']) // Eager load services and subservices
+            ->with(['services:id,name,price,nurse_id', 'province'])
             ->Approved()
-            ->Active();
-//            ->select('id', 'full_name', 'address','location', 'graduation_type', 'age', 'gender', 'profile_description');
+            ->Active()
+            ->when($request->filled('gender'),
+                fn ($q) => $q->where('gender', $request->gender)
+            )
+            ->when($request->filled('graduation_type'),
+                fn ($q) => $q->where('graduation_type', $request->graduation_type)
+            )
+            ->when($request->filled('address'),
+                fn ($q) => $q->where('address', 'like', '%' . $request->address . '%')
+            )
+            ->when($request->filled('full_name'),
+                fn ($q) => $q->where('full_name', 'like', '%' . $request->full_name . '%')
+            )
+            ->when($request->filled('service_name'), function ($q) use ($request) {
+                $q->whereHas('services', function ($sub) use ($request) {
+                    $sub->where('name', 'like', '%' . $request->service_name . '%');
+                });
+            })
 
-        // Apply filters if present
-        if ($request->filled('gender')) {
-            $query->where('gender', $request->gender);
-        }
+            ->when(
+                $request->filled('latitude') && $request->filled('longitude'),
+                function ($q) use ($request) {
+                    $point = new Point($request->latitude, $request->longitude);
 
-        if ($request->filled('graduation_type')) {
-            $query->where('graduation_type', $request->graduation_type);
-        }
+                    $q->withDistanceSphere('location', $point, 'distance_meters')
+                        ->orderByDistanceSphere('location', $point, 'asc');
+                }
+            );
 
-        if ($request->filled('address')) {
-            $query->where('address', 'like', '%' . $request->address . '%');
-        }
+        $nurses = $query->paginate(10);
 
-        if ($request->filled('full_name')) {
-            $query->where('full_name', 'like', '%' . $request->full_name . '%');
-        }
-        if ($request->filled('latitude') && $request->filled('longitude'))
-        {
-            $radius = 5000;
-            $point = new Point($request->latitude,$request->longitude);
-
-            $query
-                ->withDistanceSphere('location', $point, 'distance_meters') // تضيف المسافة في الـ select
-                ->orderByDistanceSphere('location', $point, 'asc') // ترتيب حسب المسافة
-                ->limit(10);
-        }
-
-        // Get the nurses
-        $nurses = $query->paginate(10); // Adjust pagination as needed
-
-        // Transform the nurses with relevant data only
         $nurses->getCollection()->transform(function ($nurse) {
-            // Get services and subservices with only necessary columns
-            $nurse->services = $nurse->services->map(function ($service) {
-                return [
-                    'id' => $service->id,
-                    'name' => $service->name,
-                    'price' => $service->price,
-                ];
-            });
 
-            // Return only the necessary data
             return [
                 'id' => $nurse->id,
                 'full_name' => $nurse->full_name,
@@ -80,16 +66,19 @@ class NurseController extends Controller
                 'age' => $nurse->age,
                 'gender' => $nurse->gender,
                 'profile_description' => $nurse->profile_description,
-                'location'=>$nurse->location,
-                'services' => $nurse->services,
-                'avg_rating' => max(4,$nurse->avg_rating),
-                'distance_meters' => $nurse->distance_meters,
+                'location' => $nurse->location,
+                'services' => $nurse->services->map(fn ($service) => [
+                    'id' => $service->id,
+                    'name' => $service->name,
+                    'price' => $service->price,
+                ]),
+                'avg_rating' => max(4, $nurse->avg_rating),
+                'distance_meters' => $nurse->distance_meters ?? null,
                 'profile_image' => $nurse->profile_image_path,
-                'province' => $nurse->province
+                'province' => $nurse->province,
             ];
         });
 
-        // Return the paginated nurses
         return response()->json($nurses);
     }
 

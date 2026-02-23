@@ -39,10 +39,9 @@ class HospitalController extends Controller
         $query = Hospital::query()
             ->with([
                 'services.service',
-                'province:id,name_ar,name_en'
+                'province:id,name_ar,name_en',
+                'account'
             ]);
-
-        // Filters
         if (!empty($validated['full_name'])) {
             $query->where('full_name', 'like', '%' . $validated['full_name'] . '%');
         }
@@ -51,10 +50,10 @@ class HospitalController extends Controller
             $query->where('address', 'like', '%' . $validated['address'] . '%');
         }
 
-        // Pagination + formatting بدون كسر الميتاداتا
         $hospitals = $query
             ->select([
                 'id',
+                'account_id',
                 'full_name',
                 'address',
                 'location',
@@ -70,6 +69,7 @@ class HospitalController extends Controller
                     'address'    => $hospital->address,
                     'avg_rating' => max(4, $hospital->avg_rating),
                     'location'   => $hospital->location,
+                    'phone_number' => $hospital->account?->phone_number,
 
                     'province' => $hospital->province ? [
                         'id'      => $hospital->province->id,

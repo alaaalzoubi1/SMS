@@ -19,11 +19,19 @@ use Illuminate\Validation\ValidationException;
 class NurseServiceController extends Controller
 {
     use AuthorizesRequests;
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        $nurse = Nurse::where('account_id', Auth::id())->firstOrFail();
+        $nurse = auth()->user()->nurse;
 
-        $services = NurseService::where('nurse_id', $nurse->id)->paginate(10);
+        $services = NurseService::query()
+            ->where('nurse_id', $nurse->id)
+
+            ->when($request->filled('service_name'), function ($q) use ($request) {
+                $q->where('name','like', '%' . $request->service_name . '%' );
+            })
+
+            ->paginate(10);
+
         return response()->json($services);
     }
 
