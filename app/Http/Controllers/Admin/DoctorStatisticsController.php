@@ -10,10 +10,44 @@ use Illuminate\Http\Request;
 
 class DoctorStatisticsController extends Controller
 {
-    public function doctors(): JsonResponse
+    public function doctors(Request $request): JsonResponse
     {
+        $query = Doctor::query()
+            ->with([
+                'account:id,email,phone_number',
+                'specialization:id,name_ar,name_en,image'
+            ]);
+
+        $filters = collect($request->only([
+            'full_name',
+            'address',
+            'age',
+            'gender',
+            'specialization_id',
+            'location',
+            'email',
+            'phone_number',
+            'name_ar',
+            'name_en'
+        ]))->filter();
+        $filters->each(function ($value, $key) use ($query) {
+            match ($key) {
+                'full_name',
+                'address',
+                'location' => $query->where($key, 'like', "%{$value}%"),
+                'age',
+                'gender',
+                'specialization_id' => $query->where($key, $value),
+                'email',
+                'phone_number' => $query->whereHas('account', function ($q) use ($key, $value) {
+                    $q->where($key, 'like', "%{$value}%");
+                }),
+                default => null
+            };
+        });
+
         return response()->json([
-            'doctors' => Doctor::with(['account:id,email,phone_number','specialization:id,name_ar,name_en,image'])->paginate(10)
+            'doctors' => $query->paginate(10)
         ]);
     }
     public function doctor($id): JsonResponse

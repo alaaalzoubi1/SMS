@@ -17,6 +17,7 @@ return new class extends Migration
             $table->foreignId('province_id')->constrained('provinces');
             $table->string('full_name');
             $table->uuid('unique_code')->unique();
+            $table->string('profile_description')->nullable();
             $table->string('address');
             $table->float('avg_rating')->default(0);
             $table->unsignedInteger('ratings_count')->default(0);

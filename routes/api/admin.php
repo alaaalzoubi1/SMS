@@ -37,14 +37,11 @@ Route::prefix('specializations')->group(function () {
     Route::post('/{id}', [SpecializationController::class, 'update']);
     Route::delete('/{id}', [SpecializationController::class, 'destroy']);
 });
-
-
 Route::prefix('doctor')->group(function () {
     Route::get('/{id}/license', [DoctorStatisticsController::class, 'getDoctorLicense']);
     Route::get('/all', [DoctorStatisticsController::class, 'doctors']);
     Route::get('/{id}', [DoctorStatisticsController::class, 'doctor']);
     Route::get('/{id}/reservations', [DoctorStatisticsController::class, 'doctorReservations']);
-
 });
 Route::prefix('hospital')->group(function () {
     Route::get('/all', [HospitalStatisticsController::class, 'hospitals']);

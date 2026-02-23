@@ -36,4 +36,5 @@ use App\Http\Controllers\HospitalServiceReservationController;
         Route::patch('/{id}/status', 'updateStatus');
         Route::delete('/{id}', 'destroy');
         Route::patch('/{id}/restore', 'restore');
+        Route::post('/manual',[HospitalServiceReservationController::class,'storeManual']);
     });

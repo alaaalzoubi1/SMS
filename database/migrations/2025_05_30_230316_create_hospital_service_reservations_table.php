@@ -19,10 +19,9 @@ class CreateHospitalServiceReservationsTable extends Migration
 
             $table->enum('status', ['pending', 'confirmed', 'accepted' , 'cancelled','finished'])->default('pending');
 
-            // Indexes for date columns (for range queries)
             $table->index('status');
-            $table->index('start_date');  // For querying by start date
-            $table->index('end_date');  // For querying by end date
+            $table->index('start_date');
+            $table->index('end_date');
 
 
             $table->timestamps();

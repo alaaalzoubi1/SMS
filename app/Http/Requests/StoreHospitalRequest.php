@@ -32,7 +32,8 @@ class StoreHospitalRequest extends FormRequest
             'longitude' => 'required|numeric|between:-180,180',
             'profile_image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:10240',
             'province_id' => 'required|integer|exists:provinces,id',
-            'reservation_confirmation_deadline' => 'required|numeric'
+            'reservation_confirmation_deadline' => 'required|numeric',
+            'profile_description' => 'nullable|string',
         ];
     }
 

@@ -107,9 +107,8 @@ class HospitalServiceReservationController extends Controller
                RULE 1 — CANCELLED
                ─────────────────────────────── */
             if ($newStatus === 'cancelled') {
-
-                if (!in_array($oldStatus, ['pending', 'accepted'])) {
-                    return response()->json(['message' => 'Cannot cancel unless status is pending or accepted'], 422);
+                if (!in_array($oldStatus, ['pending', 'accepted','confirmed'])) {
+                    return response()->json(['message' => 'Cannot cancel unless status is pending or accepted or confirmed'], 422);
                 }
                 if (!$request->reason) {
                     return response()->json(['message' => 'Cancellation reason is required'], 422);
@@ -324,6 +323,79 @@ class HospitalServiceReservationController extends Controller
         return response()->json([
             'message' => "تم إنشاء الحجز بنجاح،بعد موافقة المشفى عليه يجب تثبيت الحجز خلال مدة أقصاها {$hospitalService->hospital->reservation_confirmation_deadline} ساعة"
         ]);
+    }
+    public function storeManual(Request $request): JsonResponse
+    {
+        $request->validate([
+            'full_name' => 'required|string|max:255',
+            'age' => 'required|integer|min:0',
+            'gender' => 'required|in:male,female',
+            'hospital_service_id' => 'required|exists:hospital_services,id',
+            'start_date' => 'nullable|date',
+            'end_date' => 'nullable|date|after_or_equal:start_date',
+            'affect_capacity' => 'sometimes|boolean',
+        ]);
+
+        DB::beginTransaction();
+
+        try {
+
+            $hospital_id = auth()->user()->hospital->id;
+
+            $service = HospitalService::where('id', $request->hospital_service_id)
+                ->where('hospital_id', $hospital_id)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$service) {
+                return response()->json([
+                    'message' => 'The selected service does not belong to this hospital.'
+                ], 400);
+            }
+
+            $affectCapacity = $request->boolean('affect_capacity', true);
+
+            if ($affectCapacity) {
+                if ($service->capacity <= 0) {
+                    return response()->json([
+                        'message' => 'No available capacity for this service.'
+                    ], 400);
+                }
+
+                $service->decrement('capacity');
+            }
+
+            $user = User::create([
+                'account_id' => null,
+                'full_name' => $request->full_name,
+                'age' => $request->age,
+                'gender' => $request->gender,
+            ]);
+
+            $reservation = HospitalServiceReservation::create([
+                'user_id' => $user->id,
+                'hospital_id' => $hospital_id,
+                'hospital_service_id' => $service->id,
+                'start_date' => $request->start_date,
+                'end_date' => $request->end_date,
+                'status' => 'confirmed',
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Manual hospital reservation created successfully.',
+                'data' => $reservation->load('user')
+            ], 201);
+
+        } catch (\Throwable $e) {
+
+            DB::rollBack();
+
+            return response()->json([
+                'message' => 'Failed to create manual reservation.'
+            ], 500);
+        }
     }
 
 }
