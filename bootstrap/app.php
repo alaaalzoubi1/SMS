@@ -1,5 +1,8 @@
 <?php
 
+use App\Http\Middleware\EnsureAccountIsNotSuspended;
+use App\Providers\RoleRouteServiceProvider;
+use App\Providers\SuspendedRouteServiceProvider;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -17,10 +20,12 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias([
             'role' => RoleMiddleware::class,
+            'ensure.not.suspended' => EnsureAccountIsNotSuspended::class
         ]);
     })
     ->withProviders([
-        App\Providers\RoleRouteServiceProvider::class,
+        RoleRouteServiceProvider::class,
+        SuspendedRouteServiceProvider::class
     ])
     ->withExceptions(function (Exceptions $exceptions) {
         //

@@ -37,7 +37,7 @@ class UserReservationsController extends Controller
             case 'nurse':
                 $reservations = \App\Models\NurseReservation::query()
                     ->where('user_id', $userId)
-                    ->with(['nurse','nurse.account:id,phone_number', 'nurseService:id,name'])
+                    ->with(['nurse','nurse.account:id,phone_number', 'nurseService:id,name','cancellation'])
                     ->when($apiStatus, function ($q) use ($statusMap, $apiStatus) {
                         $status = $statusMap[$apiStatus]['nurse'] ?? null;
                         if ($status) $q->where('status', $status);
@@ -52,7 +52,7 @@ class UserReservationsController extends Controller
             case 'hospital':
                 $reservations = \App\Models\HospitalServiceReservation::query()
                     ->where('user_id', $userId)
-                    ->with(['hospital', 'hospitalService.service'])
+                    ->with(['hospital', 'hospitalService.service','cancellation'])
                     ->when($apiStatus, function ($q) use ($statusMap, $apiStatus) {
                         $status = $statusMap[$apiStatus]['hospital'] ?? null;
                         if ($status) $q->where('status', $status);
@@ -67,7 +67,7 @@ class UserReservationsController extends Controller
             case 'doctor':
                 $reservations = \App\Models\DoctorReservation::query()
                     ->where('user_id', $userId)
-                    ->with(['doctor.specialization', 'doctorService'])
+                    ->with(['doctor.specialization', 'doctorService','cancellation'])
                     ->when($apiStatus, function ($q) use ($statusMap, $apiStatus) {
                         $status = $statusMap[$apiStatus]['doctor'] ?? null;
                         if ($status) $q->where('status', $status);
@@ -80,12 +80,11 @@ class UserReservationsController extends Controller
                 break;
 
             default:
-                // في حال لم يُحدد نوع، رجّع الكل (لكن مع eager loading محدد)
                 $user = \App\Models\User::query()
                     ->with([
-                        'nurseReservations' => fn($q) => $q->with(['nurse','nurseService:id,name'])->orderByDesc('created_at'),
-                        'hospitalReservations' => fn($q) => $q->with(['hospital','hospitalService.service'])->orderByDesc('created_at'),
-                        'doctorReservations' => fn($q) => $q->with(['doctor.specialization','doctorService'])->orderByDesc('created_at'),
+                        'nurseReservations' => fn($q) => $q->with(['nurse','nurseService:id,name','cancellation'])->orderByDesc('created_at'),
+                        'hospitalReservations' => fn($q) => $q->with(['hospital','hospitalService.service','cancellation'])->orderByDesc('created_at'),
+                        'doctorReservations' => fn($q) => $q->with(['doctor.specialization','doctorService','cancellation'])->orderByDesc('created_at'),
                     ])
                     ->findOrFail($userId);
 

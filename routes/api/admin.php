@@ -17,6 +17,7 @@ use App\Http\Controllers\SpecializationController;
 Route::post('logout', [AdminAuthController::class, 'logout']);
 Route::get('me', [AdminAuthController::class, 'me']);
 Route::get('approveAccount/{id}', [AdminApproveController::class, 'approve']);
+Route::patch('toggleSuspension',[AdminApproveController::class,'toggleSuspension']);
 Route::post('get-pending-accounts', [AdminApproveController::class, 'index']);
 Route::post('create-hospital-account', [ManageHospitalsAccountsController::class, 'createHospitalAccount']);
 

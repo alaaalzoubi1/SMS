@@ -4,19 +4,19 @@ namespace App\Models;
 
 use App\Enums\SpecializationType;
 use App\Models\Scopes\ProvinceScope;
-use App\Rateable;
-use Illuminate\Database\Eloquent\Model;
+use App\Models\Traits\HasActiveAccountScope;
+use App\Models\Traits\Rateable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use MatanYadaev\EloquentSpatial\Objects\Point;
 use MatanYadaev\EloquentSpatial\Traits\HasSpatial;
 
 class Doctor extends Model
 {
-    use HasFactory, SoftDeletes,Rateable,HasSpatial;
+    use HasFactory, SoftDeletes,Rateable,HasSpatial,HasActiveAccountScope;
 
     protected $fillable = [
         'account_id',

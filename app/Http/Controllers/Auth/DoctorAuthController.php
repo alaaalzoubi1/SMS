@@ -136,6 +136,10 @@ class DoctorAuthController extends Controller
         if ($account->is_approved !== 'approved') {
             return response()->json(['message' => 'Your registration is not approved by admin yet.'], 403);
         }
+        if ($account->is_suspended)
+        {
+            return response()->json(['message' => 'Your account has been suspended.'], 403);
+        }
         $token = JWTAuth::fromUser($account);
 
         return response()->json([

@@ -100,7 +100,7 @@ class DoctorReservationController extends Controller
             ->when($request->from, fn($q) => $q->whereDate('start_time', '>=', $request->from))
             ->when($request->to, fn($q) => $q->whereDate('start_time', '<=', $request->to))
             ->orderBy('start_time', 'desc')
-            ->with(['user.account', 'doctorService']);
+            ->with(['user.account', 'doctorService','cancellation']);
 
         $perPage = $request->input('per_page', 10);
 

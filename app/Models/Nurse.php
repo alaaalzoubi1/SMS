@@ -3,14 +3,14 @@
 namespace App\Models;
 
 use App\Models\Scopes\ProvinceScope;
-use App\Rateable;
+use App\Models\Traits\HasActiveAccountScope;
+use App\Models\Traits\Rateable;
 use Database\Factories\NurseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Database\Eloquent\Builder;
 use MatanYadaev\EloquentSpatial\Objects\Point;
 use MatanYadaev\EloquentSpatial\Traits\HasSpatial;
 
@@ -18,7 +18,7 @@ use MatanYadaev\EloquentSpatial\Traits\HasSpatial;
 class Nurse extends Model
 {
     /** @use HasFactory<NurseFactory> */
-    use HasFactory,SoftDeletes,HasSpatial,Rateable;
+    use HasFactory,SoftDeletes,HasSpatial,Rateable,HasActiveAccountScope;
     protected $fillable = [
         'account_id',
         'full_name',

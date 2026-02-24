@@ -58,6 +58,20 @@ class AdminApproveController extends Controller
 
         return response()->json($accounts);
     }
+    public function toggleSuspension(Request $request)
+    {
+        $request->validate([
+            'is_suspended' => 'required|boolean',
+            'account_id' => 'required|exists:accounts,id'
+        ]);
+        $id = $request->account_id;
+        $account = Account::findOrFail($id);
+        $account->is_suspended = $request->is_suspended;
+        $account->save();
+        return response()->json([
+            'message' => 'suspension status updated successfully.',
+        ]);
+    }
 
 
 }

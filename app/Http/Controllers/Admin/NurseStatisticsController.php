@@ -11,10 +11,28 @@ use TarfinLabs\LaravelSpatial\Types\Point;
 
 class NurseStatisticsController extends Controller
 {
-    public function nurses(): JsonResponse
+    public function nurses(Request $request): JsonResponse
     {
+        $query = Nurse::query()
+            ->with('account:id,email,phone_number')
+
+            ->when($request->filled('full_name'),
+                fn ($q) => $q->where('full_name', 'like', '%' . $request->full_name . '%')
+            )
+            ->when($request->filled('address'),
+                fn ($q) => $q->where('address', 'like', '%' . $request->address . '%')
+            )
+            ->when($request->filled('graduation_type'),
+                fn ($q) => $q->where('graduation_type', $request->graduation_type)
+            )
+            ->when($request->filled('age'),
+                fn ($q) => $q->where('age', $request->age)
+            )
+            ->when($request->filled('gender'),
+                fn ($q) => $q->where('gender', $request->gender)
+            );
         return response()->json([
-            'nurses' => Nurse::with('account:id,email,phone_number')->paginate(10)
+            'nurses' => $query->paginate(10)
         ]);
     }
     public function nurse($id): JsonResponse

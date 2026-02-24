@@ -21,6 +21,7 @@ class Account extends Authenticatable implements JWTSubject
         'fcm_token',
         'email_verified_at',
         'is_approved',
+        'is_suspended',
         'verification_code'
     ];
 

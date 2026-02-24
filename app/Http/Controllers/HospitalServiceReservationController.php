@@ -33,7 +33,7 @@ class HospitalServiceReservationController extends Controller
         $hospital = $this->getAuthenticatedHospital();
 
         $reservations = HospitalServiceReservation::where('hospital_id', $hospital->id)
-              ->with(['user', 'hospitalService.service'])
+              ->with(['user', 'hospitalService.service','cancellation'])
               ->orderBy('start_date', 'desc')
               ->paginate()
               ->map(function($reservation) {

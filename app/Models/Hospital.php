@@ -3,21 +3,21 @@
 namespace App\Models;
 
 use App\Models\Scopes\ProvinceScope;
-use App\Rateable;
+use App\Models\Traits\HasActiveAccountScope;
+use App\Models\Traits\Rateable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Facades\Validator;
 use MatanYadaev\EloquentSpatial\Objects\Point;
 use MatanYadaev\EloquentSpatial\Traits\HasSpatial;
 
 class Hospital extends Model
 {
     /** @use HasFactory<\Database\Factories\HospitalFactory> */
-    use HasFactory,SoftDeletes,Rateable,HasSpatial;
+    use HasFactory,SoftDeletes,Rateable,HasSpatial,HasActiveAccountScope;
 
     protected $fillable = [
         'account_id',
