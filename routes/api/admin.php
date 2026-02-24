@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AdminApproveController;
+use App\Http\Controllers\Admin\BroadcastNotificationController;
 use App\Http\Controllers\Admin\DoctorStatisticsController;
 use App\Http\Controllers\Admin\HospitalStatisticsController;
 use App\Http\Controllers\Admin\ManageHospitalsAccountsController;
@@ -20,7 +21,8 @@ Route::get('approveAccount/{id}', [AdminApproveController::class, 'approve']);
 Route::patch('toggleSuspension',[AdminApproveController::class,'toggleSuspension']);
 Route::post('get-pending-accounts', [AdminApproveController::class, 'index']);
 Route::post('create-hospital-account', [ManageHospitalsAccountsController::class, 'createHospitalAccount']);
-
+Route::post('broadcast-notification', [BroadcastNotificationController::class, 'broadcast']);
+Route::get('broadcast-logs',[BroadcastNotificationController::class,'broadcastLogs']);
 
 Route::prefix('service')->group(function () {
     Route::post('/', [ServiceController::class, 'create'])->name('service.create');
