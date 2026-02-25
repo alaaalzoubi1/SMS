@@ -1,7 +1,7 @@
 <?php
 
 use App\Http\Middleware\EnsureAccountIsNotSuspended;
-use App\Providers\RoleRouteServiceProvider;
+use App\Providers\RouteServiceProvider;
 use App\Providers\SuspendedRouteServiceProvider;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -24,8 +24,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withProviders([
-        RoleRouteServiceProvider::class,
-        SuspendedRouteServiceProvider::class
+        RouteServiceProvider::class,
     ])
     ->withExceptions(function (Exceptions $exceptions) {
         //
