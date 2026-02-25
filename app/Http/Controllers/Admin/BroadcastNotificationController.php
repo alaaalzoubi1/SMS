@@ -71,8 +71,7 @@ class BroadcastNotificationController extends Controller
 
         return response()->json([
             'message' => 'Broadcast batch started.',
-            'batch_id' => $batch->id,
-            'tokens_queued' => $totalTokens,
+            'tokens_queued' => $batch->totalJobs,
         ]);
     }
     public function broadcastLogs()
