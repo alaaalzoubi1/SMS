@@ -6,13 +6,14 @@ use App\Http\Controllers\Controller;
 use App\Jobs\SendFirebaseNotificationJob;
 use App\Models\Account;
 use App\Models\BroadcastLog;
+use Illuminate\Bus\Batch;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Bus;
 
 class BroadcastNotificationController extends Controller
 {
-    public function broadcast(Request $request): JsonResponse
+    public function broadcast(Request $request)
     {
         $request->validate([
             'title' => 'required|string|max:255',
@@ -25,9 +26,21 @@ class BroadcastNotificationController extends Controller
         $body = $request->body;
         $groups = $request->groups;
 
-        $tokens = collect();
+        $totalTokens = 0;
+
+        $batch = Bus::batch([])
+            ->finally(function (Batch $batch) use ($title, $body, $groups, &$totalTokens) {
+                BroadcastLog::create([
+                    'title' => $title,
+                    'body' => $body,
+                    'groups' => $groups,
+                    'tokens_count' => $totalTokens,
+                ]);
+            })
+            ->dispatch();
 
         foreach ($groups as $group) {
+
             $query = match ($group) {
                 'users' => \App\Models\User::query(),
                 'nurses' => \App\Models\Nurse::query(),
@@ -35,40 +48,39 @@ class BroadcastNotificationController extends Controller
                 'hospitals' => \App\Models\Hospital::query(),
             };
 
-            $query->with('account:id,fcm_token');
+            $query->with('account:id,fcm_token')
+                ->chunk(500, function ($items) use ($batch, $title, $body, &$totalTokens) {
 
-            $query->chunk(500, function ($items) use (&$tokens) {
-                foreach ($items as $item) {
-                    if (isset($item->account->fcm_token) && $item->account->fcm_token) {
-                        $tokens->push($item->account->fcm_token);
+                    $jobs = [];
+
+                    foreach ($items as $item) {
+                        if (!empty($item->account?->fcm_token)) {
+                            $jobs[] = new SendFirebaseNotificationJob(
+                                $item->account->fcm_token,
+                                $title,
+                                $body
+                            );
+
+                            $totalTokens++;
+                        }
                     }
-                }
-            });
+
+                    if (!empty($jobs)) {
+                        $batch->add($jobs);
+                    }
+                });
         }
 
-        $jobs = $tokens->map(fn($token) => new SendFirebaseNotificationJob($token, $title, $body));
-
-        // Dispatch all jobs as a batch
-        Bus::batch($jobs)
-            ->then(function () use ($title, $body, $groups, $tokens) {
-                BroadcastLog::create([
-                    'title' => $title,
-                    'body' => $body,
-                    'groups' => $groups,
-                    'tokens_count' => $tokens->count()
-                ]);
-            })
-            ->dispatch();
-
         return response()->json([
-            'message' => 'Notification broadcast batch dispatched successfully.',
-            'tokens_count' => $tokens->count(),
+            'message' => 'Broadcast batch started.',
+            'batch_id' => $batch->id,
+            'tokens_queued' => $totalTokens,
         ]);
     }
     public function broadcastLogs()
     {
         return response()->json([
-            'data' =>BroadcastLog::get()
+            'data' =>BroadcastLog::paginate(10)
         ]);
     }
 }
