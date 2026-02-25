@@ -26,6 +26,7 @@ class BroadcastNotificationController extends Controller
         $body = $request->body;
         $groups = $request->groups;
 
+        $totalTokens = 0;
 
         $batch = Bus::batch([])
             ->finally(function (Batch $batch) use ($title, $body, $groups) {
@@ -60,6 +61,7 @@ class BroadcastNotificationController extends Controller
                                 $body
                             );
 
+                            $totalTokens++;
                         }
                     }
 
@@ -71,7 +73,7 @@ class BroadcastNotificationController extends Controller
 
         return response()->json([
             'message' => 'Broadcast batch started.',
-            'tokens_queued' => $batch->totalJobs,
+            'tokens_queued' => $totalTokens,
         ]);
     }
     public function broadcastLogs()
