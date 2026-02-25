@@ -79,7 +79,7 @@ class BroadcastNotificationController extends Controller
     public function broadcastLogs()
     {
         return response()->json([
-            'data' =>BroadcastLog::orderByDesc()->paginate(10)
+            'data' =>BroadcastLog::orderByDesc('created_at')->paginate(10)
         ]);
     }
 }
