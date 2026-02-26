@@ -14,6 +14,7 @@ use App\Http\Controllers\NurseServiceController;
 use App\Http\Controllers\ProvinceController;
 use App\Http\Controllers\RatingController;
 use App\Http\Controllers\ServiceController;
+use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
 // the URL is api/user
@@ -35,6 +36,7 @@ use Illuminate\Support\Facades\Route;
         Route::get('nearest', [NurseController::class, 'getNearestNurses']);
         Route::get('{nurseId}/services', [NurseServiceController::class, 'getNurseServicesWithSubservices']);
         Route::post('reserve', [NurseReservationController::class, 'store']);
+        Route::patch('reservation/cancel' ,[UserController::class,'cancelNurseReservation']);
     });
     Route::prefix('hospitals')->group(function () {
         Route::get('/', [HospitalController::class, 'getHospitalsWithServices']);
@@ -43,8 +45,6 @@ use Illuminate\Support\Facades\Route;
         Route::get('{hospitalId}/available-dates', [HospitalWorkScheduleController::class, 'getAvailableDates']);
         Route::get('/{hospitalId}', [HospitalController::class, 'getHospitalServices']);
         Route::post('/make-reservation', [HospitalServiceReservationController::class, 'makeReservation']);
-
-
     });
     Route::prefix('ratings')->group(function () {
         Route::post('', [RatingController::class, 'store']);
