@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Jobs\SendFirebaseNotificationJob;
+use App\Models\DoctorReservation;
+use App\Models\HospitalServiceReservation;
 use App\Models\NurseReservation;
 use App\Models\User;
 use App\Http\Requests\StoreUserRequest;
@@ -50,6 +52,96 @@ class UserController extends Controller
 
             SendFirebaseNotificationJob::dispatch(
                 $nurseToken,
+                'تم إلغاء الحجز',
+                "قام المستخدم {$userName} بإلغاء الحجز."
+            );
+        }
+        return response()->json([
+            'message' => 'Reservation cancelled successfully.',
+            'reservation' => $reservation->fresh()
+        ]);
+    }
+    public function cancelDoctorReservation(Request $request)
+    {
+        $request->validate([
+            'reservation_id' => 'required|exists:nurse_reservations,id',
+            'reason' => 'required|string|max:500'
+        ]);
+
+        $reservation = DoctorReservation::with(['doctor.account', 'user:id,full_name'])
+            ->findOrFail($request->reservation_id);
+
+        if ($reservation->user_id !== auth()->user()->user->id) {
+            return response()->json([
+                'message' => 'This reservation does not belong to this user.'
+            ], 403);
+        }
+
+        try {
+
+            DB::transaction(function () use ($reservation, $request) {
+                $reservation->cancel($request->reason);
+            });
+
+        } catch (\DomainException $e) {
+
+            return response()->json([
+                'message' => $e->getMessage()
+            ], 422);
+        }
+        $doctorToken = $reservation->doctor?->account?->fcm_token;
+
+        if ($doctorToken) {
+
+            $userName = $reservation->user->full_name ?? 'أحد المستخدمين';
+
+            SendFirebaseNotificationJob::dispatch(
+                $doctorToken,
+                'تم إلغاء الحجز',
+                "قام المستخدم {$userName} بإلغاء الحجز."
+            );
+        }
+        return response()->json([
+            'message' => 'Reservation cancelled successfully.',
+            'reservation' => $reservation->fresh()
+        ]);
+    }
+    public function cancelHospitalReservation(Request $request)
+    {
+        $request->validate([
+            'reservation_id' => 'required|exists:nurse_reservations,id',
+            'reason' => 'required|string|max:500'
+        ]);
+
+        $reservation = HospitalServiceReservation::with(['hospital.account', 'user:id,full_name'])
+            ->findOrFail($request->reservation_id);
+
+        if ($reservation->user_id !== auth()->user()->user->id) {
+            return response()->json([
+                'message' => 'This reservation does not belong to this user.'
+            ], 403);
+        }
+
+        try {
+
+            DB::transaction(function () use ($reservation, $request) {
+                $reservation->cancel($request->reason);
+            });
+
+        } catch (\DomainException $e) {
+
+            return response()->json([
+                'message' => $e->getMessage()
+            ], 422);
+        }
+        $hospitalToken = $reservation->hospital?->account?->fcm_token;
+
+        if ($hospitalToken) {
+
+            $userName = $reservation->user->full_name ?? 'أحد المستخدمين';
+
+            SendFirebaseNotificationJob::dispatch(
+                $hospitalToken,
                 'تم إلغاء الحجز',
                 "قام المستخدم {$userName} بإلغاء الحجز."
             );

@@ -41,5 +41,23 @@ class DoctorReservation extends Model
     {
         return $this->hasOne(DoctorCancellation::class, 'reservation_id');
     }
+    public function canBeCancelled(): bool
+    {
+        return !in_array($this->status, ['completed', 'cancelled']);
+    }
+
+    public function cancel(string $reason): void
+    {
+        if (!$this->canBeCancelled()) {
+            throw new \DomainException('Reservation cannot be cancelled.');
+        }
+
+        $this->status = 'cancelled';
+        $this->save();
+
+        $this->cancellation()->create([
+            'reason' => $reason
+        ]);
+    }
 
 }

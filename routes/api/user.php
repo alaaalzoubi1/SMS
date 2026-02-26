@@ -28,6 +28,8 @@ use Illuminate\Support\Facades\Route;
         Route::get('{doctor_id}/available-dates', [DoctorWorkScheduleController::class, 'getAvailableDates']);
         Route::post('reserve', [DoctorReservationController::class, 'reserve']);
         Route::get('nearest', [DoctorController::class, 'getNearestDoctors']);
+        Route::patch('reservation/cancel' ,[UserController::class,'cancelDoctorReservation']);
+
     });
 
     Route::prefix('nurses')->group(function () {
@@ -45,6 +47,8 @@ use Illuminate\Support\Facades\Route;
         Route::get('{hospitalId}/available-dates', [HospitalWorkScheduleController::class, 'getAvailableDates']);
         Route::get('/{hospitalId}', [HospitalController::class, 'getHospitalServices']);
         Route::post('/make-reservation', [HospitalServiceReservationController::class, 'makeReservation']);
+        Route::patch('reservation/cancel' ,[UserController::class,'cancelHospitalReservation']);
+
     });
     Route::prefix('ratings')->group(function () {
         Route::post('', [RatingController::class, 'store']);
