@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\DB;
 
 class UserController extends Controller
 {
-    use Illuminate\Support\Facades\DB;
+
 
     public function cancelNurseReservation(Request $request)
     {
