@@ -209,6 +209,6 @@ class ServiceController extends Controller
     }
     public function nurseServices()
     {
-        return response()->json(['data' => Service::ForNurses()->get()]);
+        return response()->json(['data' => Service::forNurses()->get()]);
     }
 }
