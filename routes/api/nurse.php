@@ -6,6 +6,7 @@ use App\Http\Controllers\NurseReservationController;
 use App\Http\Controllers\NurseServiceController;
 use App\Http\Controllers\NurseSubsercviceController;
 use App\Http\Controllers\ProvinceController;
+use App\Http\Controllers\ServiceController;
 use Illuminate\Support\Facades\Route;
 
 // the URL is api/nurse
@@ -17,6 +18,7 @@ use Illuminate\Support\Facades\Route;
     Route::patch('refresh-location',[NurseController::class,'refreshLocation']);
     Route::get('statistics',[NurseController::class,'statistics']);
     Route::prefix('services')->group(function () {
+        Route::get('services',[ServiceController::class,'nurseServices']);
         Route::get('/', [NurseServiceController::class, 'index']);
         Route::post('/', [NurseServiceController::class, 'store']);
         Route::post('/{id}', [NurseServiceController::class, 'update']);
