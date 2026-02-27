@@ -109,7 +109,7 @@ class NurseServiceController extends Controller
 
         if ($service->isDirty()) {
             $service->save();
-            return response()->json(['message' => 'Service updated successfully.',
+            return response()->json(['message' => 'تم تحديث الخدمة بنجاح.',
                 'service' => ["id"=> $service->id,
                     "nurse_id"=> $service->nurse_id,
                     "name"=> $service->name,
@@ -118,7 +118,7 @@ class NurseServiceController extends Controller
                     "updated_at"=> $service->updated_at] ]);
         }
 
-        return response()->json(['message' => 'No changes detected.']);
+        return response()->json(['message' => 'لا يوجد تغييرات.']);
     }
 
     public function destroy($id): JsonResponse
@@ -126,7 +126,7 @@ class NurseServiceController extends Controller
         $service = NurseService::findOrFail($id);
         $this->authorize('manageNurse', $service);
         $service->delete();
-        return response()->json(['message' => 'Service deleted.']);
+        return response()->json(['message' => 'تم حذف الخدمة بنجاح.']);
     }
 
 

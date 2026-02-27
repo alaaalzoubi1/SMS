@@ -142,7 +142,7 @@ class NurseController extends Controller
         $location = new Point($request->latitude,$request->longitude);
         $nurse->update(['location' => $location]);
         return response()->json([
-            'message' => 'location updated successfully'
+            'message' => 'تم تحديث الموقع بنجاح'
         ]);
     }
     public function statistics(Request $request): JsonResponse

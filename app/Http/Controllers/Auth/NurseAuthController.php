@@ -146,7 +146,7 @@ class NurseAuthController extends Controller
     public function logout(): JsonResponse
     {
         auth()->logout();
-        return response()->json(['message' => 'Successfully logged out']);
+        return response()->json(['message' => 'تم تسجيل الخروج بنجاح.']);
     }
     public function me(): JsonResponse
     {
@@ -281,7 +281,7 @@ class NurseAuthController extends Controller
         $nurse->save();
 
         return response()->json([
-            'message' => 'Profile updated successfully.',
+            'message' => 'تم تحديث الملف الشخصي بنجاح.',
             'phone_number' => $account->phone_number,
             'nurse' => $nurse->fresh(),
         ]);
