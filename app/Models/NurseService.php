@@ -16,7 +16,7 @@ class NurseService extends Model
         'nurse_id',
         'price',
     ];
-
+    protected $appends = ['name'];
     public function nurse():BelongsTo
     {
         return $this->belongsTo(Nurse::class);
@@ -25,9 +25,11 @@ class NurseService extends Model
     {
         return $this->hasMany(NurseReservation::class, 'nurse_service_id');
     }
-    public function service(): BelongsTo
+    public function services()
     {
-        return $this->belongsTo(Service::class);
+        return $this->belongsToMany(Service::class, 'nurse_services')
+            ->withPivot('price')
+            ->whereNull('nurse_services.deleted_at');
     }
 
     public function getNameAttribute()

@@ -32,7 +32,7 @@ class RatingController extends Controller
         $avg_rating = max($model->average_rating,4);
 
         return response()->json([
-            'message' => 'Rating saved successfully.',
+            'message' => 'تم التقييم بنجاح.',
             'avg_rating' => $avg_rating,
         ]);
     }

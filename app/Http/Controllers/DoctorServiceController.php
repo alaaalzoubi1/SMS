@@ -102,7 +102,7 @@ class DoctorServiceController extends Controller
         $doctor = Doctor::find($doctorId);
 
         if (!$doctor) {
-            return response()->json(['message' => 'Doctor not found'], 404);
+            return response()->json(['message' => 'الدكتور غير موجود.'], 404);
         }
 
         // Load services with the necessary data (optional: you can join with other tables if needed)

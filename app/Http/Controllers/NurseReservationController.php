@@ -217,7 +217,7 @@ class NurseReservationController extends Controller
                 );
             }
             return response()->json([
-                'message' => 'Reservation created successfully.',
+                'message' => 'تم إنشاء الحجز بنجاح.',
                 'data' => $reservation->load('nurseService','nurse.account'),
             ], 201);
 
@@ -225,7 +225,7 @@ class NurseReservationController extends Controller
             DB::rollBack();
 
             Log::error('Reservation creation failed: ' . $e->getMessage());
-            return response()->json(['message' => 'Failed to create reservation.'], 500);
+            return response()->json(['message' => 'فشل تسجيل الحجز يرجى المحاولة مرة أخرى لاحقاً'], 500);
         }
     }
 

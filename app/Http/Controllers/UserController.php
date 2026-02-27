@@ -57,7 +57,7 @@ class UserController extends Controller
             );
         }
         return response()->json([
-            'message' => 'Reservation cancelled successfully.',
+            'message' => 'تم إلغاء الحجز بنجاح.',
             'reservation' => $reservation->fresh()
         ]);
     }
@@ -102,7 +102,7 @@ class UserController extends Controller
             );
         }
         return response()->json([
-            'message' => 'Reservation cancelled successfully.',
+            'message' => 'تم إلغاء الحجز بنجاح.',
             'reservation' => $reservation->fresh()
         ]);
     }
@@ -147,7 +147,7 @@ class UserController extends Controller
             );
         }
         return response()->json([
-            'message' => 'Reservation cancelled successfully.',
+            'message' => 'تم إلغاء الحجز بنجاح.',
             'reservation' => $reservation->fresh()
         ]);
     }
