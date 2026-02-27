@@ -200,7 +200,9 @@ class NurseController extends Controller
             'range' => $range,
             'from'  => $from,
             'to'    => $to,
-            'data'  => $stats
+            'data'  => $stats,
+            'avg_rate' => $nurse->avg_rating,
+            'ratings_count' => $nurse->ratings_count
         ]);
     }
 }
