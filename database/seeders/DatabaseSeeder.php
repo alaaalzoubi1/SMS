@@ -15,7 +15,6 @@ class DatabaseSeeder extends Seeder
     {
         // User::factory(10)->create();
         $this->call([
-
             RolesSeeder::class,
             AdminAccountSeeder::class,
             ProvinceSeeder::class,
@@ -23,7 +22,8 @@ class DatabaseSeeder extends Seeder
             NurseReservationSeeder::class,
             SpecializationSeeder::class,
             DoctorSeeder::class,
-            HospitalSeeder::class
+            HospitalSeeder::class,
+            ServiceSeeder::class
         ]);
 
     }
