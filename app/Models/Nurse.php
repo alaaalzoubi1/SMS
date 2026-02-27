@@ -56,11 +56,9 @@ class Nurse extends Model
         return $this->belongsTo(Account::class);
     }
 
-    public function services()
+    public function services(): HasMany
     {
-        return $this->belongsToMany(Service::class, 'nurse_services')
-            ->withPivot('price')
-            ->whereNull('nurse_services.deleted_at');
+        return $this->hasMany(NurseService::class, 'nurse_id');
     }
     public function reservations(): HasMany
     {

@@ -23,7 +23,7 @@ class NurseController extends Controller
     public function listForUsers(NurseFilterRequest $request): JsonResponse
     {
         $query = Nurse::query()
-            ->with(['services:id,service_name', 'province'])
+            ->with(['services.service', 'province'])
             ->Approved()
             ->Active()
             ->when($request->filled('gender'),
@@ -39,7 +39,7 @@ class NurseController extends Controller
                 fn ($q) => $q->where('full_name', 'like', '%' . $request->full_name . '%')
             )
             ->when($request->filled('service_name'), function ($q) use ($request) {
-                $q->whereHas('services', function ($sub) use ($request) {
+                $q->whereHas('services.service', function ($sub) use ($request) {
                     $sub->where('service_name', 'like', '%' . $request->service_name . '%');
                 });
             })
@@ -69,8 +69,8 @@ class NurseController extends Controller
                 'location' => $nurse->location,
                 'services' => $nurse->services->map(fn ($service) => [
                     'id' => $service->id,
-                    'name' => $service->service_name,
-                    'price' => $service->pivot->price,
+                    'name' => $service->name,
+                    'price' => $service->price,
                 ]),
                 'avg_rating' => max(4, $nurse->avg_rating),
                 'distance_meters' => $nurse->distance_meters ?? null,
