@@ -69,7 +69,7 @@ class NurseController extends Controller
                 'location' => $nurse->location,
                 'services' => $nurse->services->map(fn ($service) => [
                     'id' => $service->id,
-                    'name' => $service->name,
+                    'name' => $service->service_name,
                     'price' => $service->pivot->price,
                 ]),
                 'avg_rating' => max(4, $nurse->avg_rating),
