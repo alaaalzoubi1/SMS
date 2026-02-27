@@ -25,11 +25,9 @@ class NurseService extends Model
     {
         return $this->hasMany(NurseReservation::class, 'nurse_service_id');
     }
-    public function services()
+    public function service(): BelongsTo
     {
-        return $this->belongsToMany(Service::class, 'nurse_services')
-            ->withPivot('price')
-            ->whereNull('nurse_services.deleted_at');
+        return $this->belongsTo(Service::class);
     }
 
     public function getNameAttribute()
