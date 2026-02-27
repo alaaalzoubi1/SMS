@@ -14,7 +14,7 @@ class NurseReservationSeeder extends Seeder
     public function run(): void
     {
          NurseReservation::factory()
-             ->count(100)
+             ->count(10)
              ->create();
     }
 }

@@ -13,6 +13,7 @@ class ServiceFactory extends Factory
     {
         return [
             'service_name' =>'Service_' . $this->faker->unique()->numberBetween(1, 999999),
+            'service_type' => $this->faker->randomElement(['hospital','nurse'])
         ];
     }
 }

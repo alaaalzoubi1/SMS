@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Models\Service;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -18,7 +19,7 @@ class NurseServiceFactory extends Factory
     {
         return [
             'nurse_id' => \App\Models\Nurse::factory(),
-            'name' => $this->faker->word,
+            'service_id' => Service::factory(['service_type' => 'nurse']),
             'price' => $this->faker->randomFloat(2, 10, 100),
         ];
     }

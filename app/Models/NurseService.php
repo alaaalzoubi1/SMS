@@ -14,7 +14,6 @@ class NurseService extends Model
 
     protected $fillable = [
         'nurse_id',
-        'name',
         'price',
     ];
 
@@ -25,6 +24,15 @@ class NurseService extends Model
     public function reservations(): HasMany
     {
         return $this->hasMany(NurseReservation::class, 'nurse_service_id');
+    }
+    public function service(): BelongsTo
+    {
+        return $this->belongsTo(Service::class);
+    }
+
+    public function getNameAttribute()
+    {
+        return $this->service?->service_name;
     }
 
 }

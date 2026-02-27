@@ -14,7 +14,7 @@ class NurseSeeder extends Seeder
     public function run(): void
     {
         Nurse::factory()
-            ->count(100)
+            ->count(10)
             ->create();
     }
 }

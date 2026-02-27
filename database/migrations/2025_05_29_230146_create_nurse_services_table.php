@@ -14,11 +14,11 @@ return new class extends Migration
         Schema::create('nurse_services', function (Blueprint $table) {
             $table->id();
             $table->foreignId('nurse_id')->constrained('nurses');
-            $table->string('name');
+            $table->foreignId('service_id')->constrained('services');
             $table->decimal('price', 8, 2);
             $table->softDeletes();
             $table->timestamps();
-
+            $table->unique(['nurse_id', 'service_id']);
             $table->index('nurse_id');
         });
 

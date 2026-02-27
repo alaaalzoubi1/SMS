@@ -24,10 +24,13 @@ class NurseServiceController extends Controller
         $nurse = auth()->user()->nurse;
 
         $services = NurseService::query()
+            ->with('service:id,service_name')
             ->where('nurse_id', $nurse->id)
 
             ->when($request->filled('service_name'), function ($q) use ($request) {
-                $q->where('name','like', '%' . $request->service_name . '%' );
+                $q->whereHas('service', function ($sub) use ($request) {
+                    $sub->where('service_name', 'like', '%' . $request->service_name . '%');
+                });
             })
 
             ->paginate(10);
@@ -42,20 +45,44 @@ class NurseServiceController extends Controller
         $nurse = Nurse::where('account_id', Auth::id())->firstOrFail();
 
         $validated = $request->validate([
-            'name' => [
-                'required',
-                'string',
-                'max:255',
-                new UniqueServiceNameForNurse($nurse->id),
-            ],
-            'price' => 'required|numeric|min:0',
+            'services' => 'required|array|min:1',
+            'services.*.service_id' => 'required|exists:services,id',
+            'services.*.price' => 'required|numeric|min:0',
         ]);
 
-        $validated['nurse_id'] = $nurse->id;
+        $serviceIds = collect($validated['services'])
+            ->pluck('service_id')
+            ->unique()
+            ->values();
 
-        $service = NurseService::create($validated);
+        $existing = NurseService::where('nurse_id', $nurse->id)
+            ->whereIn('service_id', $serviceIds)
+            ->pluck('service_id');
 
-        return response()->json($service, 201);
+        if ($existing->isNotEmpty()) {
+            return response()->json([
+                'message' => 'بعض الخدمات مضافة مسبقاً لهذا الممرض.',
+                'duplicate_service_ids' => $existing
+            ], 422);
+        }
+
+        $dataToInsert = collect($validated['services'])
+            ->map(function ($item) use ($nurse) {
+                return [
+                    'nurse_id' => $nurse->id,
+                    'service_id' => $item['service_id'],
+                    'price' => $item['price'],
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ];
+            })
+            ->all();
+
+        NurseService::insert($dataToInsert);
+
+        return response()->json([
+            'message' => 'تم إضافة الخدمات بنجاح.'
+        ], 201);
     }
 
     /**
@@ -69,7 +96,6 @@ class NurseServiceController extends Controller
         $this->authorize('manageNurse', $service);
 
         $validator = Validator::make($request->all(), [
-            'name' => 'sometimes|string|max:255|unique:nurse_services,name,' . $service->id . ',id,nurse_id,' . $service->nurse_id,
             'price' => 'sometimes|numeric|min:0',
         ]);
 
@@ -107,24 +133,30 @@ class NurseServiceController extends Controller
     public function getFilteredServices(Request $request)
     {
         $request->validate([
-            'name' => 'string|nullable',
+            'name'  => 'string|nullable',
             'price' => 'numeric|nullable',
         ]);
 
-        $query = NurseService::with(['nurse:id,full_name,address,gender,graduation_type']);
+        $query = NurseService::query()
+            ->with([
+                'service:id,service_name',
+                'nurse:id,full_name,address,gender,graduation_type'
+            ])
+            ->whereHas('nurse', function ($q) {
+                $q->Active()->Approved();
+            })
+            ->when($request->filled('name'), function ($q) use ($request) {
+                $q->whereHas('service', function ($sub) use ($request) {
+                    $sub->where('service_name', 'like', '%' . $request->name . '%');
+                });
+            })
+            ->when($request->filled('price'), function ($q) use ($request) {
+                $q->where('price', '<=', $request->price);
+            });
 
-        if ($request->filled('name')) {
-            $query->where('name', 'like', '%' . $request->name . '%');
-        }
-
-        if ($request->filled('price')) {
-            $query->where('price', '<=', $request->price);
-        }
-        $query->whereHas('nurse',function ($q){
-           $q->Active()->Approved();
-        });
-
-        $services = $query->select('id', 'name', 'price', 'nurse_id')->paginate(10);
+        $services = $query
+            ->select('id', 'service_id', 'price', 'nurse_id')
+            ->paginate(10);
 
         return response()->json([
             'services' => $services

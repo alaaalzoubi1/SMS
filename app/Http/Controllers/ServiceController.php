@@ -17,7 +17,7 @@ class ServiceController extends Controller
      */
     public function index()
     {
-        $services = Service::select('id','service_name')->get();
+        $services = Service::select('id','service_name','service_type')->get();
         return response()->json([
             'services' => $services
         ],200);
@@ -29,14 +29,16 @@ class ServiceController extends Controller
     public function create(Request $request)
     {
         $request->validate([
-            'service_name' => 'required|string|max:40|unique:services,service_name'
+            'service_name' => 'required|string|max:40|unique:services,service_name',
+            'service_type' => 'required|in:hospital,nurse'
         ]);
 
         DB::beginTransaction();
 
         try {
             $service = Service::create([
-                'service_name' => $request->service_name
+                'service_name' => $request->service_name,
+                'service_type' => $request->service_type
             ]);
 
             DB::commit();
@@ -204,5 +206,9 @@ class ServiceController extends Controller
 
         // Return the paginated response with formatted data
         return response()->json($formattedServices);
+    }
+    public function nurseServices()
+    {
+        $services = Service::ForNurses()->get();
     }
 }
