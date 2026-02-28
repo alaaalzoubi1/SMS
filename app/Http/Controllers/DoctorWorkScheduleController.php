@@ -152,27 +152,56 @@ class DoctorWorkScheduleController extends Controller
             return response()->json(['message' => 'Doctor not found'], 404);
         }
 
-        $month = $request->query('month', now()->month); // default: current month
-        $year = $request->query('year', now()->year);     // default: current year
-        $day = now()->day;
-        // Get working days from schedule
-        $workDays = $doctor->doctorWorkSchedule()->pluck('day_of_week')->toArray(); // ['monday', 'wednesday', ...]
+        $month = (int) $request->query('month', now()->month);
+        $year  = (int) $request->query('year', now()->year);
 
-        // Map day names to numbers (Carbon: 0=Sunday, 1=Monday, ...)
+        $now = now()->startOfDay();
+
+        // بداية الشهر المطلوب
+        if (!checkdate($month, 1, $year)) {
+            return response()->json([
+                'message' => 'Invalid month or year.'
+            ], 422);
+        }
+
+        $requestedMonthStart = Carbon::createFromDate($year, $month, 1)->startOfDay();        $requestedMonthEnd   = $requestedMonthStart->copy()->endOfMonth();
+
+        // منع طلب أشهر ماضية
+        if ($requestedMonthEnd->lt($now)) {
+            return response()->json([
+                'message' => 'Cannot fetch dates for past months.'
+            ], 422);
+        }
+
+        // إذا نفس الشهر الحالي → ابدأ من اليوم
+        // إذا شهر مستقبلي → ابدأ من أول الشهر
+        $startDate = $requestedMonthStart->isSameMonth($now)
+            ? $now->copy()
+            : $requestedMonthStart->copy();
+
+        // أيام العمل
+        $workDays = $doctor->doctorWorkSchedule()
+            ->pluck('day_of_week')
+            ->toArray();
+
         $dayNameToNum = [
-            'sunday' => 0, 'monday' => 1, 'tuesday' => 2, 'wednesday' => 3,
-            'thursday' => 4, 'friday' => 5, 'saturday' => 6
+            'sunday' => 0,
+            'monday' => 1,
+            'tuesday' => 2,
+            'wednesday' => 3,
+            'thursday' => 4,
+            'friday' => 5,
+            'saturday' => 6,
         ];
-        $workDayNums = array_map(fn($d) => $dayNameToNum[$d], $workDays);
 
-        // Generate all dates in the given month that match work days
-        $startOfMonth = Carbon::create($year, $month, $day);
-        $endOfMonth = $startOfMonth->copy()->endOfMonth();
+        $workDayNums = array_map(fn ($d) => $dayNameToNum[$d] ?? null, $workDays);
+        $workDayNums = array_filter($workDayNums, fn ($d) => $d !== null);
+
         $dates = [];
 
-        for ($date = $startOfMonth->copy(); $date->lte($endOfMonth); $date->addDay()) {
+        for ($date = $startDate->copy(); $date->lte($requestedMonthEnd); $date->addDay()) {
             if (in_array($date->dayOfWeek, $workDayNums)) {
-                $dates[] = $date->toDateString(); // format: YYYY-MM-DD
+                $dates[] = $date->toDateString();
             }
         }
 
@@ -183,5 +212,4 @@ class DoctorWorkScheduleController extends Controller
             'available_dates' => $dates,
         ]);
     }
-
 }
