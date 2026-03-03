@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use Closure;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -11,9 +12,11 @@ class EnsureAccountIsNotSuspended
     /**
      * Handle an incoming request.
      *
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
+     * @param Request $request
+     * @param Closure $next
+     * @return JsonResponse|mixed|Response
      */
-    public function handle(Request $request, Closure $next)
+    public function handle(Request $request, Closure $next): mixed
     {
         $user = auth()->user();
 
@@ -22,7 +25,7 @@ class EnsureAccountIsNotSuspended
             auth()->logout();
 
             return response()->json([
-                'message' => 'Your account has been suspended.'
+                'message' => 'لقد تم إيقاف حسابك من قبل الإدارة الرجاء التواصل مع الدعم الفني للتطبيق.'
             ], 403);
         }
 

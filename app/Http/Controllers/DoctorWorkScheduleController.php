@@ -166,20 +166,16 @@ class DoctorWorkScheduleController extends Controller
 
         $requestedMonthStart = Carbon::createFromDate($year, $month, 1)->startOfDay();        $requestedMonthEnd   = $requestedMonthStart->copy()->endOfMonth();
 
-        // منع طلب أشهر ماضية
         if ($requestedMonthEnd->lt($now)) {
             return response()->json([
                 'message' => 'Cannot fetch dates for past months.'
             ], 422);
         }
 
-        // إذا نفس الشهر الحالي → ابدأ من اليوم
-        // إذا شهر مستقبلي → ابدأ من أول الشهر
         $startDate = $requestedMonthStart->isSameMonth($now)
             ? $now->copy()
             : $requestedMonthStart->copy();
 
-        // أيام العمل
         $workDays = $doctor->doctorWorkSchedule()
             ->pluck('day_of_week')
             ->toArray();
