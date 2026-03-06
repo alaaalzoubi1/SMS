@@ -18,6 +18,10 @@ class Rating extends Model
     {
         return $this->morphTo();
     }
+    public function reservationable(): MorphTo
+    {
+        return $this->morphTo();
+    }
 
     public function user(): BelongsTo
     {

@@ -34,11 +34,16 @@ trait Rateable
         return $this->ratings()->where('user_id', $userId)->exists();
     }
 
-    public function addOrUpdateRating($userId, int $score, ?string $review = null,)
+    public function addRating($userId, int $score, $reservation,?string $review = null,)
     {
-        $rating = $this->ratings()->updateOrCreate(
-            ['user_id' => $userId],
-            ['rating' => $score, 'review' => $review]
+        $rating = $this->ratings()->create(
+            [
+                'user_id' => $userId,
+                'rating' => $score,
+                'review' => $review,
+                'reservationable_id' => $reservation['id'],
+                'reservationable_type' => $reservation['type']
+            ]
         );
 
         if (isset($this->avg_rating) || isset($this->ratings_count)) {
@@ -48,7 +53,7 @@ trait Rateable
         return $rating;
     }
 
-    public function refreshAggregates()
+    public function refreshAggregates(): void
     {
         $avg = $this->ratings()->avg('rating') ?? 0;
         $count = $this->ratings()->count();

@@ -46,6 +46,12 @@ class Account extends Authenticatable implements JWTSubject
     {
         return $this->hasOne(User::class);
     }
+    public function scopeActive($query)
+    {
+        return $query
+            ->where('is_suspended', false)
+            ->where('is_approved', 'approved');
+    }
     public function getJWTIdentifier()
     {
         return $this->getKey();

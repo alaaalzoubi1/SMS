@@ -14,17 +14,17 @@ class CreateDoctorReservationsTable extends Migration
             $table->foreignId('doctor_service_id')->constrained('doctor_services');
             $table->foreignId('doctor_id')->constrained('doctors');
 
-            $table->date('date');
+            $table->date('date')->index();
 
             $table->time('start_time')->nullable();
             $table->time('end_time')->nullable();
 
             $table->enum('status', ['pending', 'approved','cancelled', 'completed'])->default('pending');
-
+            $table->boolean('reserved_by_admin')->default(false)->index();
             $table->index('doctor_id');
             $table->index('user_id');
             $table->index('status');
-
+            $table->index(['doctor_id','date','status']);
             $table->timestamps();
             $table->softDeletes();
         });

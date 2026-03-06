@@ -20,6 +20,7 @@ class HospitalServiceReservation extends Model
         'start_date',
         'end_date',
         'status',
+        'reserved_by_admin',
     ];
 
     public function user():BelongsTo

@@ -69,7 +69,7 @@ class UserAuthController extends Controller
         }
         if ($account->is_suspended)
         {
-            return response()->json(['message' => 'Your account has been suspended.'], 403);
+            return response()->json(['message' => 'تم إيقاف حسابك من قبل الإدارة يرجى التواصل مع الدعم الفني.'], 403);
         }
         $token = JWTAuth::fromUser($account);
         $account->fcm_token = $credentials['fcm_token'];

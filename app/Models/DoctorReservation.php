@@ -20,7 +20,7 @@ class DoctorReservation extends Model
         'start_time',
         'end_time',
         'status',
-
+        'reserved_by_admin',
     ];
 
     public function user():BelongsTo

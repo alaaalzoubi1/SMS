@@ -13,27 +13,79 @@ class RatingController extends Controller
         $request->validate([
             'entity' => 'required|string|in:doctor,hospital,nurse',
             'rateable_id' => 'required|integer',
+            'reservation_id' => 'required|integer',
             'rating' => 'required|integer|min:1|max:5',
             'review' => 'nullable|string',
         ]);
+
         $map = [
             'doctor'   => \App\Models\Doctor::class,
             'hospital' => \App\Models\Hospital::class,
             'nurse'    => \App\Models\Nurse::class,
         ];
 
-        $modelClass = $map[$request->entity];
+        $reservationMap = [
+            'doctor'   => \App\Models\DoctorReservation::class,
+            'hospital' => \App\Models\HospitalServiceReservation::class,
+            'nurse'    => \App\Models\NurseReservation::class,
+        ];
 
+        $modelClass = $map[$request->entity];
+        $reservationClass = $reservationMap[$request->entity];
 
         $model = $modelClass::findOrFail($request->rateable_id);
+        $reservation = $reservationClass::findOrFail($request->reservation_id);
+
         $userId = auth()->user()->user->id;
 
-        $rating = $model->addOrUpdateRating($userId, $request->rating, $request->review);
-        $avg_rating = max($model->average_rating,4);
+//        if ($reservation->user_id !== $userId) {
+//            return response()->json([
+//                'message' => 'هذا الحجز لا يخصك.'
+//            ],403);
+//        }
+
+        if (!in_array($reservation->status,['completed','finished'])) {
+            return response()->json([
+                'message' => 'لا يمكن تقييم حجز غير مكتمل'
+            ],422);
+        }
+
+        $validRelation = match($request->entity) {
+            'doctor' => $reservation->doctor_id == $request->rateable_id,
+            'hospital' => $reservation->hospital_id == $request->rateable_id,
+            'nurse' => $reservation->nurse_id == $request->rateable_id,
+        };
+
+        if (!$validRelation) {
+            return response()->json([
+                'message' => 'الحجز لا يعود لهذا الكيان.'
+            ],422);
+        }
+
+        $alreadyRated = \App\Models\Rating::where('user_id',$userId)
+            ->where('reservationable_id',$reservation->id)
+            ->where('reservationable_type',$reservationClass)
+            ->exists();
+
+        if ($alreadyRated) {
+            return response()->json([
+                'message' => 'تم تقييم هذا الحجز مسبقاً'
+            ],409);
+        }
+
+        $rating = $model->addRating(
+            $userId,
+            $request->rating,
+            [
+                'id'=>$reservation->id,
+                'type'=>$reservationClass
+            ],
+            $request->review
+        );
 
         return response()->json([
-            'message' => 'تم التقييم بنجاح.',
-            'avg_rating' => $avg_rating,
+            'message'=>'تم التقييم بنجاح',
+            'avg_rating'=>$model->fresh()->average_rating
         ]);
     }
     public function myRatings()

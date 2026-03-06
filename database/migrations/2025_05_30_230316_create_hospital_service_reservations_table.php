@@ -16,6 +16,7 @@ class CreateHospitalServiceReservationsTable extends Migration
 
             $table->dateTime('start_date')->nullable();
             $table->dateTime('end_date')->nullable();
+            $table->boolean('reserved_by_admin')->default(false)->index();
 
             $table->enum('status', ['pending', 'confirmed', 'accepted' , 'cancelled','finished'])->default('pending');
 

@@ -25,6 +25,7 @@ class NurseReservation extends Model
         'note',
         'start_at',
         'end_at',
+        'reserved_by_admin'
     ];
     protected  $casts = [
         'location' => Point::class

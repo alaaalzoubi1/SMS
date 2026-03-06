@@ -3,21 +3,19 @@
 namespace App\Http\Controllers;
 
 use App\Jobs\SendFirebaseNotificationJob;
-use App\Models\Account;
 use App\Models\Doctor;
 use App\Models\DoctorReservation;
-use App\Http\Requests\StoreDoctorReservationRequest;
-use App\Http\Requests\UpdateDoctorReservationRequest;
 use App\Models\DoctorService;
+use App\Models\DoctorWorkSchedule;
 use App\Models\User;
 use App\Services\DoctorReservationService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 
 class DoctorReservationController extends Controller
 {
@@ -36,48 +34,30 @@ class DoctorReservationController extends Controller
      */
     public function reserve(Request $request): JsonResponse
     {
-        // Validate the request data
         $request->validate([
-            'doctor_service_id' => 'required|exists:doctor_services,id',  // doctor_service_id instead of doctor_id
-            'doctor_id' => 'required|exists:doctors,id', // Ensure doctor_id is provided
-            'date' => 'required|date_format:Y-m-d',
+            'doctor_service_id' => 'required|exists:doctor_services,id',
+            'doctor_id' => 'required|exists:doctors,id',
+            'date' => 'required|date_format:Y-m-d|after_or_equal:today',
         ]);
 
-        // Get the reservation date and duration from the request
-        $doctorServiceId = $request->doctor_service_id;
-        $doctorId = $request->doctor_id;
-        $date = $request->date;
+        $service = DoctorService::where('id', $request->doctor_service_id)
+            ->where('doctor_id', $request->doctor_id)
+            ->firstOrFail();
 
-        $service = DoctorService::where('id',$doctorServiceId)
-            ->where('doctor_id',$doctorId)
-            ->first();
-
-        $duration = $service->duration_minutes;
-
-        // Use the service to find the next available slot for the doctor service
-        $availableSlot = $this->doctorReservationService->getNextAvailableSlot($doctorId, $date, $duration);
-
-        if ($availableSlot) {
-            // If available, create the reservation
-            $reservation = DoctorReservation::create([
-                'doctor_service_id' => $doctorServiceId,  // link to the doctor service
-                'doctor_id' => $doctorId,  // link to the doctor
-                'user_id' => auth()->user()->user->id,  // assuming you're using Auth for the user
-                'date' => $date,
-                'start_time' => $availableSlot['start_time'],
-                'end_time' => $availableSlot['end_time'],
-                'status' => 'pending',
-            ]);
-
-            return response()->json([
-                'message' => 'Reservation successful.',
-                'reservation' => $reservation,
-            ], 201);
-        }
+        $reservation = DoctorReservation::create([
+            'doctor_service_id' => $service->id,
+            'doctor_id' => $service->doctor_id,
+            'user_id' => auth()->user()->user->id,
+            'date' => $request->date,
+            'start_time' => null,
+            'end_time' => null,
+            'status' => 'pending',
+        ]);
 
         return response()->json([
-            'message' => 'No available slot for the selected date and duration.',
-        ], 400);
+            'message' => 'Reservation request submitted successfully.',
+            'reservation' => $reservation,
+        ], 201);
     }
 
     /**
@@ -143,19 +123,13 @@ class DoctorReservationController extends Controller
             ]);
 
 
-            $slot = $reservationService->getNextAvailableSlot($service->doctor_id, $request->date, $service->duration_minutes);
 
-            if (!$slot) {
-                return response()->json(['message' => 'No available time slots on this date.'], 409);
-            }
 
             $reservation = DoctorReservation::create([
                 'user_id'       => $user->id,
                 'doctor_id'     => $service->doctor_id,
                 'doctor_service_id' => $service->id,
                 'date'          => $request->date,
-                'start_time'    => $slot['start_time'],
-                'end_time'      => $slot['end_time'],
             ]);
 
             DB::commit();
@@ -179,56 +153,140 @@ class DoctorReservationController extends Controller
         $request->validate([
             'status' => 'required|in:approved,cancelled,completed',
             'reason' => 'required_if:status,cancelled|string|max:1000',
+            'force_confirm' => 'nullable|boolean'
         ]);
 
-        $reservation = DoctorReservation::with([
-            'user.account',
-            'doctor.account',
-            'cancellation'
-        ])
-            ->find($id);
+        DB::beginTransaction();
 
-        if (!$reservation) {
+        try {
+
+            $reservation = DoctorReservation::with([
+                'user.account',
+                'doctor.account',
+                'doctorService'
+            ])->lockForUpdate()->findOrFail($id);
+
+            $this->authorize('manageReservations', $reservation);
+
+            if ($request->status === 'completed') {
+                if ($reservation->status !== 'approved') {
+                    return response()->json([
+                        'message' => 'Reservation must be approved before completing.'
+                    ], 403);
+                }
+            } else {
+                if ($reservation->status !== 'pending') {
+                    return response()->json([
+                        'message' => 'Cannot change status unless it is pending.'
+                    ], 403);
+                }
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | APPROVE
+            |--------------------------------------------------------------------------
+            */
+            if ($request->status === 'approved') {
+
+                $doctorId = $reservation->doctor_id;
+                $date     = $reservation->date;
+                $duration = $reservation->doctorService->duration_minutes;
+
+                $slot = $this->doctorReservationService
+                    ->findSlotForApproval($doctorId, $date, $duration);
+
+                if (!$slot) {
+
+                    if (!$request->boolean('force_confirm')) {
+                        DB::rollBack();
+                        return response()->json([
+                            'message' => 'لا يوجد وقت متاح ضمن الدوام. هل تريد تأكيد الحجز رغم تجاوز وقت العمل؟',
+                            'requires_confirmation' => true
+                        ], 409);
+                    }
+
+
+                    $lastApproved = DoctorReservation::where('doctor_id', $doctorId)
+                        ->where('date', $date)
+                        ->where('status', 'approved')
+                        ->orderByDesc('end_time')
+                        ->first();
+
+                    if ($lastApproved) {
+                        $start = Carbon::parse($lastApproved->end_time);
+                    } else {
+                        // لا يوجد حجوزات أصلاً — نبدأ من أول الدوام
+                        $dayOfWeek = strtolower(Carbon::parse($date)->format('l'));
+
+                        $schedule = DoctorWorkSchedule::where('doctor_id', $doctorId)
+                            ->where('day_of_week', $dayOfWeek)
+                            ->firstOrFail();
+
+                        $start = Carbon::parse($date . ' ' . $schedule->start_time);
+                    }
+
+                    $end = $start->copy()->addMinutes($duration);
+
+                    $slot = [
+                        'start_time' => $start,
+                        'end_time'   => $end,
+                    ];
+                }
+
+                $reservation->update([
+                    'status'     => 'approved',
+                    'start_time' => $slot['start_time'],
+                    'end_time'   => $slot['end_time'],
+                ]);
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | CANCEL
+            |--------------------------------------------------------------------------
+            */
+            elseif ($request->status === 'cancelled') {
+
+                $reservation->update([
+                    'status' => 'cancelled'
+                ]);
+
+                $reservation->cancellation()->create([
+                    'reason' => $request->reason,
+                ]);
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | COMPLETE
+            |--------------------------------------------------------------------------
+            */
+            elseif ($request->status === 'completed') {
+
+                $reservation->update([
+                    'status' => 'completed'
+                ]);
+            }
+
+            DB::commit();
+
+            $this->notifyUser($reservation, $request->reason);
+
             return response()->json([
-                'message' => 'Reservation not found or unauthorized.'
-            ], 404);
-        }
-
-        $this->authorize('manageReservations', $reservation);
-
-        // ---- Status transition rules ----
-        if ($request->status === 'completed') {
-            if ($reservation->status !== 'approved') {
-                return response()->json([
-                    'message' => 'Reservation must be approved before completing.'
-                ], 403);
-            }
-        } else {
-            if ($reservation->status !== 'pending') {
-                return response()->json([
-                    'message' => 'Cannot change status unless it is pending.'
-                ], 403);
-            }
-        }
-
-        // ---- Update status ----
-        $reservation->status = $request->status;
-        $reservation->save();
-
-        // ---- Cancellation reason ----
-        if ($request->status === 'cancelled') {
-            $reservation->cancellation()->create([
-                'reason' => $request->reason,
+                'message' => 'Reservation status updated successfully.',
+                'data'    => $reservation->fresh(),
             ]);
+
+        } catch (\Throwable $e) {
+
+            DB::rollBack();
+
+            return response()->json([
+                'message' => 'Error updating reservation.',
+                'error'   => $e->getMessage()
+            ], 500);
         }
-
-        // ---- Send notification ----
-        $this->notifyUser($reservation, $request->reason);
-
-        return response()->json([
-            'message' => 'Reservation status updated successfully.',
-            'data' => $reservation->fresh(),
-        ]);
     }
 
     private function notifyUser(DoctorReservation $reservation, ?string $reason = null): void
@@ -245,13 +303,22 @@ class DoctorReservationController extends Controller
             $title = 'تحديث حالة الحجز من الطبيب';
 
             $body = match ($reservation->status) {
-                'approved'  => sprintf('تمت الموافقة على حجزك من %s.', $doctorName),
+                'approved'  => sprintf(
+                    'تمت الموافقة على حجزك من %s بتاريخ %s من الساعة %s حتى %s.',
+                    $doctorName,
+                    $reservation->date,
+                    $reservation->start_time,
+                    $reservation->end_time
+                ),
                 'cancelled' => sprintf(
                     'تم إلغاء حجزك من %s. السبب: %s',
                     $doctorName,
                     $reason
                 ),
-                'completed' => sprintf('تم اكتمال حجزك مع %s بنجاح.', $doctorName),
+                'completed' => sprintf(
+                    'تم اكتمال حجزك مع %s بنجاح.',
+                    $doctorName
+                ),
             };
 
             SendFirebaseNotificationJob::dispatch(
@@ -265,7 +332,34 @@ class DoctorReservationController extends Controller
         }
     }
 
+    public function cancelRemaining(Request $request): JsonResponse
+    {
+        $request->validate([
+            'date' => 'required|date',
+        ]);
 
+        $doctor = Doctor::where('account_id', auth()->id())
+            ->firstOrFail();
+
+        $pendingReservations = DoctorReservation::where('doctor_id', $doctor->id)
+            ->where('date', $request->date)
+            ->where('status', 'pending')
+            ->get();
+
+        foreach ($pendingReservations as $reservation) {
+            $reservation->update(['status' => 'cancelled']);
+
+            $reservation->cancellation()->create([
+                'reason' => 'تم إلغاء الحجز بسبب ضيق الوقت وعدم توفر مواعيد كافية.',
+            ]);
+
+            $this->notifyUser($reservation, 'ضيق الوقت');
+        }
+
+        return response()->json([
+            'message' => 'تم إلغاء جميع الحجوزات المتبقية بنجاح.'
+        ]);
+    }
 
 
 }

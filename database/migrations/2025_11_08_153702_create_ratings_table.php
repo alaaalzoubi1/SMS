@@ -17,10 +17,15 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->tinyInteger('rating')->unsigned();
             $table->text('review')->nullable();
+            $table->foreignId('reservation_id')->constrained()->cascadeOnDelete();
+            $table->morphs('reservationable');
+            $table->unique([
+                'user_id',
+                'reservationable_id',
+                'reservationable_type'
+            ]);
             $table->timestamps();
             $table->softDeletes();
-            $table->unique(['rateable_type', 'rateable_id', 'user_id'], 'unique_user_rating');
-
         });
     }
 

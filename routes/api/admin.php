@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AdminApproveController;
+use App\Http\Controllers\Admin\AdminReservationController;
 use App\Http\Controllers\Admin\BroadcastNotificationController;
 use App\Http\Controllers\Admin\DoctorStatisticsController;
 use App\Http\Controllers\Admin\HospitalStatisticsController;
@@ -45,17 +46,22 @@ Route::prefix('doctor')->group(function () {
     Route::get('/all', [DoctorStatisticsController::class, 'doctors']);
     Route::get('/{id}', [DoctorStatisticsController::class, 'doctor']);
     Route::get('/{id}/reservations', [DoctorStatisticsController::class, 'doctorReservations']);
+    Route::post('/reserve',[AdminReservationController::class,'doctorReservation']);
+
 });
 Route::prefix('hospital')->group(function () {
     Route::get('/all', [HospitalStatisticsController::class, 'hospitals']);
     Route::get('/{id}', [HospitalStatisticsController::class, 'hospital']);
     Route::get('/{id}/reservations', [HospitalStatisticsController::class, 'hospitalReservations']);
+    Route::post('/reserve',[AdminReservationController::class,'hospitalReservation']);
 });
 Route::prefix('nurse')->group(function () {
     Route::get('/{id}/license', [NurseStatisticsController::class, 'getNurseLicense']);
     Route::get('/all', [NurseStatisticsController::class, 'nurses']);
     Route::get('/{id}', [NurseStatisticsController::class, 'nurse']);
     Route::get('/{id}/reservations', [NurseStatisticsController::class, 'nurseReservations']);
+    Route::post('/reserve',[AdminReservationController::class,'nurseReservation']);
+
 });
 Route::prefix('user')->group(function () {
     Route::get('/all', [UserStatisticsController::class, 'users']);
@@ -67,5 +73,6 @@ Route::prefix('provinces')->group(function () {
     Route::post('/', [ProvinceController::class, 'store']);
     Route::delete('/{id}', [ProvinceController::class, 'destroy']);
 });
+
 
 Route::get('entity-rates', [\App\Http\Controllers\RatingController::class, 'entityRatings']);
