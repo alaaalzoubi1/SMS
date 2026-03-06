@@ -40,6 +40,7 @@ class ManageHospitalsAccountsController extends Controller
                 'phone_number' => $temporaryPhone,
                 'fcm_token' => null,
             ]);
+            $account->assignRole('hospital');
 
             $hospital = Hospital::create([
                 'account_id' => $account->id,

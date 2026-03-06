@@ -38,11 +38,11 @@ class RatingController extends Controller
 
         $userId = auth()->user()->user->id;
 
-//        if ($reservation->user_id !== $userId) {
-//            return response()->json([
-//                'message' => 'هذا الحجز لا يخصك.'
-//            ],403);
-//        }
+        if ($reservation->user_id !== $userId) {
+            return response()->json([
+                'message' => 'هذا الحجز لا يخصك.'
+            ],403);
+        }
 
         if (!in_array($reservation->status,['completed','finished'])) {
             return response()->json([

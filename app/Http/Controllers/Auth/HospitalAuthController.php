@@ -30,6 +30,7 @@ class HospitalAuthController extends Controller
             // Step 1: Find hospital
             $hospital = Hospital::where('full_name', $validated['hospital_name'])
                 ->where('unique_code', $validated['unique_code'])
+                ->withSuspended()
                 ->first();
 
             if (!$hospital) {
@@ -79,7 +80,6 @@ class HospitalAuthController extends Controller
                 'is_approved'  => 'approved'
             ]);
 
-            $account->assignRole('hospital');
 
             $token = JWTAuth::fromUser($account);
 
