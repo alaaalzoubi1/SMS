@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Rating extends Model
 {
     use SoftDeletes;
-    protected $fillable = ['user_id','rating','review','ip'];
+    protected $fillable = ['user_id','rating','review','ip','reservationable_id','reservationable_type'];
 
     public function rateable(): MorphTo
     {
