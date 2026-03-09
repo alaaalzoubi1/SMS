@@ -37,7 +37,7 @@ class UserReservationsController extends Controller
             case 'nurse':
                 $reservations = \App\Models\NurseReservation::query()
                     ->where('user_id', $userId)
-                    ->with(['nurse','nurse.account:id,phone_number', 'nurseService.service','cancellation'])
+                    ->with(['nurse','nurse.account:id,phone_number', 'nurseService.service','cancellation','rate'])
                     ->when($apiStatus, function ($q) use ($statusMap, $apiStatus) {
                         $status = $statusMap[$apiStatus]['nurse'] ?? null;
                         if ($status) $q->where('status', $status);
@@ -52,7 +52,7 @@ class UserReservationsController extends Controller
             case 'hospital':
                 $reservations = \App\Models\HospitalServiceReservation::query()
                     ->where('user_id', $userId)
-                    ->with(['hospital', 'hospitalService.service','cancellation'])
+                    ->with(['hospital', 'hospitalService.service','cancellation','rate'])
                     ->when($apiStatus, function ($q) use ($statusMap, $apiStatus) {
                         $status = $statusMap[$apiStatus]['hospital'] ?? null;
                         if ($status) $q->where('status', $status);
@@ -67,7 +67,7 @@ class UserReservationsController extends Controller
             case 'doctor':
                 $reservations = \App\Models\DoctorReservation::query()
                     ->where('user_id', $userId)
-                    ->with(['doctor.specialization', 'doctorService','cancellation'])
+                    ->with(['doctor.specialization', 'doctorService','cancellation','rate'])
                     ->when($apiStatus, function ($q) use ($statusMap, $apiStatus) {
                         $status = $statusMap[$apiStatus]['doctor'] ?? null;
                         if ($status) $q->where('status', $status);
@@ -82,9 +82,9 @@ class UserReservationsController extends Controller
             default:
                 $user = \App\Models\User::query()
                     ->with([
-                        'nurseReservations' => fn($q) => $q->with(['nurse','nurseService.service','cancellation'])->orderByDesc('created_at'),
-                        'hospitalReservations' => fn($q) => $q->with(['hospital','hospitalService.service','cancellation'])->orderByDesc('created_at'),
-                        'doctorReservations' => fn($q) => $q->with(['doctor.specialization','doctorService','cancellation'])->orderByDesc('created_at'),
+                        'nurseReservations' => fn($q) => $q->with(['nurse','nurseService.service','cancellation','rate'])->orderByDesc('created_at'),
+                        'hospitalReservations' => fn($q) => $q->with(['hospital','hospitalService.service','cancellation','rate'])->orderByDesc('created_at'),
+                        'doctorReservations' => fn($q) => $q->with(['doctor.specialization','doctorService','cancellation','rate'])->orderByDesc('created_at'),
                     ])
                     ->findOrFail($userId);
 

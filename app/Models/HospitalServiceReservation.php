@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class HospitalServiceReservation extends Model
@@ -58,5 +59,9 @@ class HospitalServiceReservation extends Model
         $this->cancellation()->create([
             'reason' => $reason
         ]);
+    }
+    public function rate(): MorphTo
+    {
+        return $this->morphTo(Rating::class,'reservationable');
     }
 }

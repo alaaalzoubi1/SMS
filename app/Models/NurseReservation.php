@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use MatanYadaev\EloquentSpatial\Objects\Point;
 use MatanYadaev\EloquentSpatial\Traits\HasSpatial;
@@ -63,5 +64,9 @@ class NurseReservation extends Model
         $this->cancellation()->create([
             'reason' => $reason
         ]);
+    }
+    public function rate(): MorphTo
+    {
+        return $this->morphTo(Rating::class,'reservationable');
     }
 }
