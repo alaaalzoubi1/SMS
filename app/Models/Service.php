@@ -12,7 +12,8 @@ class Service extends Model
 
     protected $fillable = [
         'service_name',
-        'service_type'
+        'service_type',
+        'requires_certificate'
     ];
     protected $hidden = ['service_type'];
 

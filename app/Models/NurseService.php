@@ -14,6 +14,7 @@ class NurseService extends Model
 
     protected $fillable = [
         'nurse_id',
+        'service_id',
         'price',
     ];
     protected $appends = ['name'];

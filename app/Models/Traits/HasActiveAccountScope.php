@@ -2,6 +2,7 @@
 namespace App\Models\Traits;
 
 use Illuminate\Database\Eloquent\Builder;
+use Carbon\Carbon;
 
 trait HasActiveAccountScope
 {
@@ -11,7 +12,11 @@ trait HasActiveAccountScope
 
             if (!auth()->user()->hasRole('admin')) {
                 $query->whereHas('account', function ($q) {
-                    $q->where('is_suspended', false);
+                    $q->where('is_suspended', false)
+                        ->where(function ($subQuery) {
+                            $subQuery->whereNull('subscription_expires_at')
+                            ->orWhere('subscription_expires_at', '>=', Carbon::now());
+                        });
                 });
             }
         });

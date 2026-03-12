@@ -9,6 +9,7 @@ use App\Http\Controllers\Admin\ManageHospitalsAccountsController;
 use App\Http\Controllers\Admin\NurseStatisticsController;
 use App\Http\Controllers\Admin\UserStatisticsController;
 use App\Http\Controllers\Auth\AdminAuthController;
+use App\Http\Controllers\NurseServiceRequestController;
 use App\Http\Controllers\ProvinceController;
 use App\Http\Controllers\ServiceController;
 use Illuminate\Support\Facades\Route;
@@ -24,10 +25,12 @@ Route::post('get-pending-accounts', [AdminApproveController::class, 'index']);
 Route::post('create-hospital-account', [ManageHospitalsAccountsController::class, 'createHospitalAccount']);
 Route::post('broadcast-notification', [BroadcastNotificationController::class, 'broadcast']);
 Route::get('broadcast-logs',[BroadcastNotificationController::class,'broadcastLogs']);
+Route::post('extend-subscription',[AdminApproveController::class,'extendSubscription']);
 
 Route::prefix('service')->group(function () {
     Route::post('/', [ServiceController::class, 'create'])->name('service.create');
-    Route::get('/', [ServiceController::class, 'index'])->name('service.index');
+    Route::get('/hospitals', [ServiceController::class, 'hospitalsServices']);
+    Route::get('/nurses', [ServiceController::class, 'nurseServices']);
     Route::put('/{service}', [ServiceController::class, 'update'])->name('service.update');
     Route::delete('/{id}', [ServiceController::class, 'destroy'])->name('service.destroy');
     Route::patch('/{id}', [ServiceController::class, 'restore'])->name('service.restore');
@@ -61,6 +64,12 @@ Route::prefix('nurse')->group(function () {
     Route::get('/{id}', [NurseStatisticsController::class, 'nurse']);
     Route::get('/{id}/reservations', [NurseStatisticsController::class, 'nurseReservations']);
     Route::post('/reserve',[AdminReservationController::class,'nurseReservation']);
+    Route::prefix('services/requests')->group(function (){
+        Route::get('',[NurseServiceRequestController::class,'index']);
+        Route::patch('approve/{id}',[NurseServiceRequestController::class,'approve']);
+        Route::patch('reject/{id}',[NurseServiceRequestController::class,'reject']);
+        Route::get('certificate/{id}',[NurseServiceRequestController::class,'showCertificate']);
+    });
 
 });
 Route::prefix('user')->group(function () {

@@ -6,6 +6,7 @@ use App\Models\Nurse;
 use App\Models\NurseService;
 use App\Http\Requests\StoreNurseServiceRequest;
 use App\Http\Requests\UpdateNurseServiceRequest;
+use App\Models\NurseServiceRequest;
 use App\Models\Service;
 use App\Rules\UniqueServiceNameForNurse;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -13,7 +14,9 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class NurseServiceController extends Controller
@@ -48,6 +51,7 @@ class NurseServiceController extends Controller
             'services' => 'required|array|min:1',
             'services.*.service_id' => 'required|exists:services,id',
             'services.*.price' => 'required|numeric|min:0',
+            'services.*.certificate' => 'nullable|file|image|max:2048'
         ]);
 
         $serviceIds = collect($validated['services'])
@@ -55,33 +59,90 @@ class NurseServiceController extends Controller
             ->unique()
             ->values();
 
-        $existing = NurseService::where('nurse_id', $nurse->id)
+        $existingServices = NurseService::where('nurse_id', $nurse->id)
             ->whereIn('service_id', $serviceIds)
             ->pluck('service_id');
 
-        if ($existing->isNotEmpty()) {
+        if ($existingServices->isNotEmpty()) {
             return response()->json([
-                'message' => 'بعض الخدمات مضافة مسبقاً لهذا الممرض.',
-                'duplicate_service_ids' => $existing
+                'message' => 'بعض الخدمات مضافة مسبقاً.',
+                'duplicate_service_ids' => $existingServices
             ], 422);
         }
 
-        $dataToInsert = collect($validated['services'])
-            ->map(function ($item) use ($nurse) {
-                return [
-                    'nurse_id' => $nurse->id,
-                    'service_id' => $item['service_id'],
-                    'price' => $item['price'],
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ];
-            })
-            ->all();
+        $pendingRequests = NurseServiceRequest::where('nurse_id', $nurse->id)
+            ->whereIn('service_id', $serviceIds)
+            ->where('status', 'pending')
+            ->pluck('service_id');
 
-        NurseService::insert($dataToInsert);
+        if ($pendingRequests->isNotEmpty()) {
+            return response()->json([
+                'message' => 'بعض الخدمات لديها طلب قيد المراجعة.',
+                'pending_service_ids' => $pendingRequests
+            ], 422);
+        }
+
+        $services = Service::whereIn('id', $serviceIds)->get()->keyBy('id');
+
+        $directInsert = [];
+        $requestInsert = [];
+
+        foreach ($validated['services'] as $index => $item) {
+
+            $service = $services[$item['service_id']];
+
+            if ($service->requires_certificate) {
+
+                if (!isset($item['certificate'])) {
+                    throw ValidationException::withMessages([
+                        "services.$index.certificate" => "هذه الخدمة تتطلب رفع صورة شهادة."
+                    ]);
+                }
+
+                $file = $item['certificate'];
+
+                $extension = $file->getClientOriginalExtension();
+
+                $fileName = Str::uuid() . '.' . $extension;
+
+                $certificatePath = $file->storeAs(
+                    'service-certificates',
+                    $fileName,
+                    'private'
+                );
+
+                $requestInsert[] = [
+                    'nurse_id' => $nurse->id,
+                    'service_id' => $service->id,
+                    'price' => $item['price'],
+                    'certificate_path' => $certificatePath,
+                    'status' => 'pending',
+                ];
+
+            } else {
+
+                $directInsert[] = [
+                    'nurse_id' => $nurse->id,
+                    'service_id' => $service->id,
+                    'price' => $item['price'],
+                ];
+            }
+        }
+
+        DB::transaction(function () use ($directInsert, $requestInsert) {
+
+            if (!empty($directInsert)) {
+                NurseService::insert($directInsert);
+            }
+
+            if (!empty($requestInsert)) {
+                NurseServiceRequest::insert($requestInsert);
+            }
+
+        });
 
         return response()->json([
-            'message' => 'تم إضافة الخدمات بنجاح.'
+            'message' => 'تم إرسال الطلبات بنجاح.'
         ], 201);
     }
 

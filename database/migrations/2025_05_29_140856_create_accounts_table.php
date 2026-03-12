@@ -20,8 +20,11 @@ return new class extends Migration
             $table->string('verification_code')->nullable();
             $table->timestamp('verification_expires_at')->nullable();
             $table->timestamp('email_verified_at')->nullable();
+            $table->timestamp('subscription_expires_at')->nullable();
             $table->enum('is_approved',['approved' , 'pending' , 'rejected'])->default('pending')->index();
             $table->boolean('is_suspended')->default(false);
+            $table->index('is_suspended');
+            $table->index('subscription_expires_at');
             $table->softDeletes();
             $table->timestamps();
         });

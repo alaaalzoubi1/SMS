@@ -15,9 +15,9 @@ class ServiceController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function hospitalsServices()
     {
-        $services = Service::select('id','service_name','service_type')->get();
+        $services = Service::select('id','service_name')->where('service_type','hospital')->get();
         return response()->json([
             'services' => $services
         ],200);
@@ -30,28 +30,24 @@ class ServiceController extends Controller
     {
         $request->validate([
             'service_name' => 'required|string|max:40|unique:services,service_name',
-            'service_type' => 'required|in:hospital,nurse'
+            'service_type' => 'required|in:hospital,nurse',
+            'requires_certificate' => 'required|boolean'
         ]);
-
-        DB::beginTransaction();
-
         try {
             $service = Service::create([
                 'service_name' => $request->service_name,
-                'service_type' => $request->service_type
+                'service_type' => $request->service_type,
+                'requires_certificate' => $request->requires_certificate
             ]);
-
-            DB::commit();
-
-
             return response()->json([
                 'message' => 'service added successfully',
                 'service' => $service
             ], 201);
 
         } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json(['message' => 'Failed to add service try again later.'], 500);
+            return response()->json([
+                'message' => 'Failed to add service try again later.'
+            ], 500);
         }
     }
 
@@ -184,6 +180,7 @@ class ServiceController extends Controller
 
         // Fetch the results
         $services = $query->select('services.id', 'services.service_name')
+
             ->paginate(10); // Paginate if needed
 
         // Format the response to include hospitals for each service

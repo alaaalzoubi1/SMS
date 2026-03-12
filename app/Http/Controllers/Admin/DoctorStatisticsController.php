@@ -53,7 +53,7 @@ class DoctorStatisticsController extends Controller
     public function doctor($id): JsonResponse
     {
         return response()->json([
-            'doctor' => Doctor::with(['account:id,email,phone_number,created_at,updated_at','services','doctorWorkSchedule','specialization:id,name_en,name_ar,image,created_at,updated_at'])->where('id',$id)->first()
+            'doctor' => Doctor::with(['account:id,email,phone_number,created_at,updated_at','services','doctorWorkSchedule','specialization:id,name_en,name_ar,image,created_at,updated_at'])->where('id',$id)->firstOrFail()
         ]);
     }
     public function doctorReservations(Request $request ,$id): JsonResponse

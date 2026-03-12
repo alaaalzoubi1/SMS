@@ -17,6 +17,7 @@ return new class extends Migration
             $table->enum('service_type', ['nurse', 'hospital'])
                 ->default('hospital')
                 ->index();
+            $table->boolean('requires_certificate')->default(false);
             $table->softDeletes();
             $table->timestamps();
         });

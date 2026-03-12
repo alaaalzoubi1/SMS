@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureAccountIsActive;
 use App\Http\Middleware\EnsureAccountIsNotSuspended;
 use App\Providers\RouteServiceProvider;
 use App\Providers\SuspendedRouteServiceProvider;
@@ -20,12 +21,12 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias([
             'role' => RoleMiddleware::class,
-            'ensure.not.suspended' => EnsureAccountIsNotSuspended::class
+            'ensure.not.suspended' => EnsureAccountIsActive::class
         ]);
     })
     ->withProviders([
         RouteServiceProvider::class,
     ])
     ->withExceptions(function (Exceptions $exceptions) {
-        //
+
     })->create();

@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Jobs\SendApprovalEmail;
+use App\Jobs\SendFirebaseNotificationJob;
 use App\Jobs\SendVerificationCodeJob;
 use App\Models\Account;
 use App\Models\Doctor;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
@@ -72,6 +74,59 @@ class AdminApproveController extends Controller
             'message' => 'suspension status updated successfully.',
         ]);
     }
+    public function extendSubscription(Request $request)
+    {
+        $request->validate([
+            'days' => 'required_without:lifetime|integer|min:1',
+            'lifetime' => 'sometimes|boolean',
+            'account_id' => 'required|integer'
+        ]);
 
+        $account = Account::findOrFail($request->account_id);
+        $now = Carbon::now();
+
+        if ($request->boolean('lifetime')) {
+            $account->update([
+                'subscription_expires_at' => null
+            ]);
+
+            $message = 'تم تحويل الاشتراك إلى مدى الحياة.';
+            $expiryText = 'مدى الحياة';
+        } else {
+            $currentExpiry = $account->subscription_expires_at;
+
+            $newExpiry = $currentExpiry && $currentExpiry->isFuture()
+                ? $currentExpiry->addDays($request->days)
+                : $now->addDays($request->days);
+
+            $account->update([
+                'subscription_expires_at' => $newExpiry
+            ]);
+
+            $message = "تم تمديد الاشتراك {$request->days} يوم(أيام) بنجاح.";
+            $expiryText = $newExpiry->toDateTimeString();
+        }
+
+        if ($account->fcm_token) {
+            $body = $request->boolean('lifetime')
+                ? "تم تحويل اشتراكك إلى مدى الحياة."
+                : sprintf(
+                    "تم تمديد اشتراكك بمقدار %d يوم(أيام). تاريخ الانتهاء الجديد: %s",
+                    $request->days,
+                    $expiryText
+                );
+
+            SendFirebaseNotificationJob::dispatch(
+                $account->fcm_token,
+                $request->boolean('lifetime') ? 'اشتراك مدى الحياة' : 'تم تمديد الاشتراك',
+                $body
+            );
+        }
+
+        return response()->json([
+            'message' => $message,
+            'subscription_expires_at' => $expiryText
+        ]);
+    }
 
 }
