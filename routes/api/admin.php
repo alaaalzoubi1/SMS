@@ -25,7 +25,7 @@ Route::post('get-pending-accounts', [AdminApproveController::class, 'index']);
 Route::post('create-hospital-account', [ManageHospitalsAccountsController::class, 'createHospitalAccount']);
 Route::post('broadcast-notification', [BroadcastNotificationController::class, 'broadcast']);
 Route::get('broadcast-logs',[BroadcastNotificationController::class,'broadcastLogs']);
-Route::post('extend-subscription',[AdminApproveController::class,'extendSubscription']);
+Route::patch('extend-subscription',[AdminApproveController::class,'extendSubscription']);
 
 Route::prefix('service')->group(function () {
     Route::post('/', [ServiceController::class, 'create'])->name('service.create');

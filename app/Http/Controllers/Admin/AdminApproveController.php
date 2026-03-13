@@ -96,8 +96,8 @@ class AdminApproveController extends Controller
             $currentExpiry = $account->subscription_expires_at;
 
             $newExpiry = $currentExpiry && $currentExpiry->isFuture()
-                ? $currentExpiry->addDays($request->days)
-                : $now->addDays($request->days);
+                ? $currentExpiry->addDays( (integer) $request->days)
+                : $now->addDays((integer)$request->days);
 
             $account->update([
                 'subscription_expires_at' => $newExpiry

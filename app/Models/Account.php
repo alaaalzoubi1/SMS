@@ -22,7 +22,8 @@ class Account extends Authenticatable implements JWTSubject
         'email_verified_at',
         'is_approved',
         'is_suspended',
-        'verification_code'
+        'verification_code',
+        'subscription_expires_at'
     ];
 
     protected $hidden = [
