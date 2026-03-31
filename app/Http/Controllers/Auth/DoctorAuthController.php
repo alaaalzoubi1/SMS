@@ -9,6 +9,7 @@ use App\Http\Requests\DoctorRegisterRequest;
 use App\Jobs\SendVerificationCodeJob;
 use App\Models\Account;
 use App\Models\Doctor;
+use App\Models\User;
 use App\Notifications\SendVerificationCode;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -42,25 +43,17 @@ class DoctorAuthController extends Controller
             if ($request->hasFile('license_image')) {
                 $licenseFile = $request->file('license_image');
                 $filename = uniqid('license_') . '.' . $licenseFile->getClientOriginalExtension();
-                $licensePath = $licenseFile->storeAs(
-                    'doctors/licenses',
-                    $filename,
-                    'private'
-                );
+                $licensePath = $licenseFile->storeAs('doctors/licenses', $filename, 'private');
             }
 
             $profileImagePath = null;
             if ($request->hasFile('profile_image')) {
                 $profileFile = $request->file('profile_image');
                 $filename = uniqid('profile_') . '.' . $profileFile->getClientOriginalExtension();
-                $profileImagePath = $profileFile->storeAs(
-                    'doctors/profile_images',
-                    $filename,
-                    'public'
-                );
+                $profileImagePath = $profileFile->storeAs('doctors/profile_images', $filename, 'public');
             }
 
-            Doctor::create([
+            $doctor = Doctor::create([
                 'account_id'           => $account->id,
                 'full_name'            => $validated['full_name'],
                 'specialization_id'    => $validated['specialization_id'],
@@ -71,10 +64,18 @@ class DoctorAuthController extends Controller
                 'profile_image_path'   => $profileImagePath,
                 'license_image_path'   => $licensePath,
                 'location'             => new Point($validated['latitude'], $validated['longitude']),
-                'province_id' => $validated['province_id']
+                'province_id'          => $validated['province_id']
+            ]);
+
+            User::create([
+                'account_id' => $account->id,
+                'full_name'  => $doctor->full_name,
+                'age'        => $doctor->age,
+                'gender'     => $doctor->gender,
             ]);
 
             $account->assignRole('doctor');
+            $account->assignRole('user');
 
             DB::commit();
 

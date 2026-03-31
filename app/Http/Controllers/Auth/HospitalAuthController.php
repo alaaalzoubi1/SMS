@@ -8,6 +8,7 @@ use App\Http\Requests\StoreHospitalRequest;
 use App\Jobs\SendVerificationCodeJob;
 use App\Models\Account;
 use App\Models\Hospital;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -27,7 +28,6 @@ class HospitalAuthController extends Controller
 
             $validated = $request->validated();
 
-            // Step 1: Find hospital
             $hospital = Hospital::where('full_name', $validated['hospital_name'])
                 ->where('unique_code', $validated['unique_code'])
                 ->withSuspended()
@@ -51,10 +51,8 @@ class HospitalAuthController extends Controller
                 $file = $request->file('profile_image');
                 $filename = uniqid('hospital_profile_') . '.' . $file->getClientOriginalExtension();
 
-                // Save new file
                 $newPath = $file->storeAs('hospitals/profile_images', $filename, 'public');
 
-                // Delete old file if exists
                 if ($profileImagePath && Storage::disk('public')->exists($profileImagePath)) {
                     Storage::disk('public')->delete($profileImagePath);
                 }
@@ -62,7 +60,6 @@ class HospitalAuthController extends Controller
                 $profileImagePath = $newPath;
             }
 
-            // Step 4: Update hospital
             $hospital->update([
                 'full_name' => $validated['hospital_name'],
                 'address'   => $validated['address'],
@@ -80,6 +77,15 @@ class HospitalAuthController extends Controller
                 'is_approved'  => 'approved'
             ]);
 
+            User::create(
+                [
+                    'full_name' => $hospital->full_name,
+                    'age' => 0,
+                    'gender' => 'male',
+                ]
+            );
+
+            $account->assignRole('user');
 
             $token = JWTAuth::fromUser($account);
 
@@ -91,9 +97,11 @@ class HospitalAuthController extends Controller
                 'account'  => $account->fresh(),
                 'token'    => $token,
             ]);
+
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Hospital update failed: ' . $e->getMessage());
+
             return response()->json([
                 'message' => 'An error occurred. Please try again later.'
             ], 500);

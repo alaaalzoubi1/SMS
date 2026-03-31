@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\NurseRegisterRequest;
 use App\Models\Account;
 use App\Models\Nurse;
+use App\Models\User;
 use App\Notifications\SendVerificationCode;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -35,25 +36,17 @@ class NurseAuthController extends Controller
             if ($request->hasFile('license_image')) {
                 $licenseFile = $request->file('license_image');
                 $filename = uniqid('nurse_license_') . '.' . $licenseFile->getClientOriginalExtension();
-                $licenseImagePath = $licenseFile->storeAs(
-                    'nurses/licenses',
-                    $filename,
-                    'private'
-                );
+                $licenseImagePath = $licenseFile->storeAs('nurses/licenses', $filename, 'private');
             }
 
             $profileImagePath = null;
             if ($request->hasFile('profile_image')) {
                 $profileFile = $request->file('profile_image');
                 $filename = uniqid('nurse_profile_') . '.' . $profileFile->getClientOriginalExtension();
-                $profileImagePath = $profileFile->storeAs(
-                    'nurses/profile_images',
-                    $filename,
-                    'public'
-                );
+                $profileImagePath = $profileFile->storeAs('nurses/profile_images', $filename, 'public');
             }
 
-            Nurse::create([
+            $nurse = Nurse::create([
                 'account_id'          => $account->id,
                 'full_name'           => $validated['full_name'],
                 'address'             => $validated['address'],
@@ -64,10 +57,18 @@ class NurseAuthController extends Controller
                 'profile_description' => $validated['profile_description'] ?? null,
                 'license_image_path'  => $licenseImagePath,
                 'profile_image_path'  => $profileImagePath,
-                'province_id' => $validated['province_id'],
+                'province_id'         => $validated['province_id'],
+            ]);
+
+            User::create([
+                'account_id' => $account->id,
+                'full_name'  => $nurse->full_name,
+                'age'        => $nurse->age,
+                'gender'     => $nurse->gender,
             ]);
 
             $account->assignRole('nurse');
+            $account->assignRole('user');
 
             DB::commit();
 

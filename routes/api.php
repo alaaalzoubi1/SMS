@@ -76,6 +76,5 @@ Route::delete('account',[\App\Http\Controllers\AccountController::class,'destroy
 
 use App\Http\Controllers\FirebaseTestController;
 
-Route::post('/test-fcm', [FirebaseTestController::class, 'sendTestNotification']);
 Route::get('my-rates',[\App\Http\Controllers\RatingController::class,'myRatings']);
 Route::get('refresh',[\App\Http\Controllers\Auth\JwtController::class,'refresh']);
