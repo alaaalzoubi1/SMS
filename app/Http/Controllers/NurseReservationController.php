@@ -25,7 +25,7 @@ class NurseReservationController extends Controller
     public function index(Request $request): JsonResponse
     {
         $request->validate([
-            'status' => 'nullable|in:pending,approved,rejected,completed,cancelled',
+            'status' => 'nullable|in:pending,accepted,rejected,completed,cancelled',
             'reservation_type' => 'nullable|in:direct,manual',
             'from' => 'nullable|date',
             'to' => 'nullable|date|after_or_equal:from',
