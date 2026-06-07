@@ -40,6 +40,7 @@ class HospitalServiceController extends Controller
                                                     'service_name' => $service->service->service_name ,
                                                     'price' => (float) $service->price,
                                                     'capacity' => (int) $service->capacity,
+                                                    'icon' => $service->service->icon,
                                                 ];
                                             });
 
@@ -130,6 +131,7 @@ class HospitalServiceController extends Controller
             'service_name' => $hospitalService->service->service_name ,
             'price' => (float) $hospitalService->price,
             'capacity' => (int) $hospitalService->capacity,
+            'icon' => $hospitalService->service->icon,
         ]);
     }
 

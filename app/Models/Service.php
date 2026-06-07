@@ -44,7 +44,7 @@ class Service extends Model
             return $value;
         }
 
-        return $this->service_type == 'hospital'
+        return $this->service_type === 'hospital'
             ? 'fas fa-hospital'
             : 'fas fa-user-nurse';
     }

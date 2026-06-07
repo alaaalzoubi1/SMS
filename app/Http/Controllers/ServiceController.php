@@ -17,7 +17,7 @@ class ServiceController extends Controller
      */
     public function hospitalsServices()
     {
-        $services = Service::select('id','service_name','icon')
+        $services = Service::select(['id','service_name','icon','service_type'])
             ->where('service_type','hospital')
             ->get();
         return response()->json([
@@ -179,8 +179,7 @@ class ServiceController extends Controller
         }
 
         // Fetch the results
-        $services = $query->select('services.id', 'services.service_name')
-
+        $services = $query
             ->paginate(10); // Paginate if needed
 
         // Format the response to include hospitals for each service

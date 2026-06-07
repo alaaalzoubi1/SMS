@@ -27,7 +27,7 @@ class NurseServiceController extends Controller
         $nurse = auth()->user()->nurse;
 
         $services = NurseService::query()
-            ->with('service:id,service_name,icon')
+            ->with('service:id,service_name,icon,service_type')
             ->where('nurse_id', $nurse->id)
 
             ->when($request->filled('service_name'), function ($q) use ($request) {
@@ -200,7 +200,7 @@ class NurseServiceController extends Controller
 
         $query = NurseService::query()
             ->with([
-                'service:id,service_name,icon',
+                'service:id,service_name,icon,service_type',
                 'nurse:id,full_name,address,gender,graduation_type'
             ])
             ->whereHas('nurse', function ($q) {
