@@ -82,6 +82,7 @@ class HospitalController extends Controller
                             'id'    => $service->id,
                             'name'  => $service->service->service_name ?? null,
                             'price' => $service->price,
+                            'icon' => $service->service->icon,
                         ];
                     }),
                 ];
@@ -108,6 +109,7 @@ class HospitalController extends Controller
             return [
                 'service_id' => $service->id,
                 'service_name' => $service->service_name,
+                'icon' => $service->icon,
                 'price' => $service->pivot->price, // Access price from pivot table
                 'capacity' => $service->pivot->capacity, // Access capacity from pivot table
             ];

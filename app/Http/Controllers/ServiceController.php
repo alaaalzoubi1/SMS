@@ -17,7 +17,9 @@ class ServiceController extends Controller
      */
     public function hospitalsServices()
     {
-        $services = Service::select('id','service_name')->where('service_type','hospital')->get();
+        $services = Service::select('id','service_name','icon')
+            ->where('service_type','hospital')
+            ->get();
         return response()->json([
             'services' => $services
         ],200);
@@ -31,13 +33,15 @@ class ServiceController extends Controller
         $request->validate([
             'service_name' => 'required|string|max:40|unique:services,service_name',
             'service_type' => 'required|in:hospital,nurse',
-            'requires_certificate' => 'required|boolean'
+            'requires_certificate' => 'required|boolean',
+            'icon' => 'nullable|string|max:255'
         ]);
         try {
             $service = Service::create([
                 'service_name' => $request->service_name,
                 'service_type' => $request->service_type,
-                'requires_certificate' => $request->requires_certificate
+                'requires_certificate' => $request->requires_certificate,
+                'icon' => $request->icon
             ]);
             return response()->json([
                 'message' => 'service added successfully',
@@ -81,10 +85,12 @@ class ServiceController extends Controller
     public function update(Request $request,$service)
     {
         $request->validate([
-            'service_name' => 'required|string|max:40|unique:services,service_name'
+            'service_name' => 'required|string|max:40|unique:services,service_name',
+            'icon' => 'nullable|string|max:255'
         ]);
 
         $service = Service::find($service);
+
         if (!$service)
             return response()->json([
                 'message' => 'service not found'
@@ -93,6 +99,7 @@ class ServiceController extends Controller
 
         try {
             $service->service_name = $request->service_name;
+            $service->icon = $request->icon;
             $service->save();
 
             DB::commit();
@@ -120,14 +127,10 @@ class ServiceController extends Controller
         if (!$service) {
             return response()->json(['message' => 'Service not found'], 404);
         }
-
-        DB::beginTransaction();
         try {
             $service->delete(); // Soft delete
-            DB::commit();
             return response()->json(['message' => 'Service deleted successfully'], 200);
         } catch (\Exception $e) {
-            DB::rollBack();
             return response()->json(['message' => 'Failed to delete service', 'error' => $e->getMessage()], 500);
         }
     }
@@ -152,14 +155,11 @@ class ServiceController extends Controller
             return response()->json(['message' => 'Trashed service not found'], 404);
         }
 
-        DB::beginTransaction();
         try {
             $service->restore();
-            DB::commit();
             return response()->json(['message' => 'Service restored successfully'], 200);
 
         } catch (\Exception $e) {
-            DB::rollBack();
             return response()->json(['message' => 'Failed to restore service', 'error' => $e->getMessage()], 500);
         }
     }
@@ -171,7 +171,7 @@ class ServiceController extends Controller
         ]);
 
         // Build the query for fetching services with associated hospitals
-        $query = Service::with('hospitals');
+        $query = Service::ForHospitals()->with('hospitals');
 
         // If service_name filter is provided, apply it
         if (isset($validated['service_name'])) {
@@ -188,6 +188,7 @@ class ServiceController extends Controller
             return [
                 'id' => $service->id,
                 'service_name' => $service->service_name,
+                'icon' => $service->icon,
                 'hospitals' => $service->hospitals->map(function ($hospital) {
                     return [
                         'id' => $hospital->id,
@@ -201,7 +202,6 @@ class ServiceController extends Controller
             ];
         });
 
-        // Return the paginated response with formatted data
         return response()->json($formattedServices);
     }
     public function nurseServices()

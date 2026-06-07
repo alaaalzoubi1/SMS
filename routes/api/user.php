@@ -40,6 +40,7 @@ use Illuminate\Support\Facades\Route;
         Route::post('reserve', [NurseReservationController::class, 'store']);
         Route::patch('reservation/cancel' ,[UserController::class,'cancelNurseReservation']);
     });
+
     Route::prefix('hospitals')->group(function () {
         Route::get('/', [HospitalController::class, 'getHospitalsWithServices']);
         Route::get('nearest', [HospitalController::class, 'getNearestHospitals']);

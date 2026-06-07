@@ -17,7 +17,7 @@ class NurseService extends Model
         'service_id',
         'price',
     ];
-    protected $appends = ['name'];
+    protected $appends = ['name','icon'];
     public function nurse():BelongsTo
     {
         return $this->belongsTo(Nurse::class);
@@ -34,6 +34,10 @@ class NurseService extends Model
     public function getNameAttribute()
     {
         return $this->service?->service_name;
+    }
+    public function  getIconAttribute()
+    {
+        return $this->service?->icon;
     }
 
 }

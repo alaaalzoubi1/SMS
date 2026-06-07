@@ -71,6 +71,7 @@ class NurseController extends Controller
                     'id' => $service->id,
                     'name' => $service->name,
                     'price' => $service->price,
+                    'icon' => $service->icon,
                 ]),
                 'avg_rating' => max(4, $nurse->avg_rating),
                 'distance_meters' => $nurse->distance_meters ?? null,

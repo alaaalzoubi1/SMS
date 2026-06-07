@@ -27,7 +27,7 @@ class NurseServiceController extends Controller
         $nurse = auth()->user()->nurse;
 
         $services = NurseService::query()
-            ->with('service:id,service_name')
+            ->with('service:id,service_name,icon')
             ->where('nurse_id', $nurse->id)
 
             ->when($request->filled('service_name'), function ($q) use ($request) {
@@ -200,7 +200,7 @@ class NurseServiceController extends Controller
 
         $query = NurseService::query()
             ->with([
-                'service:id,service_name',
+                'service:id,service_name,icon',
                 'nurse:id,full_name,address,gender,graduation_type'
             ])
             ->whereHas('nurse', function ($q) {
@@ -226,7 +226,7 @@ class NurseServiceController extends Controller
     public function getNurseServicesWithSubservices($nurseId)
     {
         // Retrieve the nurse with the services and subservices
-        $nurse = Nurse::with(['services'])->find($nurseId);
+        $nurse = Nurse::with(['services.service'])->find($nurseId);
 
         if (!$nurse) {
             return response()->json(['message' => 'Nurse not found'], 404);
@@ -238,6 +238,7 @@ class NurseServiceController extends Controller
                 'service_id' => $service->id,
                 'service_name' => $service->name,
                 'service_price' => $service->price,
+                'service_icon' => $service->icon,
             ];
         });
 
