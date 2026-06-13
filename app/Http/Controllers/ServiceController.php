@@ -34,15 +34,14 @@ class ServiceController extends Controller
             'service_name' => 'required|string|max:40|unique:services,service_name',
             'service_type' => 'required|in:hospital,nurse',
             'requires_certificate' => 'required|boolean',
-            'icon' => 'nullable|string|max:255'
+            'icon' => 'nullable|image|mimes:jpeg,png,jpg,svg,webp|max:1024'
         ]);
         try {
-            $service = Service::create([
-                'service_name' => $request->service_name,
-                'service_type' => $request->service_type,
-                'requires_certificate' => $request->requires_certificate,
-                'icon' => $request->icon
-            ]);
+            $service = Service::create($request->except('icon'));
+
+            if ($request->hasFile('icon')) {
+                $service->uploadIcon($request->file('icon'));
+            }
             return response()->json([
                 'message' => 'service added successfully',
                 'service' => $service
@@ -86,7 +85,7 @@ class ServiceController extends Controller
     {
         $request->validate([
             'service_name' => 'required|string|max:40|unique:services,service_name',
-            'icon' => 'nullable|string|max:255'
+            'icon' => 'nullable|image|mimes:jpeg,png,jpg,svg,webp|max:1024'
         ]);
 
         $service = Service::find($service);
@@ -96,23 +95,17 @@ class ServiceController extends Controller
                 'message' => 'service not found'
             ],404);
         DB::beginTransaction();
-
         try {
             $service->service_name = $request->service_name;
-            $service->icon = $request->icon;
+            if ($request->hasFile('icon')) {
+                $service->uploadIcon($request->file('icon'));
+            }
             $service->save();
-
             DB::commit();
-
-
-            return response()->json([
-                'message' => 'service updated successfully',
-                'service' => $service
-            ], 200);
-
+            return response()->json(['message' => 'تم التحديث', 'service' => $service], 200);
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['message' => 'Failed to update service try again later'], 500);
+            return response()->json(['message' => 'فشل التحديث'], 500);
         }
     }
 

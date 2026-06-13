@@ -84,8 +84,8 @@ class HospitalAuthController extends Controller
                     'gender' => 'male',
                 ]
             );
-
             $account->assignRole('user');
+
 
             $token = JWTAuth::fromUser($account);
 

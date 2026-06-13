@@ -1,10 +1,15 @@
 <?php
 namespace App\Models;
 
+use Exception;
+use http\Exception\UnexpectedValueException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Storage;
+use Spatie\Image\Enums\Fit;
+use Spatie\Image\Image;
 
 class Service extends Model
 {
@@ -38,24 +43,57 @@ class Service extends Model
     {
         return $query->where('service_type', 'hospital');
     }
-    public function getIconAttribute($value): string
+
+    /**
+     * @throws Exception
+     */
+    public function uploadIcon($file): string
     {
-        if ($value) {
-            return $value;
+        $extension = $file->getClientOriginalExtension();
+        $allowed = ['png', 'jpg', 'jpeg', 'webp'];
+        if (!in_array(strtolower($extension), $allowed)) {
+            throw new UnexpectedValueException('امتداد الصورة غير مسموح به. الأنواع المسموحة: ' . implode(', ', $allowed));
         }
 
-        return $this->service_type === 'hospital'
-            ? 'fas fa-hospital'
-            : 'fas fa-user-nurse';
+        $fileName = uniqid('service_') . '.' . $extension;
+        $tempPath = $file->getPathname();
+        $finalStoragePath = storage_path('app/public/services/' . $fileName);
+
+
+        Image::load($tempPath)
+            ->fit(Fit::Max, 100, 100)
+            ->optimize()
+            ->save($finalStoragePath);
+
+        if ($this->icon && Storage::disk('public')->exists('services/' . $this->icon)) {
+            Storage::disk('public')->delete('services/' . $this->icon);
+        }
+
+        $this->icon = $fileName;
+        $this->saveQuietly();
+
+        return $fileName;
+    }
+
+    public function getIconAttribute($value)
+    {
+        if ($value && Storage::disk('public')->exists('services/' . $value)) {
+            return Storage::url('services/' . $value);
+        }
+
+        $defaultIcon = 'services/default.png';
+        if (Storage::disk('public')->exists($defaultIcon)) {
+            return Storage::url($defaultIcon);
+        }
+
+        return asset('storage/services/default.png');
     }
 
     protected static function booted()
     {
-        static::creating(function ($service) {
-            if (is_null($service->icon)) {
-                $service->icon = $service->service_type === 'hospital'
-                    ? 'fas fa-hospital'
-                    : 'fas fa-user-nurse';
+        static::deleting(function ($service) {
+            if ($service->icon && Storage::disk('public')->exists('services/' . $service->icon)) {
+                Storage::disk('public')->delete('services/' . $service->icon);
             }
         });
     }
