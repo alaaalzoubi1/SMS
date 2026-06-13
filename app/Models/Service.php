@@ -80,12 +80,10 @@ class Service extends Model
     public function getIconAttribute($value)
     {
         if ($value && Storage::disk('public')->exists('services/' . $value)) {
-            return Storage::url('services/' . $value);
+            return asset(Storage::url('services/' . $value));
         }
-
-        $defaultIcon = 'services/default.png';
-        if (Storage::disk('public')->exists($defaultIcon)) {
-            return Storage::url($defaultIcon);
+        if (Storage::disk('public')->exists('services/default.png')) {
+            return asset(Storage::url('services/default.png'));
         }
 
         return asset('storage/services/default.png');
