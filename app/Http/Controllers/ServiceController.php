@@ -36,7 +36,7 @@ class ServiceController extends Controller
             'requires_certificate' => 'required|boolean',
             'icon' => 'nullable|image|mimes:jpeg,png,jpg,svg,webp|max:1024'
         ]);
-        try {
+//        try {
             $service = Service::create($request->except('icon'));
 
             if ($request->hasFile('icon')) {
@@ -47,11 +47,11 @@ class ServiceController extends Controller
                 'service' => $service
             ], 201);
 
-        } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Failed to add service try again later.'
-            ], 500);
-        }
+//        } catch (\Exception $e) {
+//            return response()->json([
+//                'message' => 'Failed to add service try again later.'
+//            ], 500);
+//        }
     }
 
     /**
