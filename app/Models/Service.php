@@ -54,7 +54,9 @@ class Service extends Model
         if (!in_array(strtolower($extension), $allowed)) {
             throw new UnexpectedValueException('امتداد الصورة غير مسموح به. الأنواع المسموحة: ' . implode(', ', $allowed));
         }
-
+        if (!Storage::disk('public')->exists('services')) {
+            Storage::disk('public')->makeDirectory('services');
+        }
         $fileName = uniqid('service_') . '.' . $extension;
         $tempPath = $file->getPathname();
         $finalStoragePath = storage_path('app/public/services/' . $fileName);
