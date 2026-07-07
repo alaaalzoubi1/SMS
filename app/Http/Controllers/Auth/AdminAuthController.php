@@ -16,7 +16,7 @@ class AdminAuthController extends Controller
     {
         $credentials = $request->only('email', 'password');
         if (!$token = auth()->attempt($credentials)) {
-            return response()->json(['error' => 'Unauthorized'], 401);
+            return response()->json(['error' => 'Invalid Credintials'], 401);
         }
         if (!auth()->user()->hasRole('admin'))
             return response()->json(['message' => 'Access denied.'], 403);
