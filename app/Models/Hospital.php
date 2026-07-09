@@ -60,7 +60,7 @@ class Hospital extends Model
     public function services_2():BelongsToMany
     {
         return $this->belongsToMany(Service::class, 'hospital_services', 'hospital_id', 'service_id')
-            ->withPivot('price', 'capacity') // Include pivot data (price and capacity)
+            ->withPivot('price', 'capacity','id') // Include pivot data (price and capacity)
             ->whereNotNull('hospital_services.price'); // Only include services with a price
     }
 
