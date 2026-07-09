@@ -107,7 +107,7 @@ class HospitalController extends Controller
         // Format the response to include service name, price, and capacity
         $formattedServices = $services->map(function ($service) {
             return [
-                'service_id' => $service->id,
+                'service_id' => $service->pivot->id,
                 'service_name' => $service->service_name,
                 'icon' => $service->icon,
                 'price' => $service->pivot->price, // Access price from pivot table
