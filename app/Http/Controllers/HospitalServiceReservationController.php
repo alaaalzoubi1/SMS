@@ -43,11 +43,11 @@ class HospitalServiceReservationController extends Controller
                       'service_name' => $reservation->hospitalService->service->service_name ?? 'N/A',
                       'price' => (float) $reservation->hospitalService->price,
                       'status' => $reservation->status,
+                      'reserved_by_admin' => $reservation->reserved_by_admin,
                       'start_date' => Carbon::parse($reservation->start_date)->format('Y-m-d'),
                       'end_date' => Carbon::parse($reservation->end_date)->format('Y-m-d'),
                   ];
               });
-        Log::info('Hospital Service Reservations fetched:', ['hospital_id' => $hospital->id, 'reservations_count' => $reservations->count()]);
 
         return response()->json($reservations);
     }
@@ -65,13 +65,13 @@ class HospitalServiceReservationController extends Controller
             return response()->json(['message' => 'Reservation not found or does not belong to this hospital'], 404);
         }
 
-        Log::info('Hospital Service Reservation details:', ['reservation_id' => $id, 'details' => $reservation->toArray()]);
 
         return response()->json([
             'id' => $reservation->id,
             'user_name' => $reservation->user->name ?? $reservation->user->email ?? 'N/A',
             'service_name' => $reservation->hospitalService->service->service_name ?? 'N/A',
             'price' => (float) $reservation->hospitalService->price,
+            'reserved_by_admin' => $reservation->reserved_by_admin,
             'status' => $reservation->status,
             'start_date' => Carbon::parse($reservation->start_date)->format('Y-m-d'),
             'end_date' => Carbon::parse($reservation->end_date)->format('Y-m-d'),
