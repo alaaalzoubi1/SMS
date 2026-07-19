@@ -9,9 +9,12 @@ use App\Http\Controllers\Admin\ManageHospitalsAccountsController;
 use App\Http\Controllers\Admin\NurseStatisticsController;
 use App\Http\Controllers\Admin\UserStatisticsController;
 use App\Http\Controllers\Auth\AdminAuthController;
+use App\Http\Controllers\ContactInfoController;
+use App\Http\Controllers\LegalDocumentController;
 use App\Http\Controllers\NurseServiceRequestController;
 use App\Http\Controllers\ProvinceController;
 use App\Http\Controllers\ServiceController;
+use App\Http\Controllers\SiteContentController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\SpecializationController;
 
@@ -83,5 +86,16 @@ Route::prefix('provinces')->group(function () {
     Route::delete('/{id}', [ProvinceController::class, 'destroy']);
 });
 
+Route::prefix('contact-info')->group(function () {
+    Route::get('/', [ContactInfoController::class, 'index']);
+    Route::post('/', [ContactInfoController::class, 'store']);
+    Route::patch('/{id}', [ContactInfoController::class, 'update']);
+    Route::delete('/{id}', [ContactInfoController::class, 'destroy']);
+});
+Route::prefix('site-content')->group(function () {
+    Route::post('/', [SiteContentController::class, 'storeOrUpdate']);
+    Route::delete('/{key}', [SiteContentController::class, 'destroy']);
+});
+Route::post('/legal/{type}', [LegalDocumentController::class, 'update']);
 
 Route::get('entity-rates', [\App\Http\Controllers\RatingController::class, 'entityRatings']);

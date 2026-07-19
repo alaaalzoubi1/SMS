@@ -9,7 +9,10 @@ use App\Http\Controllers\Auth\DoctorAuthController;
 use App\Http\Controllers\Auth\HospitalAuthController;
 use App\Http\Controllers\Auth\NurseAuthController;
 use App\Http\Controllers\Auth\UserAuthController;
+use App\Http\Controllers\ContactInfoController;
+use App\Http\Controllers\LegalDocumentController;
 use App\Http\Controllers\ProvinceController;
+use App\Http\Controllers\SiteContentController;
 use App\Http\Controllers\SpecializationController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
@@ -78,3 +81,15 @@ use App\Http\Controllers\FirebaseTestController;
 
 Route::get('my-rates',[\App\Http\Controllers\RatingController::class,'myRatings']);
 Route::get('refresh',[\App\Http\Controllers\Auth\JwtController::class,'refresh']);
+Route::middleware('throttle:60,1')->group(function () {
+    Route::get('/legal/{type}', [LegalDocumentController::class, 'show'])
+        ->name('legal.show');
+});
+
+Route::prefix('contact-info')->group(function () {
+    Route::get('/', [ContactInfoController::class, 'index'])->middleware('throttle:60,1');
+});
+
+Route::middleware('throttle:60,1')->group(function () {
+    Route::get('/site-content', [SiteContentController::class, 'index']);
+});
