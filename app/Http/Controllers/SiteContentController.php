@@ -2,12 +2,22 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\SiteContentType;
 use App\Models\SiteContent;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 
 class SiteContentController extends Controller
 {
+    /**
+     * Public, flat "key => value" map. Kept for backward compatibility with
+     * any existing consumer of this endpoint. For the structured payload
+     * the landing page actually renders with (ordered, active-only,
+     * images, etc.), see LandingPageController.
+     */
     public function index()
     {
         $data = Cache::rememberForever('site_content', function () {
@@ -16,34 +26,99 @@ class SiteContentController extends Controller
 
         return response()->json($data);
     }
+
+    /**
+     * POST /api/admin/site-content
+     *
+     * Accepts either a JSON body (application/json) or a multipart form
+     * (multipart/form-data) when uploading images. Because file uploads
+     * require multipart, `value` is sent as a JSON-encoded string in that
+     * case and decoded below.
+     *
+     * Body:
+     *  - key         (required) e.g. "hero", "how_we_are", "theme"
+     *  - type        (optional) "section" | "setting", defaults to "section"
+     *  - value       (required) array, or JSON string of an array —
+     *                shape convention: {"en": {...}, "ar": {...}} for
+     *                sections, flat object for settings (e.g. theme colors)
+     *  - images[]    (optional) new image files to attach/append
+     *  - remove_images[] (optional) storage paths to remove from `images`
+     *  - sort_order  (optional) integer, controls landing page ordering
+     *  - is_active   (optional) boolean, hide without deleting
+     */
     public function storeOrUpdate(Request $request)
     {
-        $data = $request->validate([
-            'key'   => 'required|string|max:255',
-            'value' => 'required|array',
+        $payload = $request->all();
+
+        if ($request->has('value') && is_string($request->input('value'))) {
+            $decoded = json_decode($request->input('value'), true);
+            if (json_last_error() === JSON_ERROR_NONE) {
+                $payload['value'] = $decoded;
+            }
+        }
+
+        $validator = Validator::make($payload, [
+            'key' => ['required', 'string', 'max:255'],
+            'type' => ['nullable', 'string', 'in:'.implode(',', SiteContentType::values())],
+            'value' => ['required', 'array'],
+            'images' => ['nullable', 'array'],
+            'images.*' => ['image', 'mimes:png,jpg,jpeg,webp,svg', 'max:4096'],
+            'remove_images' => ['nullable', 'array'],
+            'remove_images.*' => ['string'],
+            'sort_order' => ['nullable', 'integer', 'min:0'],
+            'is_active' => ['nullable', 'boolean'],
         ]);
 
-        SiteContent::updateOrCreate(
-            ['key' => $data['key']],
-            ['value' => $data['value']]
-        );
+        $data = $validator->validate();
 
-        Cache::forget('site_content');
+        $siteContent = SiteContent::firstOrNew(['key' => $data['key']]);
+
+        $existingImages = $siteContent->images ?? [];
+
+        if (! empty($data['remove_images'])) {
+            foreach ($data['remove_images'] as $path) {
+                if (Storage::disk('public')->exists($path)) {
+                    Storage::disk('public')->delete($path);
+                }
+            }
+            $existingImages = array_values(array_diff($existingImages, $data['remove_images']));
+        }
+
+        if ($request->hasFile('images')) {
+            foreach ($request->file('images') as $file) {
+                $filename = Str::uuid().'.'.$file->getClientOriginalExtension();
+                $existingImages[] = $file->storeAs('site-content', $filename, 'public');
+            }
+        }
+
+        $siteContent->type = $data['type'] ?? $siteContent->type ?? SiteContentType::SECTION->value;
+        $siteContent->value = $data['value'];
+        $siteContent->images = $existingImages;
+        $siteContent->sort_order = $data['sort_order'] ?? $siteContent->sort_order ?? 0;
+        $siteContent->is_active = array_key_exists('is_active', $data) ? $data['is_active'] : ($siteContent->is_active ?? true);
+        $siteContent->save();
 
         return response()->json([
-            'message' => 'Content saved successfully.'
+            'message' => 'Content saved successfully.',
+            'data' => $siteContent,
         ]);
     }
+
     public function destroy($key)
     {
-        SiteContent::where('key', $key)->delete();
+        $siteContent = SiteContent::where('key', $key)->first();
 
-        Cache::forget('site_content');
+        if ($siteContent) {
+            foreach ($siteContent->images ?? [] as $path) {
+                if (Storage::disk('public')->exists($path)) {
+                    Storage::disk('public')->delete($path);
+                }
+            }
+            $siteContent->delete();
+        }
 
         return response()->json([
-            'message' => 'Content deleted successfully.'
+            'message' => 'Content deleted successfully.',
         ]);
     }
-
-
 }

@@ -23,7 +23,10 @@ class DatabaseSeeder extends Seeder
             SpecializationSeeder::class,
             DoctorSeeder::class,
             HospitalSeeder::class,
-            ServiceSeeder::class
+            ServiceSeeder::class,
+            SiteContentSeeder::class,
+            ContactInfoSeeder::class,
+            LegalDocumentSeeder::class,
         ]);
 
     }

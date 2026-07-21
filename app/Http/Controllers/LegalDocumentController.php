@@ -15,7 +15,6 @@ class LegalDocumentController extends Controller
 {
     private const SUPPORTED_LOCALES = ['en', 'ar'];
     private const DEFAULT_LOCALE = 'en';
-    private const CACHE_TTL_HOURS = 6;
 
     /**
      * GET /api/legal/{type}
@@ -39,9 +38,8 @@ class LegalDocumentController extends Controller
         $locale = $this->resolveLocale($request);
         $cacheKey = "legal_document.{$documentType->value}.{$locale}";
 
-        $payload = Cache::remember(
+        $payload = Cache::rememberForever(
             $cacheKey,
-            now()->addHours(self::CACHE_TTL_HOURS),
             function () use ($documentType, $locale) {
                 $document = LegalDocument::where('type', $documentType->value)->first();
 

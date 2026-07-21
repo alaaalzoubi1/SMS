@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Controller;
 use App\Models\ContactInfo;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -12,16 +12,18 @@ class ContactInfoController extends Controller
 {
     public function index()
     {
-        return ContactInfo::all()->map(function ($contact) {
-            return [
-                'id' => $contact->id,
-                'name' => $contact->name,
-                'url' => $contact->url,
-                'logo' => $contact->logo,
-                'logo_url' => $contact->logo
-                    ? env('APP_URL') . '/public/storage/' . $contact->logo
-                    : null,
-            ];
+        return Cache::rememberForever('contact_info', function () {
+            return ContactInfo::all()->map(function (ContactInfo $contact) {
+                return [
+                    'id' => $contact->id,
+                    'name' => $contact->name,
+                    'url' => $contact->url,
+                    'logo' => $contact->logo,
+                    'logo_url' => $contact->logo
+                        ? Storage::disk('public')->url($contact->logo)
+                        : null,
+                ];
+            });
         });
     }
 
@@ -30,7 +32,7 @@ class ContactInfoController extends Controller
         $data = $request->validate([
             'name' => 'required|string|max:255',
             'url'  => 'required|url',
-            'logo' => 'nullable|image|mimes:png,jpg,jpeg,svg|max:2048',
+            'logo' => 'nullable|image|mimes:png,jpg,jpeg,svg,webp|max:2048',
         ]);
 
         if ($request->hasFile('logo')) {
@@ -56,7 +58,7 @@ class ContactInfoController extends Controller
         $data = $request->validate([
             'name' => 'sometimes|string|max:255',
             'url'  => 'sometimes|url',
-            'logo' => 'nullable|image|mimes:png,jpg,jpeg,svg|max:2048',
+            'logo' => 'nullable|image|mimes:png,jpg,jpeg,svg,webp|max:2048',
         ]);
 
         if ($request->hasFile('logo')) {
