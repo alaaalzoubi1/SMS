@@ -93,9 +93,17 @@ Route::prefix('contact-info')->group(function () {
     Route::delete('/{id}', [ContactInfoController::class, 'destroy']);
 });
 Route::prefix('site-content')->group(function () {
+    Route::get('/', [SiteContentController::class, 'adminIndex']);
+    Route::patch('/reorder', [SiteContentController::class, 'reorder']);
+    Route::get('/{key}', [SiteContentController::class, 'show']);
     Route::post('/', [SiteContentController::class, 'storeOrUpdate']);
     Route::delete('/{key}', [SiteContentController::class, 'destroy']);
 });
-Route::post('/legal/{type}', [LegalDocumentController::class, 'update']);
+
+Route::prefix('legal')->group(function () {
+    Route::get('/', [LegalDocumentController::class, 'adminIndex']);
+    Route::get('/{type}', [LegalDocumentController::class, 'adminShow']);
+    Route::post('/{type}', [LegalDocumentController::class, 'update']);
+});
 
 Route::get('entity-rates', [\App\Http\Controllers\RatingController::class, 'entityRatings']);

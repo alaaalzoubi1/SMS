@@ -28,6 +28,63 @@ class SiteContentController extends Controller
     }
 
     /**
+     * GET /api/admin/site-content
+     *
+     * Full detail for every row — both types (sections + settings),
+     * active and inactive, every field — ordered for a landing-page
+     * editor UI. Not cached: this is an admin-only, low-traffic read.
+     */
+    public function adminIndex()
+    {
+        return response()->json(
+            SiteContent::query()->ordered()->get()
+        );
+    }
+
+    /**
+     * GET /api/admin/site-content/{key}
+     */
+    public function show(string $key)
+    {
+        $siteContent = SiteContent::where('key', $key)->first();
+
+        if (! $siteContent) {
+            return response()->json(['message' => 'Not found.'], 404);
+        }
+
+        return response()->json($siteContent);
+    }
+
+    /**
+     * PATCH /api/admin/site-content/reorder
+     *
+     * Body: {"order": [{"key": "hero", "sort_order": 10}, {"key": "cta", "sort_order": 20}, ...]}
+     * Lets the admin drag-and-drop reorder sections in one request instead
+     * of one storeOrUpdate call per section.
+     */
+    public function reorder(Request $request)
+    {
+        $data = $request->validate([
+            'order' => ['required', 'array', 'min:1'],
+            'order.*.key' => ['required', 'string'],
+            'order.*.sort_order' => ['required', 'integer', 'min:0'],
+        ]);
+
+        // Deliberately looping with ->save() per row (not a single mass
+        // ->update() query) so SiteContentObserver fires and busts the
+        // cache — Eloquent mass updates skip model events entirely.
+        foreach ($data['order'] as $item) {
+            $siteContent = SiteContent::where('key', $item['key'])->first();
+            if ($siteContent) {
+                $siteContent->sort_order = $item['sort_order'];
+                $siteContent->save();
+            }
+        }
+
+        return response()->json(['message' => 'Order updated successfully.']);
+    }
+
+    /**
      * POST /api/admin/site-content
      *
      * Accepts either a JSON body (application/json) or a multipart form

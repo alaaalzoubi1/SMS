@@ -65,6 +65,56 @@ class LegalDocumentController extends Controller
     }
 
     /**
+     * GET /api/admin/legal
+     *
+     * All legal document types with both languages, for an admin listing
+     * screen. Types that haven't been created yet are returned as
+     * `null` so the frontend still knows they exist and can render a
+     * "create" form for them.
+     */
+    public function adminIndex(): JsonResponse
+    {
+        $existing = LegalDocument::query()
+            ->whereIn('type', LegalDocumentType::values())
+            ->get()
+            ->keyBy('type');
+
+        $documents = collect(LegalDocumentType::cases())->map(
+            fn (LegalDocumentType $type) => $existing->has($type->value)
+                ? new LegalDocumentResource($existing->get($type->value))
+                : ['type' => $type->value, 'version' => null, 'content' => null, 'updated_by' => null, 'updated_at' => null]
+        );
+
+        return response()->json(['data' => $documents->values()]);
+    }
+
+    /**
+     * GET /api/admin/legal/{type}
+     *
+     * Single document with both languages — what an edit form needs,
+     * unlike the public show() above which resolves to one locale.
+     */
+    public function adminShow(string $type): JsonResponse
+    {
+        $documentType = LegalDocumentType::tryFrom($type);
+
+        if (!$documentType) {
+            return response()->json([
+                'message' => 'Invalid document type.',
+                'allowed' => LegalDocumentType::values(),
+            ], 404);
+        }
+
+        $document = LegalDocument::where('type', $documentType->value)->first();
+
+        if (!$document) {
+            return response()->json(['message' => 'Document not found.'], 404);
+        }
+
+        return response()->json(['data' => new LegalDocumentResource($document)]);
+    }
+
+    /**
      * POST /api/legal/{type}
      *
      * Restricted to super_admin (see route middleware + the FormRequest's
