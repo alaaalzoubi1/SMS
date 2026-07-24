@@ -56,7 +56,7 @@ class HospitalStatisticsController extends Controller
     public function hospitalReservations(Request $request ,$id): JsonResponse
     {
         $request->validate([
-            'status' => 'nullable|in:pending,confirmed,cancelled',
+            'status' => 'nullable|in:pending,confirmed,accepted,cancelled,finished',
             'from' => 'nullable|date',
             'to' => 'nullable|date|after_or_equal:from',
             'per_page' => 'nullable|integer|min:1|max:20',

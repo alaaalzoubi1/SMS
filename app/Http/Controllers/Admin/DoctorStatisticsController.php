@@ -59,7 +59,7 @@ class DoctorStatisticsController extends Controller
     public function doctorReservations(Request $request ,$id): JsonResponse
     {
         $request->validate([
-            'status' => 'nullable|in:pending,approved,rejected,cancelled,completed',
+            'status' => 'nullable|in:pending,approved,cancelled,completed',
             'from' => 'nullable|date',
             'to' => 'nullable|date|after_or_equal:from',
             'per_page' => 'nullable|integer|min:1|max:20',
