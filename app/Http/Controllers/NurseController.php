@@ -83,6 +83,65 @@ class NurseController extends Controller
         return response()->json($nurses);
     }
 
+    /**
+     * GET /api/admin/nurse/nearest
+     *
+     * Admin version of getNearestNurses(): the admin supplies any
+     * latitude/longitude (not their own device location — they're looking
+     * up a place, not standing in it), and — unlike the public endpoint —
+     * this returns BOTH active and inactive nurses so admins can see the
+     * full picture, not just who's currently accepting requests. Every
+     * nurse already carries its own `is_active` column in the response,
+     * so nothing extra needs to be added to tell them apart.
+     */
+    public function getNearestNursesAdmin(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'latitude' => 'required|numeric|between:-90,90',
+            'longitude' => 'required|numeric|between:-180,180',
+            'limit' => 'nullable|integer|min:1|max:50',
+        ], [
+            'latitude.required' => 'يجب إدخال خط العرض.',
+            'latitude.numeric' => 'خط العرض يجب أن يكون رقمًا.',
+            'latitude.between' => 'قيمة خط العرض يجب أن تكون بين -90 و 90.',
+            'longitude.required' => 'يجب إدخال خط الطول.',
+            'longitude.numeric' => 'خط الطول يجب أن يكون رقمًا.',
+            'longitude.between' => 'قيمة خط الطول يجب أن تكون بين -180 و 180.',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $latitude = $request->input('latitude');
+        $longitude = $request->input('longitude');
+        $limit = $request->input('limit', 10);
+
+        $point = new Point($latitude, $longitude);
+
+        $nurses = Nurse::query()
+            ->Approved()
+            // No ->Active() filter here on purpose — admin sees everyone.
+            ->whereNotNull('location')
+            ->withDistanceSphere('location', $point, 'distance_meters')
+            ->orderBy('distance_meters')
+            ->limit($limit)
+            ->get()
+            ->transform(function ($nurse) {
+                $nurse->avg_rating = max(4, $nurse->avg_rating);
+                return $nurse;
+            })
+            ->makeHidden(['license_image_path', 'deleted_at', 'created_at', 'updated_at']);
+
+        return response()->json([
+            'nurses' => $nurses,
+            'active_count' => $nurses->where('is_active', true)->count(),
+            'inactive_count' => $nurses->where('is_active', false)->count(),
+        ]);
+    }
+
     public function getNearestNurses(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [

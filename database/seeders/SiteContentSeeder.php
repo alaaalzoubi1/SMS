@@ -102,18 +102,18 @@ class SiteContentSeeder extends Seeder
                     'en' => [
                         'title' => 'Sahtee in numbers',
                         'items' => [
-                            ['value' => '500+', 'label' => 'Verified doctors'],
-                            ['value' => '300+', 'label' => 'Home-care nurses'],
-                            ['value' => '50+', 'label' => 'Partner hospitals'],
+                            ['metric' => 'doctors_count', 'value' => '0', 'label' => 'Verified doctors'],
+                            ['metric' => 'nurses_count', 'value' => '0', 'label' => 'Home-care nurses'],
+                            ['metric' => 'hospitals_count', 'value' => '0', 'label' => 'Partner hospitals'],
                             ['value' => '14', 'label' => 'Provinces covered'],
                         ],
                     ],
                     'ar' => [
                         'title' => 'صحتي بالأرقام',
                         'items' => [
-                            ['value' => '+500', 'label' => 'طبيب موثوق'],
-                            ['value' => '+300', 'label' => 'ممرض رعاية منزلية'],
-                            ['value' => '+50', 'label' => 'مستشفى شريك'],
+                            ['metric' => 'doctors_count', 'value' => '0', 'label' => 'طبيب موثوق'],
+                            ['metric' => 'nurses_count', 'value' => '0', 'label' => 'ممرض رعاية منزلية'],
+                            ['metric' => 'hospitals_count', 'value' => '0', 'label' => 'مستشفى شريك'],
                             ['value' => '14', 'label' => 'محافظة مغطاة'],
                         ],
                     ],

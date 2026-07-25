@@ -6,6 +6,7 @@ use App\Enums\LegalDocumentType;
 use App\Models\ContactInfo;
 use App\Models\LegalDocument;
 use App\Models\SiteContent;
+use App\Services\PlatformStatsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Cache;
 
@@ -72,6 +73,50 @@ class LandingPageController extends Controller
             ];
         });
 
+        // Deliberately done OUTSIDE the landing_page cache closure above:
+        // platform_stats has its own forever-cache that only gets busted by
+        // PlatformStatsObserver on a new doctor/nurse/hospital/user
+        // registration. If this merge happened inside the closure instead,
+        // the numbers would be frozen at whatever they were the moment
+        // landing_page was last rebuilt (i.e. the last time a section was
+        // edited) instead of reflecting every registration.
+        $data['sections'] = $this->withLiveStats($data['sections']);
+
         return response()->json($data);
+    }
+
+    /**
+     * Swaps each stats-section item's `value` for a live count when the
+     * admin tagged that item with a `metric` key matching a known stat
+     * (see SiteContentSeeder). Items without a `metric` — e.g. a static
+     * "Provinces covered" figure — are left exactly as the admin set them.
+     */
+    private function withLiveStats($sections)
+    {
+        $statsIndex = $sections->search(fn ($section) => $section['key'] === 'stats');
+
+        if ($statsIndex === false) {
+            return $sections;
+        }
+
+        $liveStats = PlatformStatsService::get();
+        $statsSection = $sections[$statsIndex];
+
+        foreach (['en', 'ar'] as $locale) {
+            if (empty($statsSection['value'][$locale]['items'])) {
+                continue;
+            }
+
+            foreach ($statsSection['value'][$locale]['items'] as &$item) {
+                if (!empty($item['metric']) && isset($liveStats[$item['metric']])) {
+                    $item['value'] = (string) $liveStats[$item['metric']];
+                }
+            }
+            unset($item);
+        }
+
+        $sections[$statsIndex] = $statsSection;
+
+        return $sections;
     }
 }

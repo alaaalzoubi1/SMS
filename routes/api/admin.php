@@ -10,7 +10,10 @@ use App\Http\Controllers\Admin\NurseStatisticsController;
 use App\Http\Controllers\Admin\UserStatisticsController;
 use App\Http\Controllers\Auth\AdminAuthController;
 use App\Http\Controllers\ContactInfoController;
+use App\Http\Controllers\DoctorController;
+use App\Http\Controllers\HospitalController;
 use App\Http\Controllers\LegalDocumentController;
+use App\Http\Controllers\NurseController;
 use App\Http\Controllers\NurseServiceRequestController;
 use App\Http\Controllers\ProvinceController;
 use App\Http\Controllers\ServiceController;
@@ -50,6 +53,7 @@ Route::prefix('specializations')->group(function () {
 Route::prefix('doctor')->group(function () {
     Route::get('/{id}/license', [DoctorStatisticsController::class, 'getDoctorLicense']);
     Route::get('/all', [DoctorStatisticsController::class, 'doctors']);
+    Route::get('/nearest', [DoctorController::class, 'getNearestDoctors']);
     Route::get('/{id}', [DoctorStatisticsController::class, 'doctor']);
     Route::get('/{id}/reservations', [DoctorStatisticsController::class, 'doctorReservations']);
     Route::post('/reserve',[AdminReservationController::class,'doctorReservation']);
@@ -57,6 +61,7 @@ Route::prefix('doctor')->group(function () {
 });
 Route::prefix('hospital')->group(function () {
     Route::get('/all', [HospitalStatisticsController::class, 'hospitals']);
+    Route::get('/nearest', [HospitalController::class, 'getNearestHospitals']);
     Route::get('/{id}', [HospitalStatisticsController::class, 'hospital']);
     Route::get('/{id}/reservations', [HospitalStatisticsController::class, 'hospitalReservations']);
     Route::post('/reserve',[AdminReservationController::class,'hospitalReservation']);
@@ -64,6 +69,7 @@ Route::prefix('hospital')->group(function () {
 Route::prefix('nurse')->group(function () {
     Route::get('/{id}/license', [NurseStatisticsController::class, 'getNurseLicense']);
     Route::get('/all', [NurseStatisticsController::class, 'nurses']);
+    Route::get('/nearest', [NurseController::class, 'getNearestNursesAdmin']);
     Route::get('/{id}', [NurseStatisticsController::class, 'nurse']);
     Route::get('/{id}/reservations', [NurseStatisticsController::class, 'nurseReservations']);
     Route::post('/reserve',[AdminReservationController::class,'nurseReservation']);

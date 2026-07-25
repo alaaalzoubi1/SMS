@@ -44,7 +44,7 @@ class NurseStatisticsController extends Controller
     public function nurseReservations(Request $request ,$id): JsonResponse
     {
         $request->validate([
-            'status' => 'nullable|in:pending,accepted,rejected,completed,cancelled',
+            'status' => 'nullable|in:pending,accepted,rejected,completed',
             'from' => 'nullable|date',
             'to' => 'nullable|date|after_or_equal:from',
             'per_page' => 'nullable|integer|min:1|max:100',
