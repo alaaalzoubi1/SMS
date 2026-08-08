@@ -38,41 +38,41 @@ use App\Http\Controllers\Auth\ForgotPasswordController;
     Route::get('provinces', [ProvinceController::class, 'index']);
 
 
-    Route::post('/password/forgot', [ForgotPasswordController::class, 'requestResetCode']);
+    Route::post('/password/forgot', [ForgotPasswordController::class, 'requestResetCode'])->middleware('throttle:5,1');
 
     Route::prefix('doctor')->group(function () {
-        Route::post('register', [DoctorAuthController::class, 'register']);
+        Route::post('register', [DoctorAuthController::class, 'register'])->middleware('throttle:5,60');
 //        Route::post('verifyCode', [DoctorAuthController::class, 'verifyCode']);
-        Route::post('login', [DoctorAuthController::class, 'login']);
-        Route::post('request-login', [DoctorAuthController::class, 'requestLogin']);
-        Route::post('verify-login', [DoctorAuthController::class, 'verifyLogin']);
+        Route::post('login', [DoctorAuthController::class, 'login'])->middleware('throttle:10,1');
+        Route::post('request-login', [DoctorAuthController::class, 'requestLogin'])->middleware('throttle:5,1');
+        Route::post('verify-login', [DoctorAuthController::class, 'verifyLogin'])->middleware('throttle:5,1');
     });
 
     Route::prefix('nurse')->group(function () {
-        Route::post('register', [NurseAuthController::class, 'register']);
+        Route::post('register', [NurseAuthController::class, 'register'])->middleware('throttle:5,60');
 //        Route::post('verifyCode', [NurseAuthController::class, 'verifyCode']);
-        Route::post('login', [NurseAuthController::class, 'login']);
-        Route::post('request-login', [NurseAuthController::class, 'requestLogin']);
-        Route::post('verify-login', [NurseAuthController::class, 'verifyLogin']);
+        Route::post('login', [NurseAuthController::class, 'login'])->middleware('throttle:10,1');
+        Route::post('request-login', [NurseAuthController::class, 'requestLogin'])->middleware('throttle:5,1');
+        Route::post('verify-login', [NurseAuthController::class, 'verifyLogin'])->middleware('throttle:5,1');
     });
     Route::prefix('hospital')->group(function () {
-        Route::post('register', [HospitalAuthController::class, 'updateHospitalData']);
+        Route::post('register', [HospitalAuthController::class, 'updateHospitalData'])->middleware('throttle:5,60');
 //        Route::post('verifyCode', [HospitalAuthController::class, 'verifyCode']);
-        Route::post('login', [HospitalAuthController::class, 'login']);
-        Route::post('request-login', [HospitalAuthController::class, 'requestLogin']);
-        Route::post('verify-login', [HospitalAuthController::class, 'verifyLogin']);
+        Route::post('login', [HospitalAuthController::class, 'login'])->middleware('throttle:10,1');
+        Route::post('request-login', [HospitalAuthController::class, 'requestLogin'])->middleware('throttle:5,1');
+        Route::post('verify-login', [HospitalAuthController::class, 'verifyLogin'])->middleware('throttle:5,1');
     });
     Route::prefix('user')->group(function (){
-        Route::post('register', [UserAuthController::class ,'register']);
-        Route::post('login', [UserAuthController::class, 'login']);
-        Route::post('request-login', [UserAuthController::class, 'requestLogin']);
-        Route::post('verify-login', [UserAuthController::class, 'verifyLogin']);
+        Route::post('register', [UserAuthController::class ,'register'])->middleware('throttle:5,60');
+        Route::post('login', [UserAuthController::class, 'login'])->middleware('throttle:10,1');
+        Route::post('request-login', [UserAuthController::class, 'requestLogin'])->middleware('throttle:5,1');
+        Route::post('verify-login', [UserAuthController::class, 'verifyLogin'])->middleware('throttle:5,1');
     });
 
 
-Route::post('/password/reset', [ForgotPasswordController::class, 'resetPassword']);
+Route::post('/password/reset', [ForgotPasswordController::class, 'resetPassword'])->middleware('throttle:5,1');
 
-Route::post('admin/login', [AdminAuthController::class, 'login']);
+Route::post('admin/login', [AdminAuthController::class, 'login'])->middleware('throttle:5,1');
 
 Route::get('doctor/specializations', [SpecializationController::class, 'index']);
 Route::delete('account',[\App\Http\Controllers\AccountController::class,'destroy']);
