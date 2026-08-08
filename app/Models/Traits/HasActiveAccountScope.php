@@ -10,7 +10,7 @@ trait HasActiveAccountScope
     {
         static::addGlobalScope('not_suspended', function (Builder $query) {
 
-            if (!auth()->user()->hasRole('admin')) {
+            if (!auth()->check() || !auth()->user()->hasRole('admin')){
                 $query->whereHas('account', function ($q) {
                     $q->where('is_suspended', false)
                         ->where(function ($subQuery) {
