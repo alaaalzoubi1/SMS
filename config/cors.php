@@ -3,14 +3,14 @@
 return [
 
     'paths' => [
-        'api/admin/*',
-        'api/hospital/*',
-        'api/doctor/*',
-        'api/landing',
-        'api/legal/*',
-        'api/contact-info',
-        'api/provinces',
-        'api/site-content/*',
+//        'api/admin/*',
+//        'api/hospital/*',
+//        'api/doctor/*',
+//        'api/landing',
+//        'api/legal/*',
+//        'api/contact-info',
+//        'api/provinces',
+//        'api/site-content/*',
     ],
 
     'allowed_methods' => ['*'],
