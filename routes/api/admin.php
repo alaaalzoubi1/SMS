@@ -61,6 +61,7 @@ Route::prefix('doctor')->group(function () {
 });
 Route::prefix('hospital')->group(function () {
     Route::get('/all', [HospitalStatisticsController::class, 'hospitals']);
+    Route::get('/search-by-province-service', [HospitalStatisticsController::class, 'searchByProvinceAndService']);
     Route::get('/nearest', [HospitalController::class, 'getNearestHospitals']);
     Route::get('/{id}', [HospitalStatisticsController::class, 'hospital']);
     Route::get('/{id}/reservations', [HospitalStatisticsController::class, 'hospitalReservations']);

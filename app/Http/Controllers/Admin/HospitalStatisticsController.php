@@ -53,6 +53,34 @@ class HospitalStatisticsController extends Controller
             'hospital' => Hospital::with(['account:id,email,phone_number,created_at,updated_at','services_2','workSchedule'])->where('id',$id)->first()
         ]);
     }
+    /**
+     * Search hospitals in a province that currently have capacity (> 0)
+     * for a specific service.
+     */
+    public function searchByProvinceAndService(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'province_id' => 'required|integer|exists:provinces,id',
+            'service_id'  => 'required|integer|exists:services,id',
+        ]);
+
+        $hospitals = Hospital::query()
+            ->where('province_id', $validated['province_id'])
+            ->whereHas('services_2', function ($q) use ($validated) {
+                $q->where('service_id', $validated['service_id'])
+                  ->where('capacity', '>', 0);
+            })
+            ->with(['account:id,email,phone_number', 'province:id,name_ar,name_en'])
+            ->with(['services_2' => function ($q) use ($validated) {
+                $q->where('service_id', $validated['service_id'])
+                  ->where('capacity', '>', 0);
+            }])
+            ->paginate(10);
+
+        return response()->json([
+            'hospitals' => $hospitals,
+        ]);
+    }
     public function hospitalReservations(Request $request ,$id): JsonResponse
     {
         $request->validate([

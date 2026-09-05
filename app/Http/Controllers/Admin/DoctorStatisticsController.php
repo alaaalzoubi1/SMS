@@ -12,42 +12,46 @@ class DoctorStatisticsController extends Controller
 {
     public function doctors(Request $request): JsonResponse
     {
+        $validated = $request->validate([
+            'full_name' => 'nullable|string|max:255',
+            'address' => 'nullable|string|max:255',
+            'location' => 'nullable|string|max:255',
+            'age' => 'nullable|integer|min:0|max:150',
+            'gender' => 'nullable|in:male,female',
+            'birthdate' => 'nullable|date',
+            'specialization_id' => 'nullable|integer|exists:specializations,id',
+            'province_id' => 'nullable|integer|exists:provinces,id',
+            'email' => 'nullable|string|max:255',
+            'phone_number' => 'nullable|string|max:20',
+            'name_ar' => 'nullable|string|max:255',
+            'name_en' => 'nullable|string|max:255',
+            'per_page' => 'nullable|integer|min:1|max:100',
+        ]);
+
         $query = Doctor::query()
             ->with([
                 'account:id,email,phone_number',
                 'specialization:id,name_ar,name_en,image'
             ]);
 
-        $filters = collect($request->only([
-            'full_name',
-            'address',
-            'age',
-            'gender',
-            'specialization_id',
-            'location',
-            'email',
-            'phone_number',
-            'name_ar',
-            'name_en'
-        ]))->filter();
-        $filters->each(function ($value, $key) use ($query) {
-            match ($key) {
-                'full_name',
-                'address',
-                'location' => $query->where($key, 'like', "%{$value}%"),
-                'age',
-                'gender',
-                'specialization_id' => $query->where($key, $value),
-                'email',
-                'phone_number' => $query->whereHas('account', function ($q) use ($key, $value) {
-                    $q->where($key, 'like', "%{$value}%");
-                }),
-                default => null
-            };
-        });
+        $query
+            ->when($validated['full_name'] ?? null, fn ($q, $v) => $q->where('full_name', 'like', "%{$v}%"))
+            ->when($validated['address'] ?? null, fn ($q, $v) => $q->where('address', 'like', "%{$v}%"))
+            ->when($validated['location'] ?? null, fn ($q, $v) => $q->where('location', 'like', "%{$v}%"))
+            ->when($validated['age'] ?? null, fn ($q, $v) => $q->where('age', $v))
+            ->when($validated['gender'] ?? null, fn ($q, $v) => $q->where('gender', $v))
+            ->when($validated['birthdate'] ?? null, fn ($q, $v) => $q->whereDate('birthdate', $v))
+            ->when($validated['specialization_id'] ?? null, fn ($q, $v) => $q->where('specialization_id', $v))
+            ->when($validated['province_id'] ?? null, fn ($q, $v) => $q->where('province_id', $v))
+            ->when($validated['email'] ?? null, fn ($q, $v) => $q->whereRelation('account', 'email', 'like', "%{$v}%"))
+            ->when($validated['phone_number'] ?? null, fn ($q, $v) => $q->whereRelation('account', 'phone_number', 'like', "%{$v}%"))
+            ->when($validated['name_ar'] ?? null, fn ($q, $v) => $q->whereRelation('specialization', 'name_ar', 'like', "%{$v}%"))
+            ->when($validated['name_en'] ?? null, fn ($q, $v) => $q->whereRelation('specialization', 'name_en', 'like', "%{$v}%"));
+
+        $perPage = $validated['per_page'] ?? 10;
 
         return response()->json([
-            'doctors' => $query->paginate(10)
+            'doctors' => $query->paginate($perPage)
         ]);
     }
     public function doctor($id): JsonResponse

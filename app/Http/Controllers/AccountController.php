@@ -104,6 +104,7 @@ class AccountController extends Controller
             }
 
             // Delete the account (soft delete by default)
+            auth()->logout();
             $account->delete();
 
             return response()->json([

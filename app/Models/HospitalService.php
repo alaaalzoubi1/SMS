@@ -16,6 +16,7 @@ class HospitalService extends Model
         'service_id',
         'price',
         'capacity',
+        'description',
     ];
 
     public function hospital(): BelongsTo

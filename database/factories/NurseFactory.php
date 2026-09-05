@@ -29,7 +29,7 @@ class NurseFactory extends Factory
             'address' => $this->faker->address,
             'graduation_type' => $this->faker->randomElement(['معهد', 'مدرسة', 'جامعة', 'ماجستير', 'دكتوراه']),
             'location' => new Point($this->faker->latitude(), $this->faker->longitude() ),
-            'age' => $this->faker->numberBetween(25, 65),
+            'birthdate' => $this->faker->dateTimeBetween('-65 years', '-25 years')->format('Y-m-d'),
             'gender' => $this->faker->randomElement(['male', 'female']),
             'profile_description' => $this->faker->sentence,
             'license_image_path' => '',

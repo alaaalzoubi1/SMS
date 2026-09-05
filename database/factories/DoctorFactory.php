@@ -24,7 +24,7 @@ class DoctorFactory extends Factory
             'full_name' => $this->faker->name,
             'profile_description' => $this->faker->sentence,
             'address' => $this->faker->address,
-            'age' => $this->faker->numberBetween(25, 65),
+            'birthdate' => $this->faker->dateTimeBetween('-65 years', '-25 years')->format('Y-m-d'),
             'gender' => $this->faker->randomElement(['male', 'female']),
             'location' => new Point($this->faker->latitude(), $this->faker->longitude() ),
             'specialization_id' => \App\Models\Specialization::inRandomOrder()->value('id') ?? 1,

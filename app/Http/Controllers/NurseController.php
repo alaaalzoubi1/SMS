@@ -178,7 +178,7 @@ class NurseController extends Controller
                 $nurse->avg_rating = max(4,$nurse->avg_rating);
                 return $nurse;
             })
-            ->makeHidden(['license_image_path', 'deleted_at', 'created_at', 'updated_at']);
+            ->makeHidden(['license_image_path', 'deleted_at', 'created_at', 'updated_at', 'birthdate']);
         return response()->json([
             'nurses' => $nurses,
         ]);

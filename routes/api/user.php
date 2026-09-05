@@ -14,6 +14,7 @@ use App\Http\Controllers\NurseServiceController;
 use App\Http\Controllers\ProvinceController;
 use App\Http\Controllers\RatingController;
 use App\Http\Controllers\ServiceController;
+use App\Http\Controllers\UserAddressController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -21,6 +22,14 @@ use Illuminate\Support\Facades\Route;
     Route::get('logout', [UserAuthController::class, 'logout']);
     Route::get('me', [UserAuthController::class, 'me']);
     Route::post('updateProfile', [UserAuthController::class, 'updateProfile']);
+
+    Route::prefix('addresses')->controller(UserAddressController::class)->group(function () {
+        Route::get('/', 'index');
+        Route::post('/', 'store');
+        Route::get('/{id}', 'show');
+        Route::put('/{id}', 'update');
+        Route::delete('/{id}', 'destroy');
+    });
 
     Route::prefix('doctors')->group(function () {
         Route::post('/', [DoctorController::class, 'listForUsers']);

@@ -27,7 +27,7 @@ class UserRegisterRequest extends FormRequest
             'password' => 'required|confirmed|min:8',
             'phone_number' => 'required|unique:accounts,phone_number',
             'full_name' => 'required|string|max:50',
-            'age' => 'required|integer|min:0',
+            'birthdate' => 'required|date|before_or_equal:today',
             'gender' => 'required|in:male,female',
         ];
     }

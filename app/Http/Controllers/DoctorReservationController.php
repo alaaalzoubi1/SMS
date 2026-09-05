@@ -38,8 +38,20 @@ class DoctorReservationController extends Controller
             'doctor_service_id' => 'required|exists:doctor_services,id',
             'doctor_id' => 'required|exists:doctors,id',
             'date' => 'required|date_format:Y-m-d|after_or_equal:today',
+            'confirm' => 'sometimes|boolean',
         ]);
-
+        $userId = auth()->user()->user->id;
+        if (!$request->confirm){
+            $previousReservation = DoctorReservation::where('user_id' , $userId)
+                ->where('status','pending')
+                ->exists();
+            if ($previousReservation)
+            {
+                return response()->json([
+                    'message' => 'لديك بالفعل طلب بحالة قيد الانتظار هل تريد المتابعة فعلاً!'
+                ]);
+            }
+        }
         $service = DoctorService::where('id', $request->doctor_service_id)
             ->where('doctor_id', $request->doctor_id)
             ->firstOrFail();
@@ -97,8 +109,9 @@ class DoctorReservationController extends Controller
 
         return User::create([
             'full_name'    => $data['full_name'],
-            'age' => $data['age'],
-            'gender' => $data['gender']
+            'birthdate' => $data['birthdate'],
+            'gender' => $data['gender'],
+            'phone' => $data['phone'] ?? null,
         ]);
     }
 
@@ -106,8 +119,9 @@ class DoctorReservationController extends Controller
     {
         $request->validate([
             'full_name'     => 'required|string|max:255',
-            'age' => 'required|integer|min:0|max:99',
+            'birthdate' => 'required|date|before_or_equal:today',
             'gender'         => 'required|in:male,female',
+            'phone'          => 'nullable|string|max:25',
             'doctor_service_id' => 'required|exists:doctor_services,id',
             'date'          => 'required|date|after_or_equal:today',
         ]);
@@ -118,8 +132,9 @@ class DoctorReservationController extends Controller
             $this->authorize('manage',$service);
             $user = $this->createStaticUser([
                 'full_name' => $request->full_name,
-                'age' => $request->age,
-                'gender' => $request->gender
+                'birthdate' => $request->birthdate,
+                'gender' => $request->gender,
+                'phone' => $request->phone,
             ]);
 
 
@@ -136,7 +151,7 @@ class DoctorReservationController extends Controller
 
             return response()->json([
                 'message' => 'Reservation created successfully.',
-                'data'    => $reservation,
+                'data'    => $reservation->load('user'),
             ], 201);
 
         } catch (\Exception $e) {
@@ -264,6 +279,13 @@ class DoctorReservationController extends Controller
             */
             elseif ($request->status === 'completed') {
 
+                if ($reservation->date && Carbon::parse($reservation->date)->isFuture()) {
+                    DB::rollBack();
+                    return response()->json([
+                        'message' => 'لا يمكن إكمال الحجز قبل حلول موعد الحجز.'
+                    ], 422);
+                }
+
                 $reservation->update([
                     'status' => 'completed'
                 ]);
@@ -287,6 +309,33 @@ class DoctorReservationController extends Controller
                 'error'   => $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Calendar view: reservations scheduled for a given day (by the `date`
+     * column), like a Google Calendar. Optional `status` filter.
+     */
+    public function calendar(Request $request): JsonResponse
+    {
+        $request->validate([
+            'date' => 'required|date_format:Y-m-d',
+            'status' => 'nullable|in:pending,approved,rejected,cancelled,completed',
+        ]);
+
+        $doctor = Doctor::where('account_id', auth()->id())->firstOrFail();
+
+        $reservations = DoctorReservation::query()
+            ->where('doctor_id', $doctor->id)
+            ->whereDate('date', $request->date)
+            ->when($request->filled('status'), fn ($q) => $q->where('status', $request->status))
+            ->orderBy('start_time')
+            ->with(['user.account:id,full_name,phone_number', 'doctorService', 'cancellation'])
+            ->get();
+
+        return response()->json([
+            'date' => $request->date,
+            'reservations' => $reservations,
+        ]);
     }
 
     private function notifyUser(DoctorReservation $reservation, ?string $reason = null): void
@@ -336,10 +385,13 @@ class DoctorReservationController extends Controller
     {
         $request->validate([
             'date' => 'required|date',
+            'reason' => 'required|string|max:500',
         ]);
 
         $doctor = Doctor::where('account_id', auth()->id())
             ->firstOrFail();
+
+        $reason = $request->reason;
 
         $pendingReservations = DoctorReservation::where('doctor_id', $doctor->id)
             ->where('date', $request->date)
@@ -350,10 +402,10 @@ class DoctorReservationController extends Controller
             $reservation->update(['status' => 'cancelled']);
 
             $reservation->cancellation()->create([
-                'reason' => 'تم إلغاء الحجز بسبب ضيق الوقت وعدم توفر مواعيد كافية.',
+                'reason' => $reason,
             ]);
 
-            $this->notifyUser($reservation, 'ضيق الوقت');
+            $this->notifyUser($reservation, $reason);
         }
 
         return response()->json([

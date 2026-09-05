@@ -17,6 +17,7 @@ class HospitalServiceReservationSeeder extends Seeder
             'user_id' => 1,
             'hospital_service_id' => 1,
             'hospital_id' => 1,
+            'unit_price' => \App\Models\HospitalService::find(1)?->price,
             'start_date' => now()->toDateString(),
             'end_date' => now()->addDays(2)->toDateString(),
             'status' => 'pending',

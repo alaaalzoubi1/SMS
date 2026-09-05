@@ -18,8 +18,9 @@ class ReservationUserService
         if ($userData) {
             return User::create([
                 'full_name' => $userData['full_name'],
-                'age' => $userData['age'],
+                'birthdate' => $userData['birthdate'],
                 'gender' => $userData['gender'],
+                'phone' => $userData['phone'] ?? null,
                 'account_id' => null
             ]);
         }

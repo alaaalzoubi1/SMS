@@ -17,21 +17,31 @@ class NurseReservationService
     {
         try {
 
+            $serviceIds = $data['nurse_service_ids'] ?? ($data['nurse_service_id'] ?? null);
+            if (empty($serviceIds)) {
+                throw new ModelNotFoundException('Doctor or service not available.');
+            }
+            $serviceIds = array_values((array) $serviceIds);
+            $serviceIds = array_values(array_unique(array_map('intval', $serviceIds)));
 
-            $service = NurseService::with('nurse.account')
-                ->where('id', $data['nurse_service_id'])
+            $services = NurseService::with('nurse.account')
+                ->whereIn('id', $serviceIds)
                 ->where('nurse_id', $data['nurse_id'])
                 ->whereHas('nurse.account', function ($q) {
                     $q->active();
                 })
-                ->firstOrFail();
+                ->get();
+
+            if ($services->count() !== count($serviceIds)) {
+                throw new ModelNotFoundException('Doctor or service not available.');
+            }
 
             $reservation = new NurseReservation();
 
             $reservation->user_id = $userId;
             $reservation->nurse_id = $data['nurse_id'];
-            $reservation->nurse_service_id = $data['nurse_service_id'];
-            $reservation->price = $service->price;
+            $reservation->nurse_service_id = $services->first()->id;
+            $reservation->price = $services->sum('price');
             $reservation->reservation_type = $data['reservation_type'];
             $reservation->note = $data['note'] ?? null;
             $reservation->status = "pending";
@@ -47,6 +57,10 @@ class NurseReservationService
                 $reservation->location = new Point($data['lat'], $data['lng']);
 
             $reservation->save();
+
+            $reservation->services()->attach(
+                $services->mapWithKeys(fn (NurseService $s) => [$s->id => ['price' => $s->price]])
+            );
 
             return $reservation;
         }catch (ModelNotFoundException $e){

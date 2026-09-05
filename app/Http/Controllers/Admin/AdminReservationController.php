@@ -38,8 +38,9 @@ class AdminReservationController extends Controller
             'user_data' => 'sometimes|array',
 
             'user_data.full_name' => 'required_with:user_data|string|max:255',
-            'user_data.age' => 'required_with:user_data|integer|min:0',
+            'user_data.birthdate' => 'required_with:user_data|date|before_or_equal:today',
             'user_data.gender' => 'required_with:user_data|in:male,female',
+            'user_data.phone' => 'nullable|string|max:25',
 
         ]);
         if ($request->filled('user_id') && $request->filled('user_data')) {
@@ -79,7 +80,9 @@ class AdminReservationController extends Controller
         $request->validate([
 
             'nurse_id' => 'required|exists:nurses,id',
-            'nurse_service_id' => 'required|exists:nurse_services,id',
+            'nurse_service_id' => 'required_without:nurse_service_ids|exists:nurse_services,id',
+            'nurse_service_ids' => 'required_without:nurse_service_id|array|min:1',
+            'nurse_service_ids.*' => 'integer|distinct:strict|exists:nurse_services,id',
 
             'reservation_type' => 'required|in:direct,manual',
             'note' => 'nullable|string|max:1000',
@@ -94,8 +97,9 @@ class AdminReservationController extends Controller
             'user_data' => 'sometimes|array',
 
             'user_data.full_name' => 'required_with:user_data|string|max:255',
-            'user_data.age' => 'required_with:user_data|integer|min:0',
+            'user_data.birthdate' => 'required_with:user_data|date|before_or_equal:today',
             'user_data.gender' => 'required_with:user_data|in:male,female',
+            'user_data.phone' => 'nullable|string|max:25',
 
         ]);
         if ($request->filled('user_id') && $request->filled('user_data')) {
@@ -120,6 +124,8 @@ class AdminReservationController extends Controller
             true
         );
 
+        $reservation->load(['user', 'nurse.account', 'services']);
+
         return response()->json($reservation);
     }
 
@@ -138,8 +144,9 @@ class AdminReservationController extends Controller
             'user_data' => 'sometimes|array',
 
             'user_data.full_name' => 'required_with:user_data|string|max:255',
-            'user_data.age' => 'required_with:user_data|integer|min:0',
+            'user_data.birthdate' => 'required_with:user_data|date|before_or_equal:today',
             'user_data.gender' => 'required_with:user_data|in:male,female',
+            'user_data.phone' => 'nullable|string|max:25',
 
         ]);
         if ($request->filled('user_id') && $request->filled('user_data')) {

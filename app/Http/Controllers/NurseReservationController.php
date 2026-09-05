@@ -40,7 +40,7 @@ class NurseReservationController extends Controller
             ->when($request->to, fn($q) => $q->whereDate('start_at', '<=', $request->to))
             ->when($request->reservation_type,fn($q) => $q->where('reservation_type',$request->reservation_type))
             ->orderBy('created_at', 'desc')
-            ->with(['user.account','nurseService.service','cancellation']);
+            ->with(['user.account','nurseService.service','services.service','cancellation']);
 
         $perPage = $request->input('per_page', 10);
 
@@ -176,13 +176,22 @@ class NurseReservationController extends Controller
                     ]);
                 }
             }
-            $service = NurseService::find($request->nurse_service_id);
+            $serviceIds = array_values(array_unique($request->nurse_service_ids));
+
+            $services = NurseService::query()
+                ->where('nurse_id', $request->nurse_id)
+                ->whereIn('id', $serviceIds)
+                ->get();
+
+            if ($services->count() !== count($serviceIds)) {
+                return response()->json(['message' => 'أحد الخدمات المحددة غير متاحة.'], 422);
+            }
 
             $reservation = new NurseReservation();
             $reservation->user_id = $userId;
             $reservation->nurse_id = $request->nurse_id;
-            $reservation->nurse_service_id = $request->nurse_service_id;
-            $reservation->price = $service->price;
+            $reservation->nurse_service_id = $services->first()->id;
+            $reservation->price = $services->sum('price');
             $reservation->reservation_type = $request->reservation_type;
             $reservation->note = $request->note;
 
@@ -200,6 +209,9 @@ class NurseReservationController extends Controller
             $reservation->status = "pending";
             $reservation->save();
 
+            $reservation->services()->attach(
+                $services->mapWithKeys(fn (NurseService $s) => [$s->id => ['price' => $s->price]])
+            );
 
             DB::commit();
             $nurse = $reservation->nurse()->with('account')->first();
@@ -218,7 +230,7 @@ class NurseReservationController extends Controller
             }
             return response()->json([
                 'message' => 'تم إنشاء الحجز بنجاح.',
-                'data' => $reservation->load('nurseService','nurse.account'),
+                'data' => $reservation->load('nurseService', 'services.service', 'nurse.account:id'),
             ], 201);
 
         } catch (\Throwable $e) {

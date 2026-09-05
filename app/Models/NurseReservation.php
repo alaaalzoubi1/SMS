@@ -43,6 +43,12 @@ class NurseReservation extends Model
     {
         return $this->belongsTo(NurseService::class)->withTrashed();
     }
+    public function services():BelongsToMany
+    {
+        return $this->belongsToMany(NurseService::class, 'nurse_reservation_services')
+            ->withTrashed()
+            ->withPivot('price');
+    }
     public function cancellation(): HasOne
     {
         return $this->hasOne(NurseCancellation::class, 'reservation_id');

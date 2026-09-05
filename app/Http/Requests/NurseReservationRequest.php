@@ -25,8 +25,10 @@ class NurseReservationRequest extends FormRequest
     {
         return [
             'nurse_id' => ['required', 'exists:nurses,id'],
-            'nurse_service_id' => [
-                'required',
+            'nurse_service_ids' => ['required', 'array', 'min:1'],
+            'nurse_service_ids.*' => [
+                'integer',
+                'distinct:strict',
                 Rule::exists('nurse_services', 'id')->where('nurse_id', $this->nurse_id),
             ],
                 'reservation_type' => ['required', Rule::in(['direct', 'manual'])],

@@ -36,6 +36,7 @@ Route::prefix('services')->group(function () {
 Route::prefix('reservations')->group(callback: function () {
     Route::post('/', [DoctorReservationController::class, 'createStaticReservation']);
     Route::get('/', [DoctorReservationController::class, 'index']);
+    Route::get('calendar', [DoctorReservationController::class, 'calendar']);
     Route::patch('/updateStatus/{id}', [DoctorReservationController::class, 'updateStatus']);
     Route::patch('cancel-remaining',[DoctorReservationController::class,'cancelRemaining']);
 

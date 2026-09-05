@@ -40,7 +40,6 @@ class HospitalController extends Controller
             ->with([
                 'services.service',
                 'province:id,name_ar,name_en',
-                'account'
             ]);
         if (!empty($validated['full_name'])) {
             $query->where('full_name', 'like', '%' . $validated['full_name'] . '%');
@@ -69,7 +68,6 @@ class HospitalController extends Controller
                     'address'    => $hospital->address,
                     'avg_rating' => max(4, $hospital->avg_rating),
                     'location'   => $hospital->location,
-                    'phone_number' => $hospital->account?->phone_number,
 
                     'province' => $hospital->province ? [
                         'id'      => $hospital->province->id,
@@ -81,6 +79,7 @@ class HospitalController extends Controller
                         return [
                             'id'    => $service->id,
                             'name'  => $service->service->service_name ?? null,
+                            'description' => $service->description,
                             'price' => $service->price,
                             'icon' => $service->service->icon,
                         ];
@@ -104,14 +103,14 @@ class HospitalController extends Controller
         // Retrieve services for the hospital
         $services = $hospital->services_2()->get();  // Get all related services
 
-        // Format the response to include service name, price, and capacity
+        // Format the response to include service name and price (capacity hidden)
         $formattedServices = $services->map(function ($service) {
             return [
                 'service_id' => $service->pivot->id,
                 'service_name' => $service->service_name,
+                'description' => $service->pivot->description,
                 'icon' => $service->icon,
                 'price' => $service->pivot->price, // Access price from pivot table
-                'capacity' => $service->pivot->capacity, // Access capacity from pivot table
             ];
         });
 

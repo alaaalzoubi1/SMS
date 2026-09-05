@@ -33,7 +33,7 @@ class UserAuthController extends Controller
             $user = User::create([
                 'account_id' => $account->id,
                 'full_name' => $request->full_name,
-                'age' => $request->age,
+                'birthdate' => $request->birthdate,
                 'gender' => $request->gender,
             ]);
             $account->assignRole('user');
@@ -150,7 +150,7 @@ class UserAuthController extends Controller
         $validated = $request->validate([
             'phone_number' => 'sometimes|string|unique:accounts,phone_number',
             'full_name' => 'sometimes|string|max:50',
-            'age' => 'sometimes|integer|min:0|max:99',
+            'birthdate' => 'sometimes|date|before_or_equal:today',
             'gender' => 'sometimes|in:male,female',
         ]);
         if (isset($validated['phone_number']))     {
@@ -162,8 +162,8 @@ class UserAuthController extends Controller
         }
 
 
-        if (isset($validated['age'])) {
-            $user->age = $validated['age'];
+        if (isset($validated['birthdate'])) {
+            $user->birthdate = $validated['birthdate'];
         }
 
         if (isset($validated['gender'])) {

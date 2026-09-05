@@ -30,9 +30,14 @@ class HospitalServiceReservationController extends Controller
 
     public function index(Request $request)
     {
+        $request->validate([
+            'status' => 'nullable|in:pending,confirmed,accepted,cancelled,finished',
+        ]);
+
         $hospital = $this->getAuthenticatedHospital();
 
         $reservations = HospitalServiceReservation::where('hospital_id', $hospital->id)
+              ->when($request->filled('status'), fn ($q) => $q->where('status', $request->status))
               ->with(['user', 'hospitalService.service','cancellation'])
               ->orderBy('start_date', 'desc')
               ->paginate()
@@ -40,8 +45,11 @@ class HospitalServiceReservationController extends Controller
                   return [
                       'id' => $reservation->id,
                       'user_name' => $reservation->user->full_name  ?? 'N/A',
+                      'user_phone' => $reservation->user?->phone_number,
                       'service_name' => $reservation->hospitalService->service->service_name ?? 'N/A',
-                      'price' => (float) $reservation->hospitalService->price,
+                      'unit_price' => (float) $reservation->unit_price,
+                      'days' => $reservation->days,
+                      'final_price' => $reservation->final_price,
                       'status' => $reservation->status,
                       'reserved_by_admin' => $reservation->reserved_by_admin,
                       'start_date' => Carbon::parse($reservation->start_date)->format('Y-m-d'),
@@ -69,12 +77,56 @@ class HospitalServiceReservationController extends Controller
         return response()->json([
             'id' => $reservation->id,
             'user_name' => $reservation->user->name ?? $reservation->user->email ?? 'N/A',
+            'user_phone' => $reservation->user?->phone_number,
             'service_name' => $reservation->hospitalService->service->service_name ?? 'N/A',
-            'price' => (float) $reservation->hospitalService->price,
+            'unit_price' => (float) $reservation->unit_price,
+            'days' => $reservation->days,
+            'final_price' => $reservation->final_price,
             'reserved_by_admin' => $reservation->reserved_by_admin,
             'status' => $reservation->status,
             'start_date' => Carbon::parse($reservation->start_date)->format('Y-m-d'),
             'end_date' => Carbon::parse($reservation->end_date)->format('Y-m-d'),
+        ]);
+    }
+
+    /**
+     * Calendar view: reservations scheduled for a given day (by the
+     * `start_date` column), like the doctor calendar. Optional `status` filter.
+     */
+    public function calendar(Request $request)
+    {
+        $request->validate([
+            'date' => 'required|date_format:Y-m-d',
+            'status' => 'nullable|in:pending,confirmed,accepted,cancelled,finished',
+        ]);
+
+        $hospital = $this->getAuthenticatedHospital();
+
+        $reservations = HospitalServiceReservation::where('hospital_id', $hospital->id)
+              ->whereDate('start_date', $request->date)
+              ->when($request->filled('status'), fn ($q) => $q->where('status', $request->status))
+              ->with(['user', 'hospitalService.service', 'cancellation'])
+              ->orderBy('start_date')
+              ->get()
+              ->map(function ($reservation) {
+                  return [
+                      'id' => $reservation->id,
+                      'user_name' => $reservation->user->full_name ?? 'N/A',
+                      'user_phone' => $reservation->user?->phone_number,
+                      'service_name' => $reservation->hospitalService->service->service_name ?? 'N/A',
+                      'unit_price' => (float) $reservation->unit_price,
+                      'days' => $reservation->days,
+                      'final_price' => $reservation->final_price,
+                      'status' => $reservation->status,
+                      'reserved_by_admin' => $reservation->reserved_by_admin,
+                      'start_date' => Carbon::parse($reservation->start_date)->format('Y-m-d'),
+                      'end_date' => Carbon::parse($reservation->end_date)->format('Y-m-d'),
+                  ];
+              });
+
+        return response()->json([
+            'date' => $request->date,
+            'reservations' => $reservations,
         ]);
     }
 
@@ -284,8 +336,11 @@ class HospitalServiceReservationController extends Controller
                 return [
                     'id' => $reservation->id,
                     'user_name' => $reservation->user->name ?? $reservation->user->email ?? 'N/A',
+                    'user_phone' => $reservation->user?->phone_number,
                     'service_name' => $reservation->hospitalService->service->service_name ?? 'N/A',
-                    'price' => (float) $reservation->hospitalService->price,
+                    'unit_price' => (float) $reservation->unit_price,
+                    'days' => $reservation->days,
+                    'final_price' => $reservation->final_price,
                     'status' => $reservation->status,
                     'start_date' => Carbon::parse($reservation->start_date)->format('Y-m-d'),
                     'end_date' => Carbon::parse($reservation->end_date)->format('Y-m-d'),
@@ -302,7 +357,20 @@ class HospitalServiceReservationController extends Controller
     {
         $validated = $request->validate([
             'hospital_service_id' => 'required|exists:hospital_services,id',
+            'confirm' => 'sometimes|boolean',
         ]);
+        $userId = auth()->user()->user->id;
+        if (!$request->confirm){
+            $previousReservation = HospitalServiceReservation::where('user_id' , $userId)
+                ->where('status','pending')
+                ->exists();
+            if ($previousReservation)
+            {
+                return response()->json([
+                    'message' => 'لديك بالفعل طلب بحالة قيد الانتظار هل تريد المتابعة فعلاً!'
+                ]);
+            }
+        }
 
         $hospitalService = HospitalService::with('hospital')
             ->where('id', $validated['hospital_service_id'])
@@ -316,20 +384,22 @@ class HospitalServiceReservationController extends Controller
 
         $validated['user_id'] = auth()->user()->user->id;
         $validated['hospital_id'] = $hospitalService->hospital_id;
+        $validated['unit_price'] = $hospitalService->price;
 
         HospitalServiceReservation::create($validated);
 
 
         return response()->json([
-            'message' => "تم إنشاء الحجز بنجاح،بعد موافقة المشفى عليه يجب تثبيت الحجز خلال مدة أقصاها {$hospitalService->hospital->reservation_confirmation_deadline} ساعة"
+            'message' => "تم إنشاء الطلب سيتم التواصل معكم خلال دقائق يرجى الانتظار"
         ]);
     }
     public function storeManual(Request $request): JsonResponse
     {
         $request->validate([
             'full_name' => 'required|string|max:255',
-            'age' => 'required|integer|min:0',
+            'birthdate' => 'required|date|before_or_equal:today',
             'gender' => 'required|in:male,female',
+            'phone' => 'nullable|string|max:25',
             'hospital_service_id' => 'required|exists:hospital_services,id',
             'start_date' => 'nullable|date',
             'end_date' => 'nullable|date|after_or_equal:start_date',
@@ -368,14 +438,16 @@ class HospitalServiceReservationController extends Controller
             $user = User::create([
                 'account_id' => null,
                 'full_name' => $request->full_name,
-                'age' => $request->age,
+                'birthdate' => $request->birthdate,
                 'gender' => $request->gender,
+                'phone' => $request->phone,
             ]);
 
             $reservation = HospitalServiceReservation::create([
                 'user_id' => $user->id,
                 'hospital_id' => $hospital_id,
                 'hospital_service_id' => $service->id,
+                'unit_price' => $service->price,
                 'start_date' => $request->start_date,
                 'end_date' => $request->end_date,
                 'status' => 'confirmed',

@@ -58,7 +58,7 @@ class DoctorAuthController extends Controller
                 'full_name'            => $validated['full_name'],
                 'specialization_id'    => $validated['specialization_id'],
                 'address'              => $validated['address'],
-                'age'                  => $validated['age'],
+                'birthdate'            => $validated['birthdate'],
                 'gender'               => $validated['gender'],
                 'profile_description'  => $validated['profile_description'],
                 'profile_image_path'   => $profileImagePath,
@@ -70,7 +70,7 @@ class DoctorAuthController extends Controller
             User::create([
                 'account_id' => $account->id,
                 'full_name'  => $doctor->full_name,
-                'age'        => $doctor->age,
+                'birthdate'  => $doctor->birthdate,
                 'gender'     => $doctor->gender,
             ]);
 
@@ -229,7 +229,7 @@ class DoctorAuthController extends Controller
             $accountData['phone_number'] = $validated['phone_number'];
         }
 
-        foreach (['address', 'age', 'gender', 'profile_description'] as $field) {
+        foreach (['address', 'birthdate', 'gender', 'profile_description'] as $field) {
             if (array_key_exists($field, $validated)) {
                 $doctorData[$field] = $validated[$field];
             }

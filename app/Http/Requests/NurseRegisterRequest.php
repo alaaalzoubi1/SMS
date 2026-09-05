@@ -22,10 +22,10 @@ class NurseRegisterRequest extends FormRequest
             // Nurse Info (Full Name, Address, Graduation Type, etc.)
             'full_name' => 'required|string|max:255',
             'address' => 'nullable|string|max:255', // Address is optional
-            'graduation_type' => 'required|in:معهد,مدرسة,جامعة,ماجستير,دكتوراه',
+            'graduation_type' => 'required|in:معهد طبي/صحي,مدرسة التمريض والقبالة,جامعة,ماجستير,دكتوراه',
             'longitude' => 'nullable|numeric|between:-180,180',  // Longitude can be null
             'latitude' => 'nullable|numeric|between:-90,90',   // Latitude can be null
-            'age' => 'required|integer|min:21|max:99',
+            'birthdate' => 'required|date|after_or_equal:' . now()->subYears(99)->toDateString() . '|before_or_equal:' . now()->subYears(21)->toDateString(),
             'gender' => 'required|in:male,female',
 
             // Optional Description
@@ -60,7 +60,7 @@ class NurseRegisterRequest extends FormRequest
             'graduation_type' => 'Graduation Type',
             'longitude' => 'Longitude',
             'latitude' => 'Latitude',
-            'age' => 'Age',
+            'birthdate' => 'Birthdate',
             'gender' => 'Gender',
             'profile_description' => 'Profile Description',
             'license_image' => 'License Image',

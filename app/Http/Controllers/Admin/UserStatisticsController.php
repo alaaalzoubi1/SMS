@@ -61,12 +61,13 @@ class UserStatisticsController extends Controller
         }
 
         $user = User::query()
-            ->with($with) // تحميل مسبق مع قيود لكل علاقة
+            ->with(array_merge($with, ['account:id,email,phone_number']))
             ->where('id', $id)
             ->firstOrFail();
 
         return response()->json([
             'data' => [
+                'user'                  => $user,
                 'nurse_reservations'    => $user->nurseReservations,
                 'hospital_reservations' => $user->hospitalReservations,
                 'doctor_reservations'   => $user->doctorReservations,

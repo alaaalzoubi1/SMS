@@ -52,7 +52,7 @@ class NurseAuthController extends Controller
                 'address'             => $validated['address'],
                 'graduation_type'     => $validated['graduation_type'],
                 'location'            => new Point($validated['latitude'], $validated['longitude']),
-                'age'                 => $validated['age'],
+                'birthdate'           => $validated['birthdate'],
                 'gender'              => $validated['gender'],
                 'profile_description' => $validated['profile_description'] ?? null,
                 'license_image_path'  => $licenseImagePath,
@@ -63,7 +63,7 @@ class NurseAuthController extends Controller
             User::create([
                 'account_id' => $account->id,
                 'full_name'  => $nurse->full_name,
-                'age'        => $nurse->age,
+                'birthdate'  => $nurse->birthdate,
                 'gender'     => $nurse->gender,
             ]);
 
@@ -220,7 +220,7 @@ class NurseAuthController extends Controller
             'graduation_type' => 'sometimes|in:معهد,مدرسة,جامعة,ماجستير,دكتوراه',
             'latitude' => 'nullable|numeric|between:-90,90',
             'longitude' => 'nullable|numeric|between:-180,180',
-            'age' => 'sometimes|integer|min:21|max:99',
+            'birthdate' => 'sometimes|date|after_or_equal:' . now()->subYears(99)->toDateString() . '|before_or_equal:' . now()->subYears(21)->toDateString(),
             'gender' => 'sometimes|in:male,female',
             'profile_description' => 'nullable|string|max:500',
 
@@ -251,8 +251,8 @@ class NurseAuthController extends Controller
             $nurse->location = new Point($validated['latitude'], $validated['longitude']);
         }
 
-        if (isset($validated['age'])) {
-            $nurse->age = $validated['age'];
+        if (isset($validated['birthdate'])) {
+            $nurse->birthdate = $validated['birthdate'];
         }
 
         if (isset($validated['gender'])) {

@@ -31,7 +31,7 @@ class Service extends Model
     {
         return $this->belongsToMany(Hospital::class, 'hospital_services', 'service_id', 'hospital_id')
             ->where('service_type','hospital')
-            ->withPivot('price', 'capacity') // To access the price and capacity from the pivot table
+            ->withPivot('price', 'capacity', 'description') // To access the price, capacity and description from the pivot table
             ->whereNotNull('hospital_services.price'); // Only include hospitals where the price is not null
     }
     public function scopeForNurses($query)

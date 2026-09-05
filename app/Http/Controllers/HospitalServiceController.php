@@ -38,6 +38,7 @@ class HospitalServiceController extends Controller
                                                     'hospital_id' => $service->hospital_id,
                                                     'service_id' => $service->service_id,
                                                     'service_name' => $service->service->service_name ,
+                                                    'description' => $service->description,
                                                     'price' => (float) $service->price,
                                                     'capacity' => (int) $service->capacity,
                                                     'icon' => $service->service->icon,
@@ -59,6 +60,7 @@ class HospitalServiceController extends Controller
             'service_name' => 'required|string|max:255',
             'price' => 'required|numeric|min:0',
             'capacity' => 'required|integer|min:0',
+            'description' => 'required|string',
         ]);
 
         // Check if the service exists in the 'services' table
@@ -87,6 +89,7 @@ class HospitalServiceController extends Controller
                 'service_id' => $service->id,
                 'price' => $request->price,
                 'capacity' => $request->capacity,
+                'description' => $request->description,
             ]);
 
             // Dispatch a job to send an email notification to the admin
@@ -129,6 +132,7 @@ class HospitalServiceController extends Controller
             'hospital_id' => $hospitalService->hospital_id,
             'service_id' => $hospitalService->service_id,
             'service_name' => $hospitalService->service->service_name ,
+            'description' => $hospitalService->description,
             'price' => (float) $hospitalService->price,
             'capacity' => (int) $hospitalService->capacity,
             'icon' => $hospitalService->service->icon,
@@ -153,6 +157,7 @@ class HospitalServiceController extends Controller
         $validator = Validator::make($request->all(),[
             'price' => 'sometimes|numeric|min:0',
             'capacity' => 'sometimes|integer|min:0',
+            'description' => 'sometimes|string',
         ]);
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);

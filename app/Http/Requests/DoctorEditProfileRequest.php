@@ -17,7 +17,7 @@ class DoctorEditProfileRequest extends FormRequest
             'full_name'    => 'sometimes|string|max:255',
             'phone_number' => 'sometimes|string|unique:accounts,phone_number,' . auth()->id(),
             'address'      => 'sometimes|string|max:255',
-            'age'          => 'sometimes|integer|min:21|max:99',
+            'birthdate'    => 'sometimes|date|after_or_equal:' . now()->subYears(99)->toDateString() . '|before_or_equal:' . now()->subYears(21)->toDateString(),
             'gender'       => 'sometimes|in:male,female',
             'specialization_id' => [
                 'sometimes',

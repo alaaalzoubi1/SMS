@@ -15,7 +15,7 @@ class DoctorController extends Controller
 {
     public function listForUsers(FilterDoctorsRequest $request): JsonResponse
     {
-        $query = Doctor::query()->with(['specialization:id,name_en,name_ar,image' , 'account:id,phone_number','province'])->Approved();
+        $query = Doctor::query()->with(['specialization:id,name_en,name_ar,image' , 'province'])->Approved();
 
         if ($request->filled('specialization_id')) {
             $query->where('specialization_id', $request->specialization_id);
@@ -33,15 +33,13 @@ class DoctorController extends Controller
             $query->where('full_name', 'like', '%' . $request->full_name . '%');
         }
 
-        $doctors = $query->select('id', 'full_name', 'address', 'age', 'gender', 'specialization_id', 'profile_description', 'account_id','location','profile_image_path')
+        $doctors = $query->select('id', 'full_name', 'address', 'age', 'birthdate', 'gender', 'specialization_id', 'profile_description', 'account_id','profile_image_path')
             ->paginate(10);
 
         $doctors->getCollection()->transform(function ($doctor) {
             $doctor->avg_rating = max(4,$doctor->avg_rating);
 
-            $doctor->phone_number = $doctor->account->phone_number ?? null;
-
-            unset($doctor->account);
+            $doctor->makeHidden(['birthdate']);
 
             return $doctor;
         });
@@ -85,7 +83,7 @@ class DoctorController extends Controller
                 $doctor->avg_rating = max(4, $doctor->avg_rating);
                 return $doctor;
             })
-            ->makeHidden(['license_image_path', 'deleted_at', 'created_at', 'updated_at']);
+            ->makeHidden(['location', 'license_image_path', 'deleted_at', 'created_at', 'updated_at', 'birthdate']);
         return response()->json([
             'doctors' => $doctors,
         ]);

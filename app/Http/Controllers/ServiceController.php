@@ -184,16 +184,16 @@ class ServiceController extends Controller
                 'id' => $service->id,
                 'service_name' => $service->service_name,
                 'icon' => $service->icon,
-                'hospitals' => $service->hospitals->map(function ($hospital) {
-                    return [
-                        'id' => $hospital->id,
-                        'full_name' => $hospital->full_name,
-                        'address' => $hospital->address,
-                        'price' => $hospital->pivot->price,  // Access price from pivot
-                        'capacity' => $hospital->pivot->capacity, // Access capacity from pivot
-                        'location' => $hospital->location,
-                    ];
-                }),
+                    'hospitals' => $service->hospitals->map(function ($hospital) {
+                        return [
+                            'id' => $hospital->id,
+                            'full_name' => $hospital->full_name,
+                            'address' => $hospital->address,
+                            'description' => $hospital->pivot->description,
+                            'price' => $hospital->pivot->price,  // Access price from pivot
+                            'location' => $hospital->location,
+                        ];
+                    }),
             ];
         });
 

@@ -31,7 +31,7 @@ class DoctorRegisterRequest extends FormRequest
                 Rule::exists('specializations', 'id')->whereNull('deleted_at'),  // Exclude soft-deleted records
             ],
             'address'        => 'required|string|max:255',
-            'age'            => 'required|integer|min:21|max:99',
+            'birthdate'      => 'required|date|after_or_equal:' . now()->subYears(99)->toDateString() . '|before_or_equal:' . now()->subYears(21)->toDateString(),
             'gender'         => 'required|in:male,female',
             'profile_description' => 'nullable|string',
             'latitude' => 'required|numeric|between:-90,90',

@@ -27,7 +27,7 @@ class UserFactory extends Factory
         return [
             'account_id' => Account::factory(),
             'full_name' => fake()->name(),
-            'age' => fake()->numberBetween(10,60),
+            'birthdate' => fake()->dateTimeBetween('-60 years', '-10 years')->format('Y-m-d'),
             'gender' => fake()->randomElement(['male','female'])
         ];
     }

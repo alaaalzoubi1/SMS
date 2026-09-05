@@ -15,7 +15,7 @@ class UserSeeder extends Seeder
     {
         User::create([
             'account_id' => 1,
-            'age' => 22,
+            'birthdate' => now()->subYears(22)->format('Y-m-d'),
             'gender' => 'male',
         ]);
     }

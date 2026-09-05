@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -18,11 +19,36 @@ class HospitalServiceReservation extends Model
         'user_id',
         'hospital_service_id',
         'hospital_id',
+        'unit_price',
         'start_date',
         'end_date',
         'status',
         'reserved_by_admin',
     ];
+
+    protected $appends = ['days', 'final_price'];
+
+    protected $casts = [
+        'unit_price' => 'float',
+        'reserved_by_admin' => 'boolean',
+    ];
+
+    public function getDaysAttribute(): int
+    {
+        if ($this->start_date === null) {
+            return 0;
+        }
+
+        $reference = $this->end_date ?? now();
+
+        return (int) Carbon::parse($this->start_date)
+            ->diffInDays(Carbon::parse($reference)->startOfDay()) + 1;
+    }
+
+    public function getFinalPriceAttribute(): float
+    {
+        return round((float) $this->unit_price * $this->days, 2);
+    }
 
     public function user():BelongsTo
     {

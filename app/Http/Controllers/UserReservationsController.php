@@ -37,7 +37,7 @@ class UserReservationsController extends Controller
             case 'nurse':
                 $reservations = \App\Models\NurseReservation::query()
                     ->where('user_id', $userId)
-                    ->with(['nurse','nurse.account:id,phone_number', 'nurseService.service','cancellation','rate'])
+                    ->with(['nurse','nurse.account:id', 'nurseService.service','services.service','cancellation','rate'])
                     ->when($apiStatus, function ($q) use ($statusMap, $apiStatus) {
                         $status = $statusMap[$apiStatus]['nurse'] ?? null;
                         if ($status) $q->where('status', $status);
@@ -67,7 +67,7 @@ class UserReservationsController extends Controller
             case 'doctor':
                 $reservations = \App\Models\DoctorReservation::query()
                     ->where('user_id', $userId)
-                    ->with(['doctor.specialization', 'doctorService','cancellation','rate'])
+                    ->with(['doctor.specialization', 'doctor.account:id,phone_number', 'doctorService','cancellation','rate'])
                     ->when($apiStatus, function ($q) use ($statusMap, $apiStatus) {
                         $status = $statusMap[$apiStatus]['doctor'] ?? null;
                         if ($status) $q->where('status', $status);
@@ -76,27 +76,52 @@ class UserReservationsController extends Controller
                     ->orderByDesc('created_at')
                     ->get();
 
-                $data['doctor_reservations'] = $reservations;
+                $data['doctor_reservations'] = $this->applyDoctorContactAccess($reservations);
                 break;
 
             default:
                 $user = \App\Models\User::query()
                     ->with([
-                        'nurseReservations' => fn($q) => $q->with(['nurse','nurseService.service','cancellation','rate'])->orderByDesc('created_at'),
+                        'nurseReservations' => fn($q) => $q->with(['nurse','nurseService.service','services.service','cancellation','rate'])->orderByDesc('created_at'),
                         'hospitalReservations' => fn($q) => $q->with(['hospital','hospitalService.service','cancellation','rate'])->orderByDesc('created_at'),
-                        'doctorReservations' => fn($q) => $q->with(['doctor.specialization','doctorService','cancellation','rate'])->orderByDesc('created_at'),
+                        'doctorReservations' => fn($q) => $q->with(['doctor.specialization','doctor.account:id,phone_number','doctorService','cancellation','rate'])->orderByDesc('created_at'),
                     ])
                     ->findOrFail($userId);
 
                 $data = [
                     'nurse_reservations'    => $user->nurseReservations,
                     'hospital_reservations' => $user->hospitalReservations,
-                    'doctor_reservations'   => $user->doctorReservations,
+                    'doctor_reservations'   => $this->applyDoctorContactAccess($user->doctorReservations),
                 ];
                 break;
         }
 
         return response()->json(['data' => $data]);
+    }
+
+    /**
+     * Doctor location & phone are only revealed to the user when the
+     * reservation is approved. Any other status hides them.
+     */
+    protected function applyDoctorContactAccess($reservations)
+    {
+        return $reservations->map(function ($reservation) {
+            $doctor = $reservation->doctor;
+
+            if ($doctor) {
+                // never expose the underlying account object
+                $doctor->makeHidden('account');
+
+                if ($reservation->status === 'approved') {
+                    $doctor->setAttribute('phone_number', $doctor->account?->phone_number);
+                    $doctor->makeVisible('location');
+                } else {
+                    $doctor->makeHidden('location');
+                }
+            }
+
+            return $reservation;
+        });
     }
 
 

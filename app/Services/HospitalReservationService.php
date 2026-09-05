@@ -35,6 +35,7 @@ class HospitalReservationService
             'user_id' => $userId,
             'hospital_service_id' => $hospitalServiceId,
             'hospital_id' => $hospitalService->hospital_id,
+            'unit_price' => $hospitalService->price,
             'reserved_by_admin' => $isAdmin
         ]);
 

@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 use MatanYadaev\EloquentSpatial\Objects\Point;
 use MatanYadaev\EloquentSpatial\Traits\HasSpatial;
 
@@ -27,6 +28,7 @@ class Nurse extends Model
         'longitude',
         'latitude',
         'location',
+        'birthdate',
         'age',
         'gender',
         'profile_description',
@@ -39,6 +41,7 @@ class Nurse extends Model
         'location' => Point::class,
         'start_at' => 'datetime',
         'end_at' => 'datetime',
+        'birthdate' => 'date',
     ];
 
     protected $hidden = [
@@ -90,5 +93,22 @@ class Nurse extends Model
     public function province(): BelongsTo
     {
         return $this->belongsTo(Province::class);
+    }
+
+    protected function getAgeAttribute()
+    {
+        if (!empty($this->birthdate)) {
+            return $this->birthdate->age;
+        }
+
+        return $this->attributes['age'] ?? null;
+    }
+
+    protected function setBirthdateAttribute($value)
+    {
+        $date = $value ? Carbon::parse($value) : null;
+
+        $this->attributes['birthdate'] = $date ? $date->toDateString() : null;
+        $this->attributes['age'] = $date ? $date->age : null;
     }
 }

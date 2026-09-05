@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 use MatanYadaev\EloquentSpatial\Objects\Point;
 use MatanYadaev\EloquentSpatial\Traits\HasSpatial;
 
@@ -23,6 +24,7 @@ class Doctor extends Model
         'full_name',
         'profile_description',
         'address',
+        'birthdate',
         'age',
         'gender',
         'specialization_id',
@@ -33,7 +35,8 @@ class Doctor extends Model
     ];
     protected $casts = [
         'specialization_type' => SpecializationType::class,
-        'location' => Point::class
+        'location' => Point::class,
+        'birthdate' => 'date'
     ];
     protected $hidden = [
         'license_image_path'
@@ -76,5 +79,22 @@ class Doctor extends Model
     public function province(): BelongsTo
     {
         return $this->belongsTo(Province::class);
+    }
+
+    protected function getAgeAttribute()
+    {
+        if (!empty($this->birthdate)) {
+            return $this->birthdate->age;
+        }
+
+        return $this->attributes['age'] ?? null;
+    }
+
+    protected function setBirthdateAttribute($value)
+    {
+        $date = $value ? Carbon::parse($value) : null;
+
+        $this->attributes['birthdate'] = $date ? $date->toDateString() : null;
+        $this->attributes['age'] = $date ? $date->age : null;
     }
 }

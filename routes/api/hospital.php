@@ -31,6 +31,7 @@ use App\Http\Controllers\HospitalServiceReservationController;
 
     Route::prefix('reservations')->controller(HospitalServiceReservationController::class)->group(function () {
         Route::get('/', 'index');
+        Route::get('/calendar', 'calendar');
         Route::get('/trashed', 'trashed');
         Route::get('/{id}', 'show');
         Route::patch('/{id}/status', 'updateStatus');

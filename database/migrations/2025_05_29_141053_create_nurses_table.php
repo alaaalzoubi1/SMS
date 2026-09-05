@@ -21,7 +21,7 @@ return new class extends Migration
             $table->string('full_name');
             $table->string('profile_image_path')->nullable();
             $table->string('address')->nullable();
-            $table->enum('graduation_type',['معهد', 'مدرسة', 'جامعة', 'ماجستير' ,'دكتوراه'])->index();
+            $table->enum('graduation_type',['معهد طبي/صحي', 'مدرسة التمريض والقبالة', 'جامعة', 'ماجستير' ,'دكتوراه'])->index();
             $table->geography('location', subtype: 'point');
             $table->integer('age');
             $table->enum('gender', ['male', 'female'])->index();
