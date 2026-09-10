@@ -81,7 +81,7 @@ class HospitalController extends Controller
                             'name'  => $service->service->service_name ?? null,
                             'description' => $service->description,
                             'price' => $service->price,
-                            'icon' => $service->service->icon,
+                            'icon' => $service->service?->icon,
                         ];
                     }),
                 ];
