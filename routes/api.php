@@ -82,10 +82,17 @@ use App\Http\Controllers\FirebaseTestController;
 
 Route::get('my-rates',[\App\Http\Controllers\RatingController::class,'myRatings']);
 Route::get('refresh',[\App\Http\Controllers\Auth\JwtController::class,'refresh']);
-Route::middleware('throttle:60,1')->group(function () {
-    Route::get('/legal/{type}', [LegalDocumentController::class, 'show'])
-        ->name('legal.show');
-});
+    Route::middleware('throttle:60,1')->group(function () {
+        Route::get('/legal/{type}', [LegalDocumentController::class, 'show'])
+            ->name('legal.show');
+
+        // Canonical nurse graduation types. Exposed publicly so the app can
+        // build the dropdown from the same list the API validates against
+        // instead of hardcoding it (which is what caused the mismatch).
+        Route::get('/nurse/graduation-types', fn () => response()->json([
+            'data' => \App\Enums\GraduationType::options(),
+        ]))->name('nurse.graduation-types');
+    });
 
 Route::prefix('contact-info')->group(function () {
     Route::get('/', [ContactInfoController::class, 'index'])->middleware('throttle:60,1');

@@ -19,7 +19,7 @@ class LegalDocumentResource extends JsonResource
             'type' => $this->type,
             'version' => $this->version,
             'content' => $this->content,
-            'updated_by' => $this->updated_by,
+            'updated_by' => $this->updated_by_account_id ?? $this->updated_by,
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];
     }

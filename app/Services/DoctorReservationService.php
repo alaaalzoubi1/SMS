@@ -17,83 +17,61 @@ class DoctorReservationService
      */
     public function getNextAvailableSlot(int $doctorId, string $date, int $durationMinutes): ?array
     {
-        $dayOfWeek = strtolower(Carbon::parse($date)->format('l'));
-
-        $schedule = DoctorWorkSchedule::where('doctor_id', $doctorId)
-            ->where('day_of_week', $dayOfWeek)
-            ->first();
-
-        if (!$schedule) {
-            return null; // No work schedule for that day
-        }
-
-        $startOfDay = Carbon::parse($date . ' ' . $schedule->start_time);
-        $endOfDay = Carbon::parse($date . ' ' . $schedule->end_time);
-
-        $existingReservations = DoctorReservation::where('doctor_id', $doctorId)
-            ->whereDate('date', $date)
-            ->orderBy('start_time')
-            ->get();
-
-        $nextStart = $startOfDay;
-
-        /** @var Collection $existingReservations */
-        foreach ($existingReservations as $res) {
-            $resStart = Carbon::parse($res->start_time);
-            $resEnd = Carbon::parse($res->end_time);
-
-            if ($nextStart->copy()->addMinutes($durationMinutes)->lte($resStart)) {
-                break; // slot fits before the next reservation
-            }
-
-            $nextStart = $resEnd; // try after current reservation
-        }
-
-        $nextEnd = $nextStart->copy()->addMinutes($durationMinutes);
-        if ($nextEnd->gt($endOfDay)) {
-            return null; // No slot fits within working hours
-        }
-
-        return [
-            'start_time' => $nextStart,
-            'end_time' => $nextEnd,
-        ];
+        return $this->findSlotForApproval($doctorId, $date, $durationMinutes);
     }
+
+    /**
+     * Find the first free slot of $durationMinutes inside the doctor's
+     * working window for $date.
+     *
+     * Returns null when the doctor has no schedule that day, or when no slot
+     * of that length fits before closing time. Callers must not fall back to
+     * a default hour in that case — a booking outside the published schedule
+     * is exactly the bug this guards against.
+     */
     public function findSlotForApproval(int $doctorId, string $date, int $durationMinutes): ?array
     {
-        $dayOfWeek = strtolower(Carbon::parse($date)->format('l'));
-
-        $schedule = DoctorWorkSchedule::where('doctor_id', $doctorId)
-            ->where('day_of_week', $dayOfWeek)
-            ->first();
+        $schedule = DoctorWorkSchedule::findForDate($doctorId, $date);
 
         if (!$schedule) {
             return null;
         }
 
-        $workStart = Carbon::parse($date . ' ' . $schedule->start_time);
-        $workEnd   = Carbon::parse($date . ' ' . $schedule->end_time);
+        $window = $schedule->windowFor($date);
 
-        // فقط الحجوزات الموافق عليها
+        if ($window === null) {
+            return null;
+        }
+
+        [$workStart, $workEnd] = $window;
+
+        // Only approved bookings hold a time; pending ones have null times
+        // and must not influence the search.
         $approvedReservations = DoctorReservation::where('doctor_id', $doctorId)
             ->whereDate('date', $date)
             ->where('status', 'approved')
+            ->whereNotNull('start_time')
+            ->whereNotNull('end_time')
             ->orderBy('start_time')
             ->get();
 
         $candidateStart = $workStart->copy();
 
+        /** @var Collection $approvedReservations */
         foreach ($approvedReservations as $reservation) {
+            $resStart = $this->timeOnDate($date, $reservation->start_time);
+            $resEnd   = $this->timeOnDate($date, $reservation->end_time);
 
-            $resStart = Carbon::parse($date . ' ' . $reservation->start_time);
-            $resEnd   = Carbon::parse($date . ' ' . $reservation->end_time);
+            if ($resStart === null || $resEnd === null) {
+                continue;
+            }
 
-            // هل توجد فجوة تكفي قبل هذا الحجز؟
+            // Does the candidate fit in the gap before this booking?
             if ($candidateStart->copy()->addMinutes($durationMinutes)->lte($resStart)) {
                 break;
             }
 
-            // جرّب بعد نهاية هذا الحجز
+            // Otherwise try right after it.
             $candidateStart = $resEnd->copy();
         }
 
@@ -106,6 +84,62 @@ class DoctorReservationService
         return [
             'start_time' => $candidateStart,
             'end_time'   => $candidateEnd,
+        ];
+    }
+
+    /**
+     * True when the doctor actually works on the given date. Used to reject
+     * reservation requests up front instead of failing later at approval.
+     */
+    public function worksOn(int $doctorId, string $date): bool
+    {
+        return DoctorWorkSchedule::findForDate($doctorId, $date) !== null;
+    }
+
+    /**
+     * Build a slot when the caller explicitly overrides the schedule
+     * (force_confirm). The result is still anchored to the doctor's window:
+     * it continues from the last approved booking, or from opening time when
+     * there is none, and it is refused outright if the resulting slot would
+     * fall outside working hours.
+     *
+     * @throws Exception when no schedule exists for that date
+     */
+    public function forceSlotForApproval(int $doctorId, string $date, int $durationMinutes): array
+    {
+        $schedule = DoctorWorkSchedule::findForDate($doctorId, $date);
+
+        if (!$schedule) {
+            throw new Exception('الطبيب لا يملك دوام عمل في هذا اليوم.');
+        }
+
+        $window = $schedule->windowFor($date);
+        [$workStart, $workEnd] = $window;
+
+        $lastApproved = DoctorReservation::where('doctor_id', $doctorId)
+            ->whereDate('date', $date)
+            ->where('status', 'approved')
+            ->whereNotNull('end_time')
+            ->orderByDesc('end_time')
+            ->first();
+
+        $start = $lastApproved
+            ? $this->timeOnDate($date, $lastApproved->end_time)
+            : $workStart->copy();
+
+        if ($start === null) {
+            $start = $workStart->copy();
+        }
+
+        $end = $start->copy()->addMinutes($durationMinutes);
+
+        if ($end->gt($workEnd)) {
+            throw new Exception('لا يمكن تثبيت الحجز خارج أوقات دوام الطبيب في هذا اليوم.');
+        }
+
+        return [
+            'start_time' => $start,
+            'end_time'   => $end,
         ];
     }
 
@@ -136,5 +170,31 @@ class DoctorReservationService
         }catch (ModelNotFoundException $e){
             throw new ModelNotFoundException('Doctor or service not available.');
         }
+    }
+
+    /**
+     * Combine a date with a `time` column value. The column arrives as either
+     * "H:i" or "H:i:s" depending on the driver, and Carbon::parse() on a bare
+     * time string resolves against *today*, which silently shifts a booking
+     * onto the wrong day.
+     */
+    private function timeOnDate(string $date, string|\DateTimeInterface|null $time): ?Carbon
+    {
+        if ($time === null || $time === '') {
+            return null;
+        }
+
+        if ($time instanceof \DateTimeInterface) {
+            return Carbon::parse($date)->startOfDay()->setTimeFromTimeString(
+                Carbon::parse($time)->format('H:i:s')
+            );
+        }
+
+        $parts = explode(':', $time);
+        if (count($parts) < 2) {
+            return null;
+        }
+
+        return Carbon::parse($date)->startOfDay()->setTime((int) $parts[0], (int) $parts[1], (int) ($parts[2] ?? 0));
     }
 }

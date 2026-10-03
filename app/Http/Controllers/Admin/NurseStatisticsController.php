@@ -2,17 +2,33 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\GraduationType;
 use App\Http\Controllers\Controller;
 use App\Models\Nurse;
 use App\Models\NurseReservation;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use TarfinLabs\LaravelSpatial\Types\Point;
 
 class NurseStatisticsController extends Controller
 {
     public function nurses(Request $request): JsonResponse
     {
+        $request->validate([
+            'graduation_type' => ['nullable', Rule::in(GraduationType::values())],
+            'gender'          => ['nullable', 'in:male,female'],
+            'full_name'       => ['nullable', 'string', 'max:255'],
+            'address'         => ['nullable', 'string', 'max:255'],
+            'age'             => ['nullable', 'integer', 'min:0', 'max:150'],
+        ]);
+
+        if ($request->filled('graduation_type')) {
+            $request->merge([
+                'graduation_type' => GraduationType::normalize((string) $request->input('graduation_type')),
+            ]);
+        }
+
         $query = Nurse::query()
             ->with('account:id,email,phone_number')
 
@@ -56,7 +72,7 @@ class NurseStatisticsController extends Controller
             ->when($request->from, fn($q) => $q->whereDate('start_at', '>=', $request->from))
             ->when($request->to, fn($q) => $q->whereDate('start_at', '<=', $request->to))
             ->orderBy('start_at', 'desc')
-            ->with(['user.account', 'nurseService:id,name']);
+            ->with(['user.account', 'nurseService.service', 'services.service']);
 
         $perPage = $request->input('per_page', 10);
 

@@ -74,6 +74,16 @@ class AdminApproveController extends Controller
             'message' => 'suspension status updated successfully.',
         ]);
     }
+    /**
+     * PATCH api/admin/extend-subscription
+     *
+     * `days` extends the subscription from its current expiry (or from now
+     * when it has already lapsed).
+     *
+     * Nurse accounts are day-based, like doctor accounts: sending
+     * `lifetime` for a nurse is rejected instead of silently storing null,
+     * which is what previously left the nurse with no expiry date at all.
+     */
     public function extendSubscription(Request $request)
     {
         $request->validate([
@@ -83,9 +93,21 @@ class AdminApproveController extends Controller
         ]);
 
         $account = Account::findOrFail($request->account_id);
+
+        $wantsLifetime = $request->boolean('lifetime');
+
+        if ($wantsLifetime && $account->hasRole('nurse')) {
+            return response()->json([
+                'message' => 'اشتراك الممرض يُحدَّد بالأيام فقط، لا يمكن تحويله إلى مدى الحياة.',
+                'errors' => [
+                    'lifetime' => ['اشتراك الممرض يُحدَّد بالأيام فقط، لا يمكن تحويله إلى مدى الحياة.'],
+                ],
+            ], 422);
+        }
+
         $now = Carbon::now();
 
-        if ($request->boolean('lifetime')) {
+        if ($wantsLifetime) {
             $account->update([
                 'subscription_expires_at' => null
             ]);
@@ -96,8 +118,8 @@ class AdminApproveController extends Controller
             $currentExpiry = $account->subscription_expires_at;
 
             $newExpiry = $currentExpiry && $currentExpiry->isFuture()
-                ? $currentExpiry->addDays( (integer) $request->days)
-                : $now->addDays((integer)$request->days);
+                ? $currentExpiry->copy()->addDays((int) $request->days)
+                : $now->copy()->addDays((int) $request->days);
 
             $account->update([
                 'subscription_expires_at' => $newExpiry
@@ -108,7 +130,7 @@ class AdminApproveController extends Controller
         }
 
         if ($account->fcm_token) {
-            $body = $request->boolean('lifetime')
+            $body = $wantsLifetime
                 ? "تم تحويل اشتراكك إلى مدى الحياة."
                 : sprintf(
                     "تم تمديد اشتراكك بمقدار %d يوم(أيام). تاريخ الانتهاء الجديد: %s",
@@ -118,7 +140,7 @@ class AdminApproveController extends Controller
 
             SendFirebaseNotificationJob::dispatch(
                 $account->fcm_token,
-                $request->boolean('lifetime') ? 'اشتراك مدى الحياة' : 'تم تمديد الاشتراك',
+                $wantsLifetime ? 'اشتراك مدى الحياة' : 'تم تمديد الاشتراك',
                 $body
             );
         }

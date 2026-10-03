@@ -4,11 +4,13 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Jobs\SendFirebaseNotificationJob;
-use App\Models\Account;
 use App\Models\BroadcastLog;
+use App\Models\Doctor;
+use App\Models\Hospital;
+use App\Models\Nurse;
+use App\Models\User;
 use Illuminate\Bus\Batch;
 use Illuminate\Http\Request;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Bus;
 
 class BroadcastNotificationController extends Controller
@@ -24,62 +26,68 @@ class BroadcastNotificationController extends Controller
 
         $title = $request->title;
         $body = $request->body;
-        $groups = $request->groups;
+        $groups = $request->unique('groups');
 
-        $totalTokens = 0;
+        /*
+         | Jobs must be collected *before* the batch is dispatched. The
+         | previous order dispatched an empty batch first, so the `finally`
+         | hook could fire (logging tokens_count = 0) before any job was
+         | ever added.
+         */
+        $jobs = [];
 
-        $batch = Bus::batch([])
+        foreach ($groups as $group) {
+            $query = match ($group) {
+                'users'     => User::with('account:id,fcm_token'),
+                'nurses'    => Nurse::with('account:id,fcm_token'),
+                'doctors'   => Doctor::with('account:id,fcm_token'),
+                'hospitals' => Hospital::with('account:id,fcm_token'),
+            };
+
+            $query->chunkById(500, function ($items) use (&$jobs, $title, $body) {
+                foreach ($items as $item) {
+                    $token = $item->account?->fcm_token;
+
+                    if (empty($token)) {
+                        continue;
+                    }
+
+                    $jobs[] = new SendFirebaseNotificationJob($token, $title, $body);
+                }
+            });
+        }
+
+        if ($jobs === []) {
+            return response()->json([
+                'message'       => 'لا توجد حسابات تحتوي على رمز إشعار في المجموعات المحددة.',
+                'tokens_queued' => 0,
+            ], 422);
+        }
+
+        $batch = Bus::batch($jobs)
+            ->name("broadcast:{$title}")
             ->finally(function (Batch $batch) use ($title, $body, $groups) {
                 BroadcastLog::create([
-                    'title' => $title,
-                    'body' => $body,
-                    'groups' => $groups,
+                    'title'        => $title,
+                    'body'         => $body,
+                    'groups'       => $groups,
                     'tokens_count' => $batch->totalJobs,
                 ]);
             })
+            ->allowFailures()
             ->dispatch();
 
-        foreach ($groups as $group) {
-
-            $query = match ($group) {
-                'users' => \App\Models\User::query(),
-                'nurses' => \App\Models\Nurse::query(),
-                'doctors' => \App\Models\Doctor::query(),
-                'hospitals' => \App\Models\Hospital::query(),
-            };
-
-            $query->with('account:id,fcm_token')
-                ->chunk(500, function ($items) use ($batch, $title, $body, &$totalTokens) {
-
-                    $jobs = [];
-
-                    foreach ($items as $item) {
-                        if (!empty($item->account?->fcm_token)) {
-                            $jobs[] = new SendFirebaseNotificationJob(
-                                $item->account->fcm_token,
-                                $title,
-                                $body
-                            );
-
-                            $totalTokens++;
-                        }
-                    }
-
-                    if (!empty($jobs)) {
-                        $batch->add($jobs);
-                    }
-                });
-        }
-
         return response()->json([
-            'message' => 'Broadcast batch started.',
-            'tokens_queued' => $totalTokens,
-        ]);
+            'message'       => 'تم بدء إرسال الإشعار.',
+            'batch_id'      => $batch->id,
+            'tokens_queued' => count($jobs),
+        ], 202);
     }
+
     public function broadcastLogs()
     {
         return response()->json([
-            'data' =>BroadcastLog::orderByDesc('created_at')->paginate(10)
+            'data' => BroadcastLog::orderByDesc('created_at')->paginate(10)
         ]);
     }
 }

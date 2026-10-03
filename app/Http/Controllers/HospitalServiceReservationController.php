@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Jobs\SendFirebaseNotificationJob;
+use App\Jobs\SendFirebaseNotificationToAdminsJob;
 use App\Models\HospitalCancellation;
 use App\Models\User;
 use Carbon\Carbon;
@@ -28,6 +29,67 @@ class HospitalServiceReservationController extends Controller
         return $hospital;
     }
 
+    /**
+     * Age in whole years. User already keeps an `age` column in sync with
+     * birthdate, so prefer it and derive it only as a fallback.
+     */
+    private function patientAge($user): ?int
+    {
+        if (!$user) {
+            return null;
+        }
+
+        if (!empty($user->age)) {
+            return (int) $user->age;
+        }
+
+        if (empty($user->birthdate)) {
+            return null;
+        }
+
+        return (int) Carbon::parse($user->birthdate)->startOfDay()->diffInYears(now()->startOfDay());
+    }
+
+    private function formatDate($date): ?string
+    {
+        return $date ? Carbon::parse($date)->format('Y-m-d') : null;
+    }
+
+    /**
+     * Single shape used by every read endpoint in this controller, including
+     * the status-update response. The hospital app needs the patient's gender
+     * and age on the confirmation screen, and the booking source, which the
+     * raw reservation row never carried.
+     */
+    private function present(HospitalServiceReservation $reservation): array
+    {
+        $reservation->loadMissing('user');
+
+        $user = $reservation->user;
+
+        return [
+            'id' => $reservation->id,
+            'user_id' => $reservation->user_id,
+            'user_name' => $user->full_name ?? 'N/A',
+            'user_phone' => $user?->phone_number,
+            'user_gender' => $user?->gender,
+            'user_age' => $this->patientAge($user),
+            'user_birthdate' => $this->formatDate($user?->birthdate),
+            // The app renders this verbatim, so it must never be null.
+            'source' => 'من التطبيق',
+            'service_id' => $reservation->hospital_service_id,
+            'service_name' => $reservation->hospitalService->service->service_name ?? 'N/A',
+            'unit_price' => (float) $reservation->unit_price,
+            'days' => $reservation->days,
+            'final_price' => $reservation->final_price,
+            'status' => $reservation->status,
+            'reserved_by_admin' => $reservation->reserved_by_admin,
+            'start_date' => $this->formatDate($reservation->start_date),
+            'end_date' => $this->formatDate($reservation->end_date),
+            'cancellation' => $reservation->cancellation,
+        ];
+    }
+
     public function index(Request $request)
     {
         $request->validate([
@@ -41,21 +103,7 @@ class HospitalServiceReservationController extends Controller
               ->with(['user', 'hospitalService.service','cancellation'])
               ->orderBy('start_date', 'desc')
               ->paginate()
-              ->map(function($reservation) {
-                  return [
-                      'id' => $reservation->id,
-                      'user_name' => $reservation->user->full_name  ?? 'N/A',
-                      'user_phone' => $reservation->user?->phone_number,
-                      'service_name' => $reservation->hospitalService->service->service_name ?? 'N/A',
-                      'unit_price' => (float) $reservation->unit_price,
-                      'days' => $reservation->days,
-                      'final_price' => $reservation->final_price,
-                      'status' => $reservation->status,
-                      'reserved_by_admin' => $reservation->reserved_by_admin,
-                      'start_date' => Carbon::parse($reservation->start_date)->format('Y-m-d'),
-                      'end_date' => Carbon::parse($reservation->end_date)->format('Y-m-d'),
-                  ];
-              });
+              ->map(fn (HospitalServiceReservation $reservation) => $this->present($reservation));
 
         return response()->json($reservations);
     }
@@ -74,19 +122,7 @@ class HospitalServiceReservationController extends Controller
         }
 
 
-        return response()->json([
-            'id' => $reservation->id,
-            'user_name' => $reservation->user->name ?? $reservation->user->email ?? 'N/A',
-            'user_phone' => $reservation->user?->phone_number,
-            'service_name' => $reservation->hospitalService->service->service_name ?? 'N/A',
-            'unit_price' => (float) $reservation->unit_price,
-            'days' => $reservation->days,
-            'final_price' => $reservation->final_price,
-            'reserved_by_admin' => $reservation->reserved_by_admin,
-            'status' => $reservation->status,
-            'start_date' => Carbon::parse($reservation->start_date)->format('Y-m-d'),
-            'end_date' => Carbon::parse($reservation->end_date)->format('Y-m-d'),
-        ]);
+        return response()->json($this->present($reservation));
     }
 
     /**
@@ -108,21 +144,7 @@ class HospitalServiceReservationController extends Controller
               ->with(['user', 'hospitalService.service', 'cancellation'])
               ->orderBy('start_date')
               ->get()
-              ->map(function ($reservation) {
-                  return [
-                      'id' => $reservation->id,
-                      'user_name' => $reservation->user->full_name ?? 'N/A',
-                      'user_phone' => $reservation->user?->phone_number,
-                      'service_name' => $reservation->hospitalService->service->service_name ?? 'N/A',
-                      'unit_price' => (float) $reservation->unit_price,
-                      'days' => $reservation->days,
-                      'final_price' => $reservation->final_price,
-                      'status' => $reservation->status,
-                      'reserved_by_admin' => $reservation->reserved_by_admin,
-                      'start_date' => Carbon::parse($reservation->start_date)->format('Y-m-d'),
-                      'end_date' => Carbon::parse($reservation->end_date)->format('Y-m-d'),
-                  ];
-              });
+              ->map(fn (HospitalServiceReservation $reservation) => $this->present($reservation));
 
         return response()->json([
             'date' => $request->date,
@@ -147,7 +169,10 @@ class HospitalServiceReservationController extends Controller
 
         $request->validate([
             'status' => 'required|string|in:pending,confirmed,accepted,cancelled,finished',
-            'reason' => 'required_if:status,cancelled|string'
+            'reason' => 'required_if:status,cancelled|nullable|string|max:1000'
+        ], [
+            'status.in'           => 'الحالة المدخلة غير صحيحة.',
+            'reason.required_if'  => 'سبب الإلغاء مطلوب.',
         ]);
 
         $newStatus = $request->status;
@@ -160,10 +185,12 @@ class HospitalServiceReservationController extends Controller
                ─────────────────────────────── */
             if ($newStatus === 'cancelled') {
                 if (!in_array($oldStatus, ['pending', 'accepted','confirmed'])) {
-                    return response()->json(['message' => 'Cannot cancel unless status is pending or accepted or confirmed'], 422);
+                    DB::rollBack();
+                    return response()->json(['message' => 'لا يمكن الإلغاء إلا إذا كانت الحالة قيد الانتظار أو مقبولة أو مؤكدة'], 422);
                 }
                 if (!$request->reason) {
-                    return response()->json(['message' => 'Cancellation reason is required'], 422);
+                    DB::rollBack();
+                    return response()->json(['message' => 'سبب الإلغاء مطلوب'], 422);
                 }
                 HospitalCancellation::create([
                     'reservation_id' => $reservation->id,
@@ -182,7 +209,8 @@ class HospitalServiceReservationController extends Controller
             if ($newStatus === 'accepted') {
 
                 if ($oldStatus !== 'pending') {
-                    return response()->json(['message' => 'Reservation must be pending to be accepted'], 422);
+                    DB::rollBack();
+                    return response()->json(['message' => 'يجب أن تكون الحالة قيد الانتظار ليتم القبول'], 422);
                 }
 
                 $deadlineHours = $hospital->reservation_confirmation_deadline;
@@ -197,14 +225,19 @@ class HospitalServiceReservationController extends Controller
             if ($newStatus === 'confirmed') {
 
                 if ($oldStatus !== 'accepted') {
-                    return response()->json(['message' => 'Reservation must be accepted before confirming'], 422);
+                    DB::rollBack();
+                    return response()->json(['message' => 'يجب قبول الحجز قبل تأكيده'], 422);
                 }
 
-                $reservation->start_date = now();
+                // Confirming pins the start of the stay. The end date is left
+                // alone; while it is null the reservation is still running
+                // and `days` counts up to today.
+                $reservation->start_date = Carbon::now()->toDateString();
 
                 $service = $reservation->hospitalService;
                 if ($service->capacity <= 0) {
-                    return response()->json(['message' => 'No capacity remaining for this service'], 422);
+                    DB::rollBack();
+                    return response()->json(['message' => 'لا توجد سعة متبقية لهذه الخدمة'], 422);
                 }
                 $service->capacity -= 1;
                 $service->save();
@@ -222,9 +255,10 @@ class HospitalServiceReservationController extends Controller
             if ($newStatus === 'finished') {
 
                 if ($oldStatus !== 'confirmed') {
-                    return response()->json(['message' => 'Reservation must be confirmed before finishing'], 422);
+                    DB::rollBack();
+                    return response()->json(['message' => 'يجب تأكيد الحجز قبل إنهائه'], 422);
                 }
-                $reservation->end_date = now();
+                $reservation->end_date = Carbon::now()->toDateString();
                 $service = $reservation->hospitalService;
                 $service->capacity += 1;
                 $service->save();
@@ -242,8 +276,8 @@ class HospitalServiceReservationController extends Controller
             DB::commit();
 
             return response()->json([
-                'message' => 'Reservation status updated successfully',
-                'reservation' => $reservation
+                'message' => 'تم تحديث حالة الحجز بنجاح',
+                'reservation' => $this->present($reservation->fresh())
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -329,23 +363,10 @@ class HospitalServiceReservationController extends Controller
 
         $reservations = HospitalServiceReservation::onlyTrashed()
             ->where('hospital_id', $hospital->id)
-            ->with(['user', 'hospitalService.service'])
-            ->orderBy('start_date', 'desc')
-            ->get()
-            ->map(function($reservation) {
-                return [
-                    'id' => $reservation->id,
-                    'user_name' => $reservation->user->name ?? $reservation->user->email ?? 'N/A',
-                    'user_phone' => $reservation->user?->phone_number,
-                    'service_name' => $reservation->hospitalService->service->service_name ?? 'N/A',
-                    'unit_price' => (float) $reservation->unit_price,
-                    'days' => $reservation->days,
-                    'final_price' => $reservation->final_price,
-                    'status' => $reservation->status,
-                    'start_date' => Carbon::parse($reservation->start_date)->format('Y-m-d'),
-                    'end_date' => Carbon::parse($reservation->end_date)->format('Y-m-d'),
-                ];
-            });
+->with(['user', 'hospitalService.service'])
+              ->orderBy('start_date', 'desc')
+              ->get()
+              ->map(fn (HospitalServiceReservation $reservation) => $this->present($reservation));
 
         Log::info('Hospital Trashed Reservations fetched:', ['hospital_id' => $hospital->id, 'reservations_count' => $reservations->count()]);
 
@@ -386,12 +407,41 @@ class HospitalServiceReservationController extends Controller
         $validated['hospital_id'] = $hospitalService->hospital_id;
         $validated['unit_price'] = $hospitalService->price;
 
-        HospitalServiceReservation::create($validated);
+        $reservation = HospitalServiceReservation::create($validated);
 
+        $this->notifyAdminsOfNewReservation($reservation);
 
         return response()->json([
-            'message' => "تم إنشاء الطلب سيتم التواصل معكم خلال دقائق يرجى الانتظار"
+            'message' => "تم إنشاء الطلب سيتم التواصل معكم خلال دقائق يرجى الانتظار",
+            'reservation_id' => $reservation->id,
         ]);
+    }
+
+    /**
+     * Admin push notification for every patient-submitted hospital booking.
+     * Previously nothing was dispatched here, which is why the admin panel
+     * never saw incoming hospital reservation requests.
+     */
+    private function notifyAdminsOfNewReservation(HospitalServiceReservation $reservation): void
+    {
+        try {
+            $reservation->loadMissing(['user', 'hospital', 'hospitalService.service']);
+
+            $serviceName = $reservation->hospitalService?->service?->service_name ?? 'خدمة';
+            $patientName = $reservation->user?->full_name ?? 'مستخدم';
+
+            SendFirebaseNotificationToAdminsJob::dispatch(
+                'طلب حجز خدمة مشفى جديد',
+                sprintf(
+                    'طلب %s حجز خدمة "%s" في مشفى %s.',
+                    $patientName,
+                    $serviceName,
+                    $reservation->hospital?->name ?? 'غير محدد'
+                )
+            );
+        } catch (\Throwable $e) {
+            Log::error('Failed to queue admin notification for hospital reservation: ' . $e->getMessage());
+        }
     }
     public function storeManual(Request $request): JsonResponse
     {
@@ -456,8 +506,8 @@ class HospitalServiceReservationController extends Controller
             DB::commit();
 
             return response()->json([
-                'message' => 'Manual hospital reservation created successfully.',
-                'data' => $reservation->load('user')
+                'message' => 'تم إنشاء الحجز اليدوي بنجاح.',
+                'data' => $this->present($reservation->fresh())
             ], 201);
 
         } catch (\Throwable $e) {

@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\GraduationType;
 use App\Models\Account;
 use App\Models\NurseService;
 use App\Models\NurseSubservice;
@@ -27,7 +28,7 @@ class NurseFactory extends Factory
             'full_name' => $this->faker->name,
             'is_active'=> $this->faker->boolean ,
             'address' => $this->faker->address,
-            'graduation_type' => $this->faker->randomElement(['معهد', 'مدرسة', 'جامعة', 'ماجستير', 'دكتوراه']),
+            'graduation_type' => $this->faker->randomElement(GraduationType::values()),
             'location' => new Point($this->faker->latitude(), $this->faker->longitude() ),
             'birthdate' => $this->faker->dateTimeBetween('-65 years', '-25 years')->format('Y-m-d'),
             'gender' => $this->faker->randomElement(['male', 'female']),

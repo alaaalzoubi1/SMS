@@ -1,6 +1,7 @@
 <?php
 namespace App\Services;
 
+use App\Jobs\SendFirebaseNotificationJob;
 use App\Models\NurseReservation;
 use App\Models\NurseService;
 use Exception;
@@ -40,6 +41,11 @@ class NurseReservationService
 
             $reservation->user_id = $userId;
             $reservation->nurse_id = $data['nurse_id'];
+
+            // Legacy column: the DB still requires it (NOT NULL FK), so it
+            // keeps pointing at the first service. `price` is the real total
+            // and every client should read `services` / `services_total_price`
+            // instead — see NurseReservation::$appends.
             $reservation->nurse_service_id = $services->first()->id;
             $reservation->price = $services->sum('price');
             $reservation->reservation_type = $data['reservation_type'];
@@ -61,6 +67,24 @@ class NurseReservationService
             $reservation->services()->attach(
                 $services->mapWithKeys(fn (NurseService $s) => [$s->id => ['price' => $s->price]])
             );
+
+            $reservation->loadMissing(['services.service', 'user:id,full_name']);
+
+            // Notify the nurse. servicesLabel() covers every selected service,
+            // whereas the singular nurseService only ever named the first.
+            $nurseAccount = $reservation->nurse?->account;
+
+            if ($nurseAccount?->fcm_token) {
+                SendFirebaseNotificationJob::dispatch(
+                    $nurseAccount->fcm_token,
+                    'طلب حجز جديد',
+                    sprintf(
+                        'المستخدم %s طلب خدمة: %s.',
+                        $reservation->user?->full_name ?? 'غير معروف',
+                        $reservation->servicesLabel()
+                    )
+                );
+            }
 
             return $reservation;
         }catch (ModelNotFoundException $e){

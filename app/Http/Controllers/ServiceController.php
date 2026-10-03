@@ -201,6 +201,46 @@ class ServiceController extends Controller
     }
     public function nurseServices()
     {
-        return response()->json(['data' => Service::forNurses()->get()]);
+        // `service_type` is hidden on the model, which made the nurse catalog
+        // unusable for anything that needs to tell nurse and hospital
+        // services apart.
+        $services = Service::forNurses()->get()->each(
+            fn (Service $service) => $service->makeVisible('service_type')
+        );
+
+        return response()->json(['data' => $services]);
+    }
+
+    /**
+     * Catalog of services a hospital may offer.
+     *
+     * The hospital app used to read this list from the nurse-side endpoint
+     * (`GET /api/nurse/services/services`), which returns `service_type =
+     * 'nurse'` — that is why the hospital's "available services" screen showed
+     * the nurses' services. This endpoint is scoped to hospital services and
+     * also exposes `service_type`, which `Service` hides by default.
+     */
+    public function availableServicesForHospital(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'service_name' => 'nullable|string|max:255',
+            'search'       => 'nullable|string|max:255',
+            'per_page'     => 'nullable|integer|min:1|max:100',
+        ]);
+
+        $search = $validated['service_name'] ?? $validated['search'] ?? null;
+
+        $services = Service::forHospitals()
+            ->when($search, fn ($q) => $q->where('service_name', 'like', '%' . $search . '%'))
+            ->orderBy('service_name')
+            ->get(['id', 'service_name', 'service_type', 'requires_certificate', 'icon'])
+            ->each(function (Service $service) {
+                $service->makeVisible('service_type');
+            });
+
+        return response()->json([
+            'services' => $services,
+            'count'    => $services->count(),
+        ]);
     }
 }

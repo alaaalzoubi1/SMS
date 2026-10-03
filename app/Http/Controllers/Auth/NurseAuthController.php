@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Enums\GraduationType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\NurseRegisterRequest;
 use App\Models\Account;
@@ -14,6 +15,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use MatanYadaev\EloquentSpatial\Objects\Point;
 use Tymon\JWTAuth\Facades\JWTAuth;
 
@@ -23,6 +25,7 @@ class NurseAuthController extends Controller
     {
         try {
             $validated = $request->validated();
+            $validated['graduation_type'] = GraduationType::normalize($validated['graduation_type']);
             DB::beginTransaction();
 
             $account = Account::create([
@@ -212,12 +215,18 @@ class NurseAuthController extends Controller
         $account = auth()->user();
         $nurse = $account->nurse;
 
+        if ($request->filled('graduation_type')) {
+            $request->merge([
+                'graduation_type' => GraduationType::normalize((string) $request->input('graduation_type')),
+            ]);
+        }
+
         // Validate request fields including optional image
         $validated = $request->validate([
             'phone_number' => 'sometimes|string|unique:accounts,phone_number,' . $account->id,
             'full_name' => 'sometimes|string|max:255',
             'address' => 'nullable|string|max:255',
-            'graduation_type' => 'sometimes|in:معهد,مدرسة,جامعة,ماجستير,دكتوراه',
+            'graduation_type' => ['sometimes', Rule::in(GraduationType::values())],
             'latitude' => 'nullable|numeric|between:-90,90',
             'longitude' => 'nullable|numeric|between:-180,180',
             'birthdate' => 'sometimes|date|after_or_equal:' . now()->subYears(99)->toDateString() . '|before_or_equal:' . now()->subYears(21)->toDateString(),

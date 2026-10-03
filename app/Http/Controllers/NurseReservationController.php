@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Jobs\SendFirebaseNotificationJob;
 use App\Models\Nurse;
+use App\Models\NurseCancellation;
 use App\Models\NurseReservation;
 use App\Http\Requests\StoreNurseReservationRequest;
 use App\Http\Requests\UpdateNurseReservationRequest;
@@ -53,8 +54,8 @@ class NurseReservationController extends Controller
     public function updateStatus(Request $request, $id): JsonResponse
     {
         $request->validate([
-            'status' => 'required|in:pending,accepted,cancelled,rejected,completed',
-            'reason' => 'required_if:status,cancelled,rejected|string'
+            'status' => 'required|in:accepted,cancelled,rejected,completed',
+            'reason' => 'required_if:status,cancelled,rejected|string|max:1000'
         ]);
 
         DB::beginTransaction();
@@ -65,6 +66,7 @@ class NurseReservationController extends Controller
                 ->find($id);
 
             if (!$reservation) {
+                DB::rollBack();
                 return response()->json(['message' => 'Reservation not found or unauthorized.'], 404);
             }
 
@@ -82,21 +84,27 @@ class NurseReservationController extends Controller
             ];
 
             if (!in_array($newStatus, $allowedTransitions[$currentStatus])) {
+                DB::rollBack();
                 return response()->json([
                     'message' => "Cannot change status from $currentStatus to $newStatus."
                 ], 400);
             }
 
-            $reservation->update([
-                'status' => $newStatus
-            ]);
+            // A rejection writes its own marker on the cancellation record so
+            // the reason is reported back as a rejection, not as a cancellation.
+            if ($newStatus === 'rejected') {
+                $reservation->reject($request->reason);
+            } else {
+                $reservation->update([
+                    'status' => $newStatus
+                ]);
 
-            if (in_array($newStatus, ['cancelled', 'rejected'])) {
-
-                $reservation->cancellation()->updateOrCreate(
-                    ['reservation_id' => $reservation->id],
-                    ['reason' => $request->reason]
-                );
+                if ($newStatus === 'cancelled') {
+                    $reservation->cancellation()->updateOrCreate(
+                        ['reservation_id' => $reservation->id],
+                        ['reason' => $request->reason, 'status' => NurseCancellation::CANCELLED]
+                    );
+                }
             }
 
             DB::commit();
@@ -130,7 +138,7 @@ class NurseReservationController extends Controller
 
             return response()->json([
                 'message' => 'Reservation status updated successfully.',
-                'data' => $reservation->load('cancellation')
+                'data' => $reservation->load(['cancellation', 'nurseService.service', 'services.service', 'user'])
             ]);
 
         } catch (\Throwable $e) {
@@ -190,6 +198,10 @@ class NurseReservationController extends Controller
             $reservation = new NurseReservation();
             $reservation->user_id = $userId;
             $reservation->nurse_id = $request->nurse_id;
+
+            // Legacy column (NOT NULL FK) — points at the first service only.
+            // `price` is the real total; clients should render `services` /
+            // `services_total_price` instead of the singular `nurseService`.
             $reservation->nurse_service_id = $services->first()->id;
             $reservation->price = $services->sum('price');
             $reservation->reservation_type = $request->reservation_type;
@@ -214,17 +226,22 @@ class NurseReservationController extends Controller
             );
 
             DB::commit();
+            $reservation->loadMissing('services.service');
+
             $nurse = $reservation->nurse()->with('account')->first();
             if ($nurse && $nurse->account && $nurse->account->fcm_token) {
+                // servicesLabel() lists every selected service. Using the
+                // singular `nurseService` here only ever named the first one,
+                // so a multi-service booking looked like a single-service one.
                 $body = sprintf(
-                    "User %s requested %s service.",
-                    auth()->user()->user->full_name ?? "Unknown",
-                    $reservation->nurseService->name ?? "a service",
+                    "المستخدم %s طلب خدمة: %s.",
+                    auth()->user()->user->full_name ?? "غير معروف",
+                    $reservation->servicesLabel(),
                 );
 
                 SendFirebaseNotificationJob::dispatch(
                     $nurse->account->fcm_token,
-                    "New Reservation Request",
+                    "طلب حجز جديد",
                     $body
                 );
             }

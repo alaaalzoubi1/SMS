@@ -30,7 +30,7 @@ class DoctorRegisterRequest extends FormRequest
                 'integer',
                 Rule::exists('specializations', 'id')->whereNull('deleted_at'),  // Exclude soft-deleted records
             ],
-            'address'        => 'required|string|max:255',
+            'address'        => 'required|string|min:10|max:255',
             'birthdate'      => 'required|date|after_or_equal:' . now()->subYears(99)->toDateString() . '|before_or_equal:' . now()->subYears(21)->toDateString(),
             'gender'         => 'required|in:male,female',
             'profile_description' => 'nullable|string',
@@ -53,6 +53,8 @@ class DoctorRegisterRequest extends FormRequest
             'gender.in'          => 'يجب أن يكون الجنس "male" أو "female".',
             'specialization.in'  => 'اختصاص الطبيب غير صالح.',
             'specialization_id.exists' => 'الاختصاص المختار غير موجود أو تم حذفه.',
+            'address.required' => 'العنوان مطلوب.',
+            'address.min'      => 'العنوان يجب أن يكون 10 أحرف على الأقل.',
             'license_image.image'=> 'يجب أن تكون صورة صالحة.',
             'license_image.mimes'=> 'يجب أن يكون امتداد الصورة pdf أو jpeg أو png أو jpg.',
             'license_image.max'  => 'حجم الصورة لا يجب أن يتجاوز 10 ميجابايت.',

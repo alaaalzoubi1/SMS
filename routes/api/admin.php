@@ -66,6 +66,8 @@ Route::prefix('hospital')->group(function () {
     Route::get('/{id}', [HospitalStatisticsController::class, 'hospital']);
     Route::get('/{id}/reservations', [HospitalStatisticsController::class, 'hospitalReservations']);
     Route::post('/reserve',[AdminReservationController::class,'hospitalReservation']);
+    Route::delete('/{id}', [ManageHospitalsAccountsController::class, 'destroyHospitalAccount']);
+    Route::patch('/{id}/restore', [ManageHospitalsAccountsController::class, 'restoreHospitalAccount']);
 });
 Route::prefix('nurse')->group(function () {
     Route::get('/{id}/license', [NurseStatisticsController::class, 'getNurseLicense']);

@@ -15,15 +15,19 @@ class LegalDocument extends Model
         'content',
         'version',
         'updated_by',
+        'updated_by_account_id',
     ];
 
     protected $casts = [
         'content' => 'array',
     ];
 
+    /**
+     * The editor is an Account (admin), not a User.
+     */
     public function updatedBy(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'updated_by');
+        return $this->belongsTo(Account::class, 'updated_by_account_id');
     }
 
     /**

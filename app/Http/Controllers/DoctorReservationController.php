@@ -6,7 +6,6 @@ use App\Jobs\SendFirebaseNotificationJob;
 use App\Models\Doctor;
 use App\Models\DoctorReservation;
 use App\Models\DoctorService;
-use App\Models\DoctorWorkSchedule;
 use App\Models\User;
 use App\Services\DoctorReservationService;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -41,6 +40,17 @@ class DoctorReservationController extends Controller
             'confirm' => 'sometimes|boolean',
         ]);
         $userId = auth()->user()->user->id;
+
+        // Reject up front rather than letting the request sit pending only to
+        // fail (or get force-confirmed) when the doctor tries to approve it.
+        if (!$this->doctorReservationService->worksOn(
+            (int) $request->doctor_id,
+            $request->date
+        )) {
+            return response()->json([
+                'message' => 'الطبيب لا يملك دوام عمل في هذا اليوم، اختر تاريخاً آخر.'
+            ], 422);
+        }
         if (!$request->confirm){
             $previousReservation = DoctorReservation::where('user_id' , $userId)
                 ->where('status','pending')
@@ -166,9 +176,11 @@ class DoctorReservationController extends Controller
     public function updateStatus(Request $request, $id): JsonResponse
     {
         $request->validate([
-            'status' => 'required|in:approved,cancelled,completed',
-            'reason' => 'required_if:status,cancelled|string|max:1000',
+            'status' => 'required|in:approved,rejected,cancelled,completed',
+            'reason' => 'required_if:status,cancelled,rejected|string|max:1000',
             'force_confirm' => 'nullable|boolean'
+        ], [
+            'reason.required_if' => 'سبب الإلغاء أو الرفض مطلوب.',
         ]);
 
         DB::beginTransaction();
@@ -185,14 +197,16 @@ class DoctorReservationController extends Controller
 
             if ($request->status === 'completed') {
                 if ($reservation->status !== 'approved') {
+                    DB::rollBack();
                     return response()->json([
-                        'message' => 'Reservation must be approved before completing.'
+                        'message' => 'الحجز يجب أن يكون بحالة مقبول قبل تغييره إلى مكتمل.'
                     ], 403);
                 }
             } else {
                 if ($reservation->status !== 'pending') {
+                    DB::rollBack();
                     return response()->json([
-                        'message' => 'Cannot change status unless it is pending.'
+                        'message' => 'لا يمكن تغيير الحالة إلا إذا كانت الحجز قيد الانتظار.'
                     ], 403);
                 }
             }
@@ -216,37 +230,17 @@ class DoctorReservationController extends Controller
                     if (!$request->boolean('force_confirm')) {
                         DB::rollBack();
                         return response()->json([
-                            'message' => 'لا يوجد وقت متاح ضمن الدوام. هل تريد تأكيد الحجز رغم تجاوز وقت العمل؟',
+                            'message' => 'لا يوجد وقت متاح ضمن دوام الطبيب في هذا اليوم. هل تريد المتابعة رغم ذلك؟',
                             'requires_confirmation' => true
                         ], 409);
                     }
 
-
-                    $lastApproved = DoctorReservation::where('doctor_id', $doctorId)
-                        ->where('date', $date)
-                        ->where('status', 'approved')
-                        ->orderByDesc('end_time')
-                        ->first();
-
-                    if ($lastApproved) {
-                        $start = Carbon::parse($lastApproved->end_time);
-                    } else {
-                        // لا يوجد حجوزات أصلاً — نبدأ من أول الدوام
-                        $dayOfWeek = strtolower(Carbon::parse($date)->format('l'));
-
-                        $schedule = DoctorWorkSchedule::where('doctor_id', $doctorId)
-                            ->where('day_of_week', $dayOfWeek)
-                            ->firstOrFail();
-
-                        $start = Carbon::parse($date . ' ' . $schedule->start_time);
-                    }
-
-                    $end = $start->copy()->addMinutes($duration);
-
-                    $slot = [
-                        'start_time' => $start,
-                        'end_time'   => $end,
-                    ];
+                    // Even with force_confirm the slot is anchored to the
+                    // doctor's window; if the day has no schedule at all, or
+                    // the slot would fall past closing time, we refuse instead
+                    // of inventing a start hour.
+                    $slot = $this->doctorReservationService
+                        ->forceSlotForApproval($doctorId, $date, $duration);
                 }
 
                 $reservation->update([
@@ -265,6 +259,22 @@ class DoctorReservationController extends Controller
 
                 $reservation->update([
                     'status' => 'cancelled'
+                ]);
+
+                $reservation->cancellation()->create([
+                    'reason' => $request->reason,
+                ]);
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | REJECT
+            |--------------------------------------------------------------------------
+            */
+            elseif ($request->status === 'rejected') {
+
+                $reservation->update([
+                    'status' => 'rejected'
                 ]);
 
                 $reservation->cancellation()->create([
@@ -363,6 +373,15 @@ class DoctorReservationController extends Controller
                     'تم إلغاء حجزك من %s. السبب: %s',
                     $doctorName,
                     $reason
+                ),
+                'rejected' => sprintf(
+                    'تم رفض حجزك لدى %s. السبب: %s',
+                    $doctorName,
+                    $reason
+                ),
+                default     => sprintf(
+                    'تم تحديث حالة حجزك لدى %s.',
+                    $doctorName
                 ),
                 'completed' => sprintf(
                     'تم اكتمال حجزك مع %s بنجاح.',

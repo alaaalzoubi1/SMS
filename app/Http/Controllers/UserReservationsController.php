@@ -22,7 +22,7 @@ class UserReservationsController extends Controller
             'pending'   => ['nurse' => 'pending',  'hospital' => 'pending',   'doctor' => 'pending'],
             'approved'  => ['nurse' => 'accepted', 'hospital' => ['confirmed','accepted'], 'doctor' => 'approved'],
             'cancelled' => ['nurse' => 'cancelled','hospital' => 'cancelled', 'doctor' => 'cancelled'],
-            'rejected'  => ['nurse' => 'rejected', 'hospital' => null,        'doctor' => null],
+            'rejected'  => ['nurse' => 'rejected', 'hospital' => null,        'doctor' => 'rejected'],
             'completed' => ['nurse' => 'completed','hospital' => 'finished',  'doctor' => 'completed'],
         ];
 

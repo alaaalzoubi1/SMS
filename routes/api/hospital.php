@@ -8,10 +8,14 @@ use App\Http\Controllers\HospitalController;
 use App\Http\Controllers\HospitalServiceController;
 use App\Http\Controllers\HospitalWorkScheduleController;
 use App\Http\Controllers\HospitalServiceReservationController;
+use App\Http\Controllers\ServiceController;
 // the URL is api/hospital
     Route::post('logout', [HospitalAuthController::class, 'logout']);
     Route::get('me', [HospitalAuthController::class, 'me']);
     Route::post('edit-profile', [HospitalAuthController::class, 'editProfile']);
+
+    // Catalog of hospital-type services the authenticated hospital can offer.
+    Route::get('available-services', [ServiceController::class, 'availableServicesForHospital']);
 
 
     Route::prefix('service')->controller(HospitalServiceController::class)->group(function () {

@@ -115,10 +115,14 @@ class LegalDocumentController extends Controller
     }
 
     /**
-     * POST /api/legal/{type}
+     * POST /api/admin/legal/{type}
      *
-     * Restricted to super_admin (see route middleware + the FormRequest's
-     * authorize()). Body: { "content": { "en": "...", "ar": "..." }, "version": "1.1" }
+     * Admin only (the route sits behind the `role:admin` middleware, and the
+     * FormRequest re-checks the same role). It used to demand
+     * `super_admin`, a role RolesSeeder never creates, so every save returned
+     * 403 — that was the "الشروط والأحكام لا يمكن تعديلها" bug.
+     *
+     * Body: { "content": { "en": "...", "ar": "..." }, "version": "1.1" }
      */
     public function update(UpdateLegalDocumentRequest $request, string $type): JsonResponse
     {
@@ -131,10 +135,23 @@ class LegalDocumentController extends Controller
             ], 404);
         }
 
+        if ($request->boolean('bump_version')) {
+            $documentTypeForVersion = LegalDocument::query()
+                ->where('type', $documentType->value)
+                ->first();
+
+            $current = $documentTypeForVersion?->version ?? '1.0';
+            $parts = explode('.', $current);
+
+            $next = ((int) ($parts[0] ?? '1')) . '.' . ((int) ($parts[1] ?? '0') + 1);
+
+            $request->merge(['version' => $next]);
+        }
+
         $document = LegalDocument::firstOrNew(['type' => $documentType->value]);
         $document->content = $request->validated('content');
         $document->version = $request->validated('version') ?? $document->version ?? '1.0';
-        $document->updated_by = $request->user()->id;
+        $document->updated_by_account_id = $request->user()?->id;
         $document->save();
 
         foreach (self::SUPPORTED_LOCALES as $locale) {

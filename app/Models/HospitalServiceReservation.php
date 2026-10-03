@@ -31,18 +31,37 @@ class HospitalServiceReservation extends Model
     protected $casts = [
         'unit_price' => 'float',
         'reserved_by_admin' => 'boolean',
+        'start_date' => 'date:Y-m-d',
+        'end_date' => 'date:Y-m-d',
     ];
 
+    /**
+     * Inclusive day count: a reservation running from the 1st to the 5th is
+     * five days, not four.
+     *
+     * Both ends are normalized to the start of the day. Previously only the
+     * reference date was, so a start_date carrying a time (e.g. the `now()`
+     * written on confirmation) lost most of its first day and the total came
+     * out one day short.
+     */
     public function getDaysAttribute(): int
     {
         if ($this->start_date === null) {
             return 0;
         }
 
-        $reference = $this->end_date ?? now();
+        $start = Carbon::parse($this->start_date)->startOfDay();
+        $reference = $this->end_date !== null
+            ? Carbon::parse($this->end_date)->startOfDay()
+            : Carbon::now()->startOfDay();
 
-        return (int) Carbon::parse($this->start_date)
-            ->diffInDays(Carbon::parse($reference)->startOfDay()) + 1;
+        // A future end_date (or a bad one) must never produce a negative
+        // count, otherwise final_price becomes negative.
+        if ($reference->lt($start)) {
+            $reference = $start;
+        }
+
+        return (int) $start->diffInDays($reference) + 1;
     }
 
     public function getFinalPriceAttribute(): float

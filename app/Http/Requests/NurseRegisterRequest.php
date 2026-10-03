@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\GraduationType;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class NurseRegisterRequest extends FormRequest
 {
@@ -22,7 +24,7 @@ class NurseRegisterRequest extends FormRequest
             // Nurse Info (Full Name, Address, Graduation Type, etc.)
             'full_name' => 'required|string|max:255',
             'address' => 'nullable|string|max:255', // Address is optional
-            'graduation_type' => 'required|in:معهد طبي/صحي,مدرسة التمريض والقبالة,جامعة,ماجستير,دكتوراه',
+            'graduation_type' => ['required', Rule::in(GraduationType::values())],
             'longitude' => 'nullable|numeric|between:-180,180',  // Longitude can be null
             'latitude' => 'nullable|numeric|between:-90,90',   // Latitude can be null
             'birthdate' => 'required|date|after_or_equal:' . now()->subYears(99)->toDateString() . '|before_or_equal:' . now()->subYears(21)->toDateString(),
@@ -44,7 +46,7 @@ class NurseRegisterRequest extends FormRequest
             'email.unique' => 'This email is already in use.',
             'phone_number.unique' => 'This phone number is already in use.',
             'password.confirmed' => 'The password confirmation does not match.',
-            'graduation_type.in' => 'The graduation type must be one of the following: معهد, مدرسة, جامعة, ماجستير, دكتوراه.',
+            'graduation_type.in' => 'نوع التخرج يجب أن يكون أحد الخيارات التالية: ' . implode('، ', GraduationType::values()) . '.',
             'license_image.required' => 'A license image is required.',
             'license_image.image' => 'The license image must be a valid image.',
             'license_image.mimes' => 'The license image must be of type: jpg, jpeg, png, or gif.',

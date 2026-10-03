@@ -27,7 +27,7 @@ class DoctorWorkScheduleController extends Controller
         $validateData = $request->validated();
         $schedule = DoctorWorkSchedule::create([
             'doctor_id' => $doctor->id,
-            'day_of_week' => $validateData['day_of_week'],
+            'day_of_week' => strtolower($validateData['day_of_week']),
             'start_time' => $validateData['start_time'],
             'end_time' => $validateData['end_time']
         ]);
@@ -46,14 +46,25 @@ class DoctorWorkScheduleController extends Controller
     {
         $schedule = DoctorWorkSchedule::findOrFail($id);
         $this->authorize('all', $schedule);
-//        $schedule->update($request->validated());
-        $schedule->fill($request->validated());
-        if ($schedule->isDirty())
-            return response()->json([
-                'message' => 'Work schedule updated successfully.',
-                'data' => $schedule
-            ]);
-        return response()->json(['message' => 'No changes detected.']);
+
+        $data = $request->validated();
+
+        if (isset($data['day_of_week'])) {
+            $data['day_of_week'] = strtolower($data['day_of_week']);
+        }
+
+        $schedule->fill($data);
+
+        if (!$schedule->isDirty()) {
+            return response()->json(['message' => 'No changes detected.']);
+        }
+
+        $schedule->save();
+
+        return response()->json([
+            'message' => 'Work schedule updated successfully.',
+            'data' => $schedule->fresh()
+        ]);
 
     }
 
@@ -176,8 +187,10 @@ class DoctorWorkScheduleController extends Controller
             ? $now->copy()
             : $requestedMonthStart->copy();
 
+        // Stored rows may carry any casing, so normalize before matching.
         $workDays = $doctor->doctorWorkSchedule()
             ->pluck('day_of_week')
+            ->map(fn ($day) => strtolower(trim($day)))
             ->toArray();
 
         $dayNameToNum = [

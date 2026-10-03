@@ -16,7 +16,7 @@ class DoctorEditProfileRequest extends FormRequest
         return [
             'full_name'    => 'sometimes|string|max:255',
             'phone_number' => 'sometimes|string|unique:accounts,phone_number,' . auth()->id(),
-            'address'      => 'sometimes|string|max:255',
+            'address'      => 'sometimes|string|min:10|max:255',
             'birthdate'    => 'sometimes|date|after_or_equal:' . now()->subYears(99)->toDateString() . '|before_or_equal:' . now()->subYears(21)->toDateString(),
             'gender'       => 'sometimes|in:male,female',
             'specialization_id' => [
@@ -34,6 +34,7 @@ class DoctorEditProfileRequest extends FormRequest
     {
         return [
             'phone_number.unique' => 'رقم الهاتف مستخدم من قبل.',
+            'address.min' => 'العنوان يجب أن يكون 10 أحرف على الأقل.',
             'gender.in' => 'القيمة المدخلة للجنس غير صحيحة.',
             'profile_image.image' => 'يجب أن تكون صورة صالحة.',
             'profile_image.mimes' => 'يجب أن تكون الصورة jpeg أو png أو jpg.',
