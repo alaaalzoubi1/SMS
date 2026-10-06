@@ -34,6 +34,6 @@ use Illuminate\Support\Facades\Route;
 
     Route::prefix('reservations')->group(callback: function () {
         Route::get('/', [NurseReservationController::class, 'index']);
-        Route::patch('/updateStatus/{id}', [NurseReservationController::class, 'updateStatus']);
+        Route::patch('/{id}/status', [NurseReservationController::class, 'updateStatus']);
 
     });
