@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 class CreateDoctorsTable extends Migration
@@ -23,7 +24,9 @@ class CreateDoctorsTable extends Migration
             $table->float('avg_rating')->default(0);
             $table->unsignedInteger('ratings_count')->default(0);
             $table->geography('location', subtype: 'point');
-            $table->spatialIndex('location');
+            if (DB::connection()->getDriverName() !== 'sqlite') {
+                $table->spatialIndex('location');
+            }
             $table->timestamps();
             $table->softDeletes();
         });

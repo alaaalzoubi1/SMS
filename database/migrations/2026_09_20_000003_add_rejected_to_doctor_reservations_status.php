@@ -52,6 +52,8 @@ return new class extends Migration
         $statuses ??= ['pending', 'approved', 'rejected', 'cancelled', 'completed'];
         $quoted = collect($statuses)->map(fn ($s) => "'{$s}'")->implode(', ');
 
+        $foreignKeyConstraintsEnabled = (bool) DB::selectOne('PRAGMA foreign_keys')->foreign_keys;
+
         Schema::disableForeignKeyConstraints();
 
         DB::statement('PRAGMA foreign_keys = OFF');
@@ -96,8 +98,10 @@ return new class extends Migration
         DB::statement('CREATE INDEX doctor_reservations_doctor_id_date_status_index ON doctor_reservations (doctor_id, date, status)');
         DB::statement('CREATE INDEX doctor_reservations_deleted_at_index ON doctor_reservations (deleted_at)');
 
-        DB::statement('PRAGMA foreign_keys = ON');
+        if ($foreignKeyConstraintsEnabled) {
+            DB::statement('PRAGMA foreign_keys = ON');
 
-        Schema::enableForeignKeyConstraints();
+            Schema::enableForeignKeyConstraints();
+        }
     }
 };

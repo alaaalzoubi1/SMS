@@ -38,7 +38,9 @@ return new class extends Migration
             $table->index('nurse_id');
             $table->index(['nurse_id', 'status']);
             $table->index(['nurse_id', 'created_at']);
-            $table->spatialIndex('location');
+            if (DB::connection()->getDriverName() !== 'sqlite') {
+                $table->spatialIndex('location');
+            }
             $table->softDeletes();
             $table->timestamps();
         });

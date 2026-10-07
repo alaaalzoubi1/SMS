@@ -28,7 +28,9 @@ return new class extends Migration
             $table->string('profile_description')->nullable();
             $table->string('license_image_path');
             $table->softDeletes();
-            $table->spatialIndex('location');
+            if (DB::connection()->getDriverName() !== 'sqlite') {
+                $table->spatialIndex('location');
+            }
             $table->float('avg_rating')->default(0);
             $table->unsignedInteger('ratings_count')->default(0);
             $table->timestamps();

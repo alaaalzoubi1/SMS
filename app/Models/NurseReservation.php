@@ -51,14 +51,14 @@ class NurseReservation extends Model
 
     public function getServicesCountAttribute(): int
     {
-        return $this->servicesLoaded()
+        return $this->relationLoaded('services')
             ? $this->services->count()
             : $this->services()->count();
     }
 
     public function getServiceNamesAttribute(): array
     {
-        if ($this->servicesLoaded()) {
+        if ($this->relationLoaded('services')) {
             return $this->services->map(fn (NurseService $s) => $s->name)->values()->all();
         }
 
@@ -72,7 +72,7 @@ class NurseReservation extends Model
      */
     public function getServicesTotalPriceAttribute(): float
     {
-        $services = $this->servicesLoaded()
+        $services = $this->relationLoaded('services')
             ? $this->services
             : $this->services()->get();
 

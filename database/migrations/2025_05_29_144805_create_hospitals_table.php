@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -24,7 +25,9 @@ return new class extends Migration
             $table->geography('location', subtype: 'point');
             $table->string('profile_image_path')->nullable();
             $table->double('reservation_confirmation_deadline')->nullable();
-            $table->spatialIndex('location');
+            if (DB::connection()->getDriverName() !== 'sqlite') {
+                $table->spatialIndex('location');
+            }
             $table->softDeletes();
             $table->timestamps();
         });
