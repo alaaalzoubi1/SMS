@@ -51,14 +51,20 @@ class DoctorReservationController extends Controller
                 'message' => 'الطبيب لا يملك دوام عمل في هذا اليوم، اختر تاريخاً آخر.'
             ], 422);
         }
-        if (!$request->confirm){
+        // The "you already have a pending request" warning only applies to the
+        // SAME doctor. It used to look at any pending doctor request, so a
+        // patient could not request a second, different doctor until the
+        // first one accepted.
+        if (!$request->boolean('confirm')){
             $previousReservation = DoctorReservation::where('user_id' , $userId)
+                ->where('doctor_id', $request->doctor_id)
                 ->where('status','pending')
                 ->exists();
             if ($previousReservation)
             {
                 return response()->json([
-                    'message' => 'لديك بالفعل طلب بحالة قيد الانتظار هل تريد المتابعة فعلاً!'
+                    'message' => 'لديك بالفعل طلب بحالة قيد الانتظار لدى هذا الطبيب، هل تريد المتابعة فعلاً؟',
+                    'requires_confirmation' => true,
                 ]);
             }
         }
@@ -77,7 +83,7 @@ class DoctorReservationController extends Controller
         ]);
 
         return response()->json([
-            'message' => 'Reservation request submitted successfully.',
+            'message' => 'تم إرسال طلب الحجز بنجاح.',
             'reservation' => $reservation,
         ], 201);
     }
@@ -160,13 +166,13 @@ class DoctorReservationController extends Controller
             DB::commit();
 
             return response()->json([
-                'message' => 'Reservation created successfully.',
+                'message' => 'تم إنشاء الحجز بنجاح.',
                 'data'    => $reservation->load('user'),
             ], 201);
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['message' => 'Error creating reservation.', 'error' => $e->getMessage()], 500);
+            return response()->json(['message' => 'حدث خطأ أثناء إنشاء الحجز.', 'error' => $e->getMessage()], 500);
         }
     }
 
@@ -195,6 +201,10 @@ class DoctorReservationController extends Controller
 
             $this->authorize('manageReservations', $reservation);
 
+            // pending  → approved | rejected | cancelled
+            // approved → completed | cancelled   (emergency: the doctor can
+            //            now cancel an already-approved booking, which was
+            //            impossible before)
             if ($request->status === 'completed') {
                 if ($reservation->status !== 'approved') {
                     DB::rollBack();
@@ -202,11 +212,18 @@ class DoctorReservationController extends Controller
                         'message' => 'الحجز يجب أن يكون بحالة مقبول قبل تغييره إلى مكتمل.'
                     ], 403);
                 }
+            } elseif ($request->status === 'cancelled') {
+                if (!in_array($reservation->status, ['pending', 'approved'], true)) {
+                    DB::rollBack();
+                    return response()->json([
+                        'message' => 'لا يمكن إلغاء الحجز إلا إذا كان قيد الانتظار أو مقبولاً.'
+                    ], 403);
+                }
             } else {
                 if ($reservation->status !== 'pending') {
                     DB::rollBack();
                     return response()->json([
-                        'message' => 'لا يمكن تغيير الحالة إلا إذا كانت الحجز قيد الانتظار.'
+                        'message' => 'لا يمكن تغيير الحالة إلا إذا كان الحجز قيد الانتظار.'
                     ], 403);
                 }
             }
@@ -235,19 +252,20 @@ class DoctorReservationController extends Controller
                         ], 409);
                     }
 
-                    // Even with force_confirm the slot is anchored to the
-                    // doctor's window; if the day has no schedule at all, or
-                    // the slot would fall past closing time, we refuse instead
-                    // of inventing a start hour.
+                    // The doctor saw the warning and confirmed: accept the
+                    // request even though it is after official working hours
+                    // (it used to be refused here, so confirming did nothing).
                     $slot = $this->doctorReservationService
                         ->forceSlotForApproval($doctorId, $date, $duration);
                 }
 
                 $reservation->update([
                     'status'     => 'approved',
-                    'start_time' => $slot['start_time'],
-                    'end_time'   => $slot['end_time'],
+                    'start_time' => $slot['start_time']->format('H:i:s'),
+                    'end_time'   => $slot['end_time']->format('H:i:s'),
                 ]);
+
+                $outsideWorkingHours = (bool) ($slot['outside_working_hours'] ?? false);
             }
 
             /*
@@ -306,8 +324,9 @@ class DoctorReservationController extends Controller
             $this->notifyUser($reservation, $request->reason);
 
             return response()->json([
-                'message' => 'Reservation status updated successfully.',
-                'data'    => $reservation->fresh(),
+                'message' => 'تم تحديث حالة الحجز بنجاح.',
+                'data'    => $reservation->fresh(['cancellation', 'doctorService']),
+                'outside_working_hours' => $outsideWorkingHours ?? false,
             ]);
 
         } catch (\Throwable $e) {
@@ -315,7 +334,7 @@ class DoctorReservationController extends Controller
             DB::rollBack();
 
             return response()->json([
-                'message' => 'Error updating reservation.',
+                'message' => 'حدث خطأ أثناء تحديث حالة الحجز.',
                 'error'   => $e->getMessage()
             ], 500);
         }
@@ -379,12 +398,12 @@ class DoctorReservationController extends Controller
                     $doctorName,
                     $reason
                 ),
-                default     => sprintf(
-                    'تم تحديث حالة حجزك لدى %s.',
-                    $doctorName
-                ),
                 'completed' => sprintf(
                     'تم اكتمال حجزك مع %s بنجاح.',
+                    $doctorName
+                ),
+                default     => sprintf(
+                    'تم تحديث حالة حجزك لدى %s.',
                     $doctorName
                 ),
             };
@@ -400,35 +419,69 @@ class DoctorReservationController extends Controller
         }
     }
 
+    /**
+     * PATCH api/doctor/reservations/cancel-remaining
+     *
+     * Cancel every remaining reservation of a given day (doctor emergency /
+     * day off) and notify each patient.
+     *
+     * Previously only `pending` rows were touched, so patients whose booking
+     * was already approved for that day were neither cancelled nor notified —
+     * which is the "nothing is sent when cancelling a specific day / bulk
+     * cancellation" report. Approved bookings are now included (optionally
+     * restrict with `statuses[]`), the date match uses whereDate, and the
+     * whole operation is atomic; notifications go out after the commit.
+     */
     public function cancelRemaining(Request $request): JsonResponse
     {
         $request->validate([
             'date' => 'required|date',
             'reason' => 'required|string|max:500',
+            'statuses' => 'sometimes|array|min:1',
+            'statuses.*' => 'in:pending,approved',
+        ], [
+            'reason.required' => 'سبب الإلغاء مطلوب.',
         ]);
 
         $doctor = Doctor::where('account_id', auth()->id())
             ->firstOrFail();
 
         $reason = $request->reason;
+        $statuses = $request->input('statuses', ['pending', 'approved']);
 
-        $pendingReservations = DoctorReservation::where('doctor_id', $doctor->id)
-            ->where('date', $request->date)
-            ->where('status', 'pending')
-            ->get();
+        $reservations = DB::transaction(function () use ($doctor, $request, $statuses, $reason) {
+            $rows = DoctorReservation::with(['user.account', 'doctor'])
+                ->where('doctor_id', $doctor->id)
+                ->whereDate('date', $request->date)
+                ->whereIn('status', $statuses)
+                ->lockForUpdate()
+                ->get();
 
-        foreach ($pendingReservations as $reservation) {
-            $reservation->update(['status' => 'cancelled']);
+            foreach ($rows as $reservation) {
+                $reservation->update(['status' => 'cancelled']);
 
-            $reservation->cancellation()->create([
-                'reason' => $reason,
-            ]);
+                $reservation->cancellation()->create([
+                    'reason' => $reason,
+                ]);
+            }
 
+            return $rows;
+        });
+
+        foreach ($reservations as $reservation) {
             $this->notifyUser($reservation, $reason);
         }
 
+        if ($reservations->isEmpty()) {
+            return response()->json([
+                'message' => 'لا توجد حجوزات قابلة للإلغاء في هذا اليوم.',
+                'cancelled_count' => 0,
+            ]);
+        }
+
         return response()->json([
-            'message' => 'تم إلغاء جميع الحجوزات المتبقية بنجاح.'
+            'message' => 'تم إلغاء جميع الحجوزات المتبقية بنجاح وإشعار المرضى.',
+            'cancelled_count' => $reservations->count(),
         ]);
     }
 

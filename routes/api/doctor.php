@@ -13,6 +13,9 @@ Route::post('logout', [DoctorAuthController::class, 'logout']);
 Route::get('me', [DoctorAuthController::class, 'me']);
 Route::post('edit-profile', [DoctorAuthController::class, 'editProfile']);
 
+// Doctor statistics (restored): ?range=today|week|month|year|custom|all&from=&to=
+Route::get('statistics', [\App\Http\Controllers\ProviderStatisticsController::class, 'doctor']);
+
 
 Route::prefix('schedules')->group(function () {
     Route::post('', [DoctorWorkScheduleController::class, 'store']);

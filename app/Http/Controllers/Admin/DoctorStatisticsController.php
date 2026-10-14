@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Admin\Concerns\FiltersProviderAccounts;
 use App\Http\Controllers\Controller;
 use App\Models\Doctor;
 use App\Models\DoctorReservation;
@@ -10,9 +11,11 @@ use Illuminate\Http\Request;
 
 class DoctorStatisticsController extends Controller
 {
+    use FiltersProviderAccounts;
+
     public function doctors(Request $request): JsonResponse
     {
-        $validated = $request->validate([
+        $validated = $request->validate(array_merge($this->accountFilterRules(), [
             'full_name' => 'nullable|string|max:255',
             'address' => 'nullable|string|max:255',
             'location' => 'nullable|string|max:255',
@@ -26,12 +29,16 @@ class DoctorStatisticsController extends Controller
             'name_ar' => 'nullable|string|max:255',
             'name_en' => 'nullable|string|max:255',
             'per_page' => 'nullable|integer|min:1|max:100',
-        ]);
+        ]));
 
         $query = Doctor::query()
-            ->with([
-                'account:id,email,phone_number',
-                'specialization:id,name_ar,name_en,image'
+            ->with(array_merge($this->withAccount(), [
+                'specialization:id,name_ar,name_en,image',
+                'province:id,name_ar,name_en',
+            ]))
+            ->withCount([
+                'reservations',
+                'reservations as completed_reservations_count' => fn ($q) => $q->where('status', 'completed'),
             ]);
 
         $query
@@ -48,6 +55,10 @@ class DoctorStatisticsController extends Controller
             ->when($validated['name_ar'] ?? null, fn ($q, $v) => $q->whereRelation('specialization', 'name_ar', 'like', "%{$v}%"))
             ->when($validated['name_en'] ?? null, fn ($q, $v) => $q->whereRelation('specialization', 'name_en', 'like', "%{$v}%"));
 
+        // province_id is already handled above; the rest: suspension,
+        // approval, subscription state, creation date, deleted, sort.
+        $this->applyAccountFilters($query, $request, hasProvince: false);
+
         $perPage = $validated['per_page'] ?? 10;
 
         return response()->json([
@@ -57,7 +68,13 @@ class DoctorStatisticsController extends Controller
     public function doctor($id): JsonResponse
     {
         return response()->json([
-            'doctor' => Doctor::with(['account:id,email,phone_number,created_at,updated_at','services','doctorWorkSchedule','specialization:id,name_en,name_ar,image,created_at,updated_at'])->where('id',$id)->firstOrFail()
+            'doctor' => Doctor::withTrashed()
+                ->with(array_merge($this->withAccount(), ['services','doctorWorkSchedule','specialization:id,name_en,name_ar,image,created_at,updated_at','province:id,name_ar,name_en']))
+                ->withCount([
+                    'reservations',
+                    'reservations as completed_reservations_count' => fn ($q) => $q->where('status', 'completed'),
+                ])
+                ->where('id',$id)->firstOrFail()
         ]);
     }
     public function doctorReservations(Request $request ,$id): JsonResponse

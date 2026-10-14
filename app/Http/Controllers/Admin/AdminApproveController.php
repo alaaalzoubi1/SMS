@@ -8,6 +8,7 @@ use App\Jobs\SendFirebaseNotificationJob;
 use App\Jobs\SendVerificationCodeJob;
 use App\Models\Account;
 use App\Models\Doctor;
+use App\Support\SubscriptionTrial;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -26,16 +27,28 @@ class AdminApproveController extends Controller
             return response()->json(['message' => 'Already approved.']);
         }
 
-        $account->update([
-            'is_approved' => 'approved',
-            'verification_code' => null,  // No need for verification code anymore
-        ]);
+        $account->is_approved = 'approved';
+        $account->verification_code = null;  // No need for verification code anymore
+
+        // Doctors / nurses get the automatic 45-day trial counted from today
+        // (the approval date), so the admin never has to add it by hand. A
+        // longer expiry the admin already set manually is kept.
+        SubscriptionTrial::anchorToApproval($account);
+
+        $account->save();
 
         // Dispatch job to send the approval email
         SendApprovalEmail::dispatch($account);
 
         $role = $account->getRoleNames()->first();
-        return response()->json(['message' => ucfirst($role) . ' approved and approval email sent.']);
+        return response()->json([
+            'message' => 'تمت الموافقة على الحساب وإرسال بريد التفعيل.',
+            'role' => $role,
+            'subscription_expires_at' => $account->subscription_expires_at
+                ? Carbon::parse($account->subscription_expires_at)->toDateTimeString()
+                : null,
+            'trial_days' => SubscriptionTrial::appliesTo($account) ? SubscriptionTrial::days() : null,
+        ]);
     }
     protected function validateRole(string $role)
     {
@@ -60,18 +73,58 @@ class AdminApproveController extends Controller
 
         return response()->json($accounts);
     }
+    /**
+     * PATCH api/admin/toggleSuspension
+     *
+     * Restrict (suspend) or re-activate any account.
+     *
+     * `is_suspended` used to be validated with the strict `boolean` rule,
+     * which rejects the strings "true" / "false" that dashboards send from
+     * form-data or query strings — so the request always failed with a 422
+     * and restricting accounts looked like it "was not enabled". It is now
+     * parsed leniently, and may be omitted to simply flip the current state.
+     */
     public function toggleSuspension(Request $request)
     {
+        if ($request->has('is_suspended')) {
+            $parsed = filter_var($request->input('is_suspended'), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+            $request->merge(['is_suspended' => $parsed]);
+        }
+
         $request->validate([
-            'is_suspended' => 'required|boolean',
-            'account_id' => 'required|exists:accounts,id'
+            'is_suspended' => 'nullable|boolean',
+            'account_id' => 'required|integer|exists:accounts,id'
+        ], [
+            'is_suspended.boolean' => 'قيمة حالة الإيقاف يجب أن تكون true أو false.',
+            'account_id.exists' => 'الحساب غير موجود.',
         ]);
-        $id = $request->account_id;
-        $account = Account::findOrFail($id);
-        $account->is_suspended = $request->is_suspended;
+
+        $account = Account::findOrFail($request->account_id);
+
+        if ($account->hasRole('admin')) {
+            return response()->json(['message' => 'لا يمكن إيقاف حساب مدير.'], 422);
+        }
+
+        $suspend = $request->input('is_suspended');
+        $account->is_suspended = is_null($suspend) ? !$account->is_suspended : (bool) $suspend;
         $account->save();
+
+        if ($account->fcm_token) {
+            SendFirebaseNotificationJob::dispatch(
+                $account->fcm_token,
+                $account->is_suspended ? 'تم إيقاف الحساب' : 'تم تفعيل الحساب',
+                $account->is_suspended
+                    ? 'تم إيقاف حسابك من قبل الإدارة يرجى التواصل مع الدعم الفني.'
+                    : 'تمت إعادة تفعيل حسابك، يمكنك استخدام التطبيق الآن.'
+            );
+        }
+
         return response()->json([
-            'message' => 'suspension status updated successfully.',
+            'message' => $account->is_suspended
+                ? 'تم إيقاف (تقييد) الحساب بنجاح.'
+                : 'تم تفعيل الحساب بنجاح.',
+            'account_id' => $account->id,
+            'is_suspended' => (bool) $account->is_suspended,
         ]);
     }
     /**

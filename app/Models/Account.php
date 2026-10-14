@@ -31,6 +31,17 @@ class Account extends Authenticatable implements JWTSubject
         'remember_token',
     ];
 
+    /**
+     * Without this cast `subscription_expires_at` came back as a plain string,
+     * so AdminApproveController::extendSubscription() crashed on
+     * `$currentExpiry->isFuture()` for any account that already had an expiry
+     * (e.g. every account that received the automatic trial).
+     */
+    protected $casts = [
+        'subscription_expires_at' => 'datetime:Y-m-d H:i:s', // same string format the API returned before
+        'is_suspended' => 'boolean',
+    ];
+
     public function nurse(): HasOne
     {
         return $this->hasOne(Nurse::class);

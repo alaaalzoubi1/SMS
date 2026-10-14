@@ -159,7 +159,7 @@ class NurseReservation extends Model
     public function cancel(string $reason): void
     {
         if (!$this->canBeCancelled()) {
-            throw new \DomainException('Reservation cannot be cancelled.');
+            throw new \DomainException('لا يمكن إلغاء هذا الحجز في حالته الحالية.');
         }
 
         $this->status = 'cancelled';
@@ -179,7 +179,7 @@ class NurseReservation extends Model
     public function reject(string $reason): void
     {
         if ($this->status !== 'pending') {
-            throw new \DomainException('Only a pending reservation can be rejected.');
+            throw new \DomainException('لا يمكن رفض الحجز إلا إذا كان قيد الانتظار.');
         }
 
         $this->status = 'rejected';

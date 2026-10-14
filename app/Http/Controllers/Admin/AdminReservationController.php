@@ -45,13 +45,13 @@ class AdminReservationController extends Controller
         ]);
         if ($request->filled('user_id') && $request->filled('user_data')) {
             return response()->json([
-                'message' => 'You cannot send both user_id and user_data.'
+                'message' => 'لا يمكن إرسال user_id و user_data معاً.'
             ], 422);
         }
 
         if (!$request->filled('user_id') && !$request->filled('user_data')) {
             return response()->json([
-                'message' => 'You must send either user_id or user_data.'
+                'message' => 'يجب إرسال user_id أو user_data.'
             ], 422);
         }
 
@@ -104,13 +104,13 @@ class AdminReservationController extends Controller
         ]);
         if ($request->filled('user_id') && $request->filled('user_data')) {
             return response()->json([
-                'message' => 'You cannot send both user_id and user_data.'
+                'message' => 'لا يمكن إرسال user_id و user_data معاً.'
             ], 422);
         }
 
         if (!$request->filled('user_id') && !$request->filled('user_data')) {
             return response()->json([
-                'message' => 'You must send either user_id or user_data.'
+                'message' => 'يجب إرسال user_id أو user_data.'
             ], 422);
         }
         $user = $this->userService->resolveUser(
@@ -151,13 +151,13 @@ class AdminReservationController extends Controller
         ]);
         if ($request->filled('user_id') && $request->filled('user_data')) {
             return response()->json([
-                'message' => 'You cannot send both user_id and user_data.'
+                'message' => 'لا يمكن إرسال user_id و user_data معاً.'
             ], 422);
         }
 
         if (!$request->filled('user_id') && !$request->filled('user_data')) {
             return response()->json([
-                'message' => 'You must send either user_id or user_data.'
+                'message' => 'يجب إرسال user_id أو user_data.'
             ], 422);
         }
 
@@ -166,11 +166,25 @@ class AdminReservationController extends Controller
             $request->user_data
         );
 
-        $reservation = $this->hospitalService->create(
-            $user->id,
-            $request->hospital_service_id,
-            true
-        );
+        try {
+            $reservation = $this->hospitalService->create(
+                $user->id,
+                $request->hospital_service_id,
+                true
+            );
+        } catch (\DomainException $e) {
+            // No free bed: used to bubble up as a generic 500. Return the
+            // hospitals that do have a free bed so the admin can redirect.
+            $requested = \App\Models\HospitalService::with(['hospital', 'service'])->find($request->hospital_service_id);
+
+            return response()->json([
+                'message' => $e->getMessage(),
+                'no_vacancy' => true,
+                'alternatives' => $requested ? $this->hospitalService->alternativesFor($requested) : [],
+            ], 422);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['message' => 'المشفى أو الخدمة غير متاحة حالياً.'], 404);
+        }
 
         return response()->json($reservation);
     }

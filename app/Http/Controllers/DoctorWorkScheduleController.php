@@ -22,7 +22,7 @@ class DoctorWorkScheduleController extends Controller
         $doctor = Doctor::where('account_id', auth()->id())->first();
 
         if (!$doctor) {
-            return response()->json(['message' => 'Doctor not found.'], 404);
+            return response()->json(['message' => 'الطبيب غير موجود.'], 404);
         }
         $validateData = $request->validated();
         $schedule = DoctorWorkSchedule::create([
@@ -33,7 +33,7 @@ class DoctorWorkScheduleController extends Controller
         ]);
 
         return response()->json([
-            'message' => 'Work schedule created successfully.',
+            'message' => 'تمت إضافة الدوام بنجاح.',
             'data'    => $schedule
         ], 201);
     }
@@ -56,13 +56,13 @@ class DoctorWorkScheduleController extends Controller
         $schedule->fill($data);
 
         if (!$schedule->isDirty()) {
-            return response()->json(['message' => 'No changes detected.']);
+            return response()->json(['message' => 'لا توجد تغييرات على الدوام.']);
         }
 
         $schedule->save();
 
         return response()->json([
-            'message' => 'Work schedule updated successfully.',
+            'message' => 'تم تعديل الدوام بنجاح.',
             'data' => $schedule->fresh()
         ]);
 
@@ -79,7 +79,7 @@ class DoctorWorkScheduleController extends Controller
         $schedule->delete();
 
         return response()->json([
-            'message' => 'Work schedule deleted successfully.'
+            'message' => 'تم حذف الدوام بنجاح.'
         ]);
     }
 
@@ -104,7 +104,7 @@ class DoctorWorkScheduleController extends Controller
 
         if ($dayAlreadyTaken) {
             return response()->json([
-                'message' => 'This day already exists for your schedule.'
+                'message' => 'لديك دوام مسجل في هذا اليوم بالفعل.'
             ], 409);
         }
 
@@ -113,13 +113,13 @@ class DoctorWorkScheduleController extends Controller
             $schedule->restore();
 
             return response()->json([
-                'message' => 'Schedule restored successfully.',
+                'message' => 'تمت استعادة الدوام بنجاح.',
                 'data' => $schedule
             ]);
         }
 
         return response()->json([
-            'message' => 'Schedule is not deleted.'
+            'message' => 'هذا الدوام غير محذوف.'
         ], 400);
     }
 
@@ -129,11 +129,11 @@ class DoctorWorkScheduleController extends Controller
         $doctor = Doctor::where('account_id', auth()->id())->first();
 
         if (!$doctor) {
-            return response()->json(['message' => 'Doctor not found.'], 404);
+            return response()->json(['message' => 'الطبيب غير موجود.'], 404);
         }
         $trashedSchedules = DoctorWorkSchedule::onlyTrashed()->where('doctor_id',$doctor->id)->get();
         return response()->json([
-            'message' => 'Soft deleted schedules retrieved successfully.',
+            'message' => 'تم جلب أيام الدوام المحذوفة بنجاح.',
             'data' => $trashedSchedules
         ]);
     }
@@ -143,14 +143,14 @@ class DoctorWorkScheduleController extends Controller
         $doctor = Doctor::where('account_id', auth()->id())->first();
 
         if (!$doctor) {
-            return response()->json(['message' => 'Doctor not found.'], 404);
+            return response()->json(['message' => 'الطبيب غير موجود.'], 404);
         }
 
         $schedules = DoctorWorkSchedule::where('doctor_id', $doctor->id)
             ->get();
 
         return response()->json([
-            'message' => 'Doctor schedules retrieved successfully.',
+            'message' => 'تم جلب أوقات الدوام بنجاح.',
             'data' => $schedules
         ]);
     }
@@ -160,7 +160,7 @@ class DoctorWorkScheduleController extends Controller
     {
         $doctor = Doctor::find($doctorId);
         if (!$doctor) {
-            return response()->json(['message' => 'Doctor not found'], 404);
+            return response()->json(['message' => 'الطبيب غير موجود.'], 404);
         }
 
         $month = (int) $request->query('month', now()->month);
@@ -171,7 +171,7 @@ class DoctorWorkScheduleController extends Controller
         // بداية الشهر المطلوب
         if (!checkdate($month, 1, $year)) {
             return response()->json([
-                'message' => 'Invalid month or year.'
+                'message' => 'الشهر أو السنة غير صحيح.'
             ], 422);
         }
 
@@ -179,7 +179,7 @@ class DoctorWorkScheduleController extends Controller
 
         if ($requestedMonthEnd->lt($now)) {
             return response()->json([
-                'message' => 'Cannot fetch dates for past months.'
+                'message' => 'لا يمكن عرض مواعيد الأشهر السابقة.'
             ], 422);
         }
 

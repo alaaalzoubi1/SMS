@@ -82,6 +82,13 @@ use App\Http\Controllers\FirebaseTestController;
 
 Route::get('my-rates',[\App\Http\Controllers\RatingController::class,'myRatings']);
 Route::get('refresh',[\App\Http\Controllers\Auth\JwtController::class,'refresh']);
+
+// Register / clear the device (or dashboard browser) FCM token for whoever is
+// logged in — doctor, nurse, hospital, user or admin.
+Route::middleware(['auth:api', 'ensure.not.suspended'])->group(function () {
+    Route::post('fcm-token', [\App\Http\Controllers\FcmTokenController::class, 'update']);
+    Route::delete('fcm-token', [\App\Http\Controllers\FcmTokenController::class, 'destroy']);
+});
     Route::middleware('throttle:60,1')->group(function () {
         Route::get('/legal/{type}', [LegalDocumentController::class, 'show'])
             ->name('legal.show');

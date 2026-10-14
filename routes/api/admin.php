@@ -1,6 +1,10 @@
 <?php
 
+use App\Http\Controllers\Admin\AdminAccountController;
 use App\Http\Controllers\Admin\AdminApproveController;
+use App\Http\Controllers\Admin\AdminNotificationController;
+use App\Http\Controllers\Admin\AdminReportController;
+use App\Http\Controllers\ProviderStatisticsController;
 use App\Http\Controllers\Admin\AdminReservationController;
 use App\Http\Controllers\Admin\BroadcastNotificationController;
 use App\Http\Controllers\Admin\DoctorStatisticsController;
@@ -33,6 +37,20 @@ Route::post('broadcast-notification', [BroadcastNotificationController::class, '
 Route::get('broadcast-logs',[BroadcastNotificationController::class,'broadcastLogs']);
 Route::patch('extend-subscription',[AdminApproveController::class,'extendSubscription']);
 
+// Dashboard inbox: new hospital requests, requests with no free bed, …
+Route::prefix('notifications')->group(function () {
+    Route::get('/', [AdminNotificationController::class, 'index']);
+    Route::get('/unread-count', [AdminNotificationController::class, 'unreadCount']);
+    Route::patch('/read-all', [AdminNotificationController::class, 'markAllRead']);
+    Route::patch('/{id}/read', [AdminNotificationController::class, 'markRead'])->whereNumber('id');
+});
+
+// Detailed per-account report (filter by province etc.), json or csv
+Route::get('reports/providers', [AdminReportController::class, 'providers']);
+
+// Platform dues (مستحقات الإدارة) grouped by provider — see ADMIN_DUES_FRONTEND.md
+Route::get('dues', [\App\Http\Controllers\Admin\AdminDuesController::class, 'index']);
+
 Route::prefix('service')->group(function () {
     Route::post('/', [ServiceController::class, 'create'])->name('service.create');
     Route::get('/hospitals', [ServiceController::class, 'hospitalsServices']);
@@ -56,7 +74,10 @@ Route::prefix('doctor')->group(function () {
     Route::get('/nearest', [DoctorController::class, 'getNearestDoctors']);
     Route::get('/{id}', [DoctorStatisticsController::class, 'doctor']);
     Route::get('/{id}/reservations', [DoctorStatisticsController::class, 'doctorReservations']);
+    Route::get('/{id}/statistics', [ProviderStatisticsController::class, 'adminDoctor'])->whereNumber('id');
     Route::post('/reserve',[AdminReservationController::class,'doctorReservation']);
+    Route::delete('/{id}', [AdminAccountController::class, 'destroyDoctor'])->whereNumber('id');
+    Route::patch('/{id}/restore', [AdminAccountController::class, 'restoreDoctor'])->whereNumber('id');
 
 });
 Route::prefix('hospital')->group(function () {
@@ -67,15 +88,21 @@ Route::prefix('hospital')->group(function () {
     Route::get('/{id}/reservations', [HospitalStatisticsController::class, 'hospitalReservations']);
     Route::post('/reserve',[AdminReservationController::class,'hospitalReservation']);
     Route::delete('/{id}', [ManageHospitalsAccountsController::class, 'destroyHospitalAccount']);
+    Route::get('/{id}/statistics', [ProviderStatisticsController::class, 'adminHospital'])->whereNumber('id');
     Route::patch('/{id}/restore', [ManageHospitalsAccountsController::class, 'restoreHospitalAccount']);
 });
 Route::prefix('nurse')->group(function () {
     Route::get('/{id}/license', [NurseStatisticsController::class, 'getNurseLicense']);
     Route::get('/all', [NurseStatisticsController::class, 'nurses']);
+    // Search nurse services (which nurse offers what) — for booking on behalf of a patient
+    Route::get('/services/search', [NurseStatisticsController::class, 'searchServices']);
     Route::get('/nearest', [NurseController::class, 'getNearestNursesAdmin']);
     Route::get('/{id}', [NurseStatisticsController::class, 'nurse']);
     Route::get('/{id}/reservations', [NurseStatisticsController::class, 'nurseReservations']);
     Route::post('/reserve',[AdminReservationController::class,'nurseReservation']);
+    Route::get('/{id}/statistics', [ProviderStatisticsController::class, 'adminNurse'])->whereNumber('id');
+    Route::delete('/{id}', [AdminAccountController::class, 'destroyNurse'])->whereNumber('id');
+    Route::patch('/{id}/restore', [AdminAccountController::class, 'restoreNurse'])->whereNumber('id');
     Route::prefix('services/requests')->group(function (){
         Route::get('',[NurseServiceRequestController::class,'index']);
         Route::patch('approve/{id}',[NurseServiceRequestController::class,'approve']);
@@ -87,6 +114,8 @@ Route::prefix('nurse')->group(function () {
 Route::prefix('user')->group(function () {
     Route::get('/all', [UserStatisticsController::class, 'users']);
     Route::get('/{id}/reservations', [UserStatisticsController::class, 'userReservations']);
+    Route::delete('/{id}', [AdminAccountController::class, 'destroyUser'])->whereNumber('id');
+    Route::patch('/{id}/restore', [AdminAccountController::class, 'restoreUser'])->whereNumber('id');
 });
 Route::prefix('provinces')->group(function () {
     Route::get('/', [ProvinceController::class, 'index']);

@@ -14,6 +14,9 @@ use App\Http\Controllers\ServiceController;
     Route::get('me', [HospitalAuthController::class, 'me']);
     Route::post('edit-profile', [HospitalAuthController::class, 'editProfile']);
 
+    // Hospital statistics (restored): ?range=today|week|month|year|custom|all&from=&to=
+    Route::get('statistics', [\App\Http\Controllers\ProviderStatisticsController::class, 'hospital']);
+
     // Catalog of hospital-type services the authenticated hospital can offer.
     Route::get('available-services', [ServiceController::class, 'availableServicesForHospital']);
 

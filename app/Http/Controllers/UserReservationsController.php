@@ -52,7 +52,7 @@ class UserReservationsController extends Controller
             case 'hospital':
                 $reservations = \App\Models\HospitalServiceReservation::query()
                     ->where('user_id', $userId)
-                    ->with(['hospital', 'hospitalService.service','cancellation','rate'])
+                    ->with(['hospital.account:id,phone_number', 'hospitalService.service','cancellation','rate'])
                     ->when($apiStatus, function ($q) use ($statusMap, $apiStatus) {
                         $status = $statusMap[$apiStatus]['hospital'] ?? null;
                         if ($status) $q->where('status', $status);
@@ -61,7 +61,7 @@ class UserReservationsController extends Controller
                     ->orderByDesc('created_at')
                     ->get();
 
-                $data['hospital_reservations'] = $reservations;
+                $data['hospital_reservations'] = $this->applyHospitalContactAccess($reservations);
                 break;
 
             case 'doctor':
@@ -83,14 +83,14 @@ class UserReservationsController extends Controller
                 $user = \App\Models\User::query()
                     ->with([
                         'nurseReservations' => fn($q) => $q->with(['nurse','nurseService.service','services.service','cancellation','rate'])->orderByDesc('created_at'),
-                        'hospitalReservations' => fn($q) => $q->with(['hospital','hospitalService.service','cancellation','rate'])->orderByDesc('created_at'),
+                        'hospitalReservations' => fn($q) => $q->with(['hospital.account:id,phone_number','hospitalService.service','cancellation','rate'])->orderByDesc('created_at'),
                         'doctorReservations' => fn($q) => $q->with(['doctor.specialization','doctor.account:id,phone_number','doctorService','cancellation','rate'])->orderByDesc('created_at'),
                     ])
                     ->findOrFail($userId);
 
                 $data = [
                     'nurse_reservations'    => $user->nurseReservations,
-                    'hospital_reservations' => $user->hospitalReservations,
+                    'hospital_reservations' => $this->applyHospitalContactAccess($user->hospitalReservations),
                     'doctor_reservations'   => $this->applyDoctorContactAccess($user->doctorReservations),
                 ];
                 break;
@@ -115,6 +115,13 @@ class UserReservationsController extends Controller
                 if ($reservation->status === 'approved') {
                     $doctor->setAttribute('phone_number', $doctor->account?->phone_number);
                     $doctor->makeVisible('location');
+
+                    // `location` is GeoJSON ([lng, lat]); the app could not
+                    // open the clinic on a map from it. Plain coordinates and
+                    // a ready-to-open maps link are now included.
+                    foreach ($this->mapFields($doctor->location) as $key => $value) {
+                        $doctor->setAttribute($key, $value);
+                    }
                 } else {
                     $doctor->makeHidden('location');
                 }
@@ -122,6 +129,58 @@ class UserReservationsController extends Controller
 
             return $reservation;
         });
+    }
+
+    /**
+     * Hospital phone number and location were never part of the patient's
+     * reservation payload (the `hospital` relation was loaded without its
+     * account and without usable coordinates), so the confirmation screen
+     * could show neither. A hospital is a public institution, so its location
+     * is always returned; the phone number is returned once the hospital has
+     * accepted / confirmed the request.
+     */
+    protected function applyHospitalContactAccess($reservations)
+    {
+        return $reservations->map(function ($reservation) {
+            $hospital = $reservation->hospital;
+
+            if ($hospital) {
+                $hospital->makeHidden('account');
+
+                foreach ($this->mapFields($hospital->location) as $key => $value) {
+                    $hospital->setAttribute($key, $value);
+                }
+
+                $hospital->setAttribute(
+                    'phone_number',
+                    in_array($reservation->status, ['accepted', 'confirmed', 'finished'], true)
+                        ? $hospital->account?->phone_number
+                        : null
+                );
+            }
+
+            return $reservation;
+        });
+    }
+
+    /**
+     * @return array{latitude: ?float, longitude: ?float, maps_url: ?string}
+     */
+    protected function mapFields($point): array
+    {
+        if (!$point || !isset($point->latitude, $point->longitude)
+            || ((float) $point->latitude === 0.0 && (float) $point->longitude === 0.0)) {
+            return ['latitude' => null, 'longitude' => null, 'maps_url' => null];
+        }
+
+        $lat = (float) $point->latitude;
+        $lng = (float) $point->longitude;
+
+        return [
+            'latitude'  => $lat,
+            'longitude' => $lng,
+            'maps_url'  => "https://www.google.com/maps/search/?api=1&query={$lat},{$lng}",
+        ];
     }
 
 

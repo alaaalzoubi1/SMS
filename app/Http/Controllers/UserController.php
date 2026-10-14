@@ -21,6 +21,11 @@ class UserController extends Controller
         $request->validate([
             'reservation_id' => 'required|exists:nurse_reservations,id',
             'reason' => 'required|string|max:500'
+        ], [
+            'reservation_id.required' => 'رقم الحجز مطلوب.',
+            'reservation_id.exists'   => 'الحجز غير موجود.',
+            'reason.required'         => 'سبب الإلغاء مطلوب.',
+            'reason.max'              => 'سبب الإلغاء يجب ألا يتجاوز 500 حرف.',
         ]);
 
         $reservation = NurseReservation::with(['nurse.account', 'user:id,full_name'])
@@ -28,7 +33,7 @@ class UserController extends Controller
 
         if ($reservation->user_id !== auth()->user()->user->id) {
             return response()->json([
-                'message' => 'This reservation does not belong to this user.'
+                'message' => 'هذا الحجز لا يخص حسابك.'
             ], 403);
         }
 
@@ -53,7 +58,7 @@ class UserController extends Controller
             SendFirebaseNotificationJob::dispatch(
                 $nurseToken,
                 'تم إلغاء الحجز',
-                "قام المستخدم {$userName} بإلغاء الحجز."
+                "قام المستخدم {$userName} بإلغاء الحجز. السبب: {$request->reason}"
             );
         }
         return response()->json([
@@ -63,9 +68,17 @@ class UserController extends Controller
     }
     public function cancelDoctorReservation(Request $request)
     {
+        // Was validated against nurse_reservations (copy/paste), so a valid
+        // doctor reservation id failed with Laravel's English
+        // "The selected reservation id is invalid." message.
         $request->validate([
-            'reservation_id' => 'required|exists:nurse_reservations,id',
+            'reservation_id' => 'required|exists:doctor_reservations,id',
             'reason' => 'required|string|max:500'
+        ], [
+            'reservation_id.required' => 'رقم الحجز مطلوب.',
+            'reservation_id.exists'   => 'الحجز غير موجود.',
+            'reason.required'         => 'سبب الإلغاء مطلوب.',
+            'reason.max'              => 'سبب الإلغاء يجب ألا يتجاوز 500 حرف.',
         ]);
 
         $reservation = DoctorReservation::with(['doctor.account', 'user:id,full_name'])
@@ -73,7 +86,7 @@ class UserController extends Controller
 
         if ($reservation->user_id !== auth()->user()->user->id) {
             return response()->json([
-                'message' => 'This reservation does not belong to this user.'
+                'message' => 'هذا الحجز لا يخص حسابك.'
             ], 403);
         }
 
@@ -98,7 +111,7 @@ class UserController extends Controller
             SendFirebaseNotificationJob::dispatch(
                 $doctorToken,
                 'تم إلغاء الحجز',
-                "قام المستخدم {$userName} بإلغاء الحجز."
+                "قام المستخدم {$userName} بإلغاء الحجز. السبب: {$request->reason}"
             );
         }
         return response()->json([
@@ -108,9 +121,15 @@ class UserController extends Controller
     }
     public function cancelHospitalReservation(Request $request)
     {
+        // Same copy/paste bug: validated against nurse_reservations.
         $request->validate([
-            'reservation_id' => 'required|exists:nurse_reservations,id',
+            'reservation_id' => 'required|exists:hospital_service_reservations,id',
             'reason' => 'required|string|max:500'
+        ], [
+            'reservation_id.required' => 'رقم الحجز مطلوب.',
+            'reservation_id.exists'   => 'الحجز غير موجود.',
+            'reason.required'         => 'سبب الإلغاء مطلوب.',
+            'reason.max'              => 'سبب الإلغاء يجب ألا يتجاوز 500 حرف.',
         ]);
 
         $reservation = HospitalServiceReservation::with(['hospital.account', 'user:id,full_name'])
@@ -118,7 +137,7 @@ class UserController extends Controller
 
         if ($reservation->user_id !== auth()->user()->user->id) {
             return response()->json([
-                'message' => 'This reservation does not belong to this user.'
+                'message' => 'هذا الحجز لا يخص حسابك.'
             ], 403);
         }
 
@@ -143,7 +162,7 @@ class UserController extends Controller
             SendFirebaseNotificationJob::dispatch(
                 $hospitalToken,
                 'تم إلغاء الحجز',
-                "قام المستخدم {$userName} بإلغاء الحجز."
+                "قام المستخدم {$userName} بإلغاء الحجز. السبب: {$request->reason}"
             );
         }
         return response()->json([

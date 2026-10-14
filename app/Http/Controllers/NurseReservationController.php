@@ -16,6 +16,7 @@ use Illuminate\Http\Request;
 use App\Http\Requests\NurseReservationRequest;
 use Illuminate\Support\Facades\DB;
 use MatanYadaev\EloquentSpatial\Objects\Point;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 class NurseReservationController extends Controller
 {
@@ -67,7 +68,7 @@ class NurseReservationController extends Controller
 
             if (!$reservation) {
                 DB::rollBack();
-                return response()->json(['message' => 'Reservation not found or unauthorized.'], 404);
+                return response()->json(['message' => 'الحجز غير موجود.'], 404);
             }
 
             $this->authorize('manageNurseReservations', $reservation);
@@ -83,11 +84,21 @@ class NurseReservationController extends Controller
                 'completed' => [],
             ];
 
-            if (!in_array($newStatus, $allowedTransitions[$currentStatus])) {
+            if (!in_array($newStatus, $allowedTransitions[$currentStatus] ?? [])) {
                 DB::rollBack();
                 return response()->json([
-                    'message' => "Cannot change status from $currentStatus to $newStatus."
+                    'message' => 'لا يمكن تغيير حالة الحجز من "' . $this->statusLabel($currentStatus) . '" إلى "' . $this->statusLabel($newStatus) . '".'
                 ], 400);
+            }
+
+            // Same rule as the doctor: a reservation requested for a later
+            // date cannot be marked completed before that date arrives.
+            if ($newStatus === 'completed' && $reservation->start_at
+                && Carbon::parse($reservation->start_at)->startOfDay()->isFuture()) {
+                DB::rollBack();
+                return response()->json([
+                    'message' => 'لا يمكن إكمال الحجز قبل حلول موعد الحجز.'
+                ], 422);
             }
 
             // A rejection writes its own marker on the cancellation record so
@@ -137,7 +148,7 @@ class NurseReservationController extends Controller
             }
 
             return response()->json([
-                'message' => 'Reservation status updated successfully.',
+                'message' => 'تم تحديث حالة الحجز بنجاح.',
                 'data' => $reservation->load(['cancellation', 'nurseService.service', 'services.service', 'user'])
             ]);
 
@@ -147,9 +158,21 @@ class NurseReservationController extends Controller
             Log::error($e->getMessage());
 
             return response()->json([
-                'message' => 'Failed to update reservation status.'
+                'message' => 'فشل تحديث حالة الحجز.'
             ], 500);
         }
+    }
+
+    private function statusLabel(string $status): string
+    {
+        return match ($status) {
+            'pending'   => 'قيد الانتظار',
+            'accepted'  => 'مقبول',
+            'rejected'  => 'مرفوض',
+            'cancelled' => 'ملغي',
+            'completed' => 'مكتمل',
+            default     => $status,
+        };
     }
 
 

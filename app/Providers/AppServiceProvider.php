@@ -13,6 +13,7 @@ use App\Observers\ContactInfoObserver;
 use App\Observers\LegalDocumentObserver;
 use App\Observers\PlatformStatsObserver;
 use App\Observers\SiteContentObserver;
+use Illuminate\Support\Facades\App;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -30,6 +31,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // All API messages (including Laravel's own validation errors) in
+        // Arabic — see lang/ar/validation.php.
+        App::setLocale(config('app.api_locale', 'ar'));
+
         SiteContent::observe(SiteContentObserver::class);
         ContactInfo::observe(ContactInfoObserver::class);
         LegalDocument::observe(LegalDocumentObserver::class);

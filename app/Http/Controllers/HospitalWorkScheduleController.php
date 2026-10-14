@@ -45,6 +45,10 @@ class HospitalWorkScheduleController extends Controller
 
         $request->validate([
             'day_of_week' => 'required|string|in:Sunday,Monday,Tuesday,Wednesday,Thursday,Friday,Saturday|unique:hospital_work_schedules,day_of_week,NULL,id,hospital_id,' . $hospital->id,
+        ], [
+            'day_of_week.required' => 'يجب اختيار يوم الدوام.',
+            'day_of_week.in'       => 'اليوم المختار غير صحيح.',
+            'day_of_week.unique'   => 'لديك دوام مسجل في هذا اليوم بالفعل.',
         ]);
 
         DB::beginTransaction();
@@ -61,7 +65,7 @@ class HospitalWorkScheduleController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error("Error adding hospital work schedule: " . $e->getMessage());
-            return response()->json(['message' => 'Failed to add work schedule', 'error' => $e->getMessage()], 500);
+            return response()->json(['message' => 'فشل في إضافة الدوام', 'error' => $e->getMessage()], 500);
         }
     }
 
@@ -72,7 +76,7 @@ class HospitalWorkScheduleController extends Controller
         $schedule = HospitalWorkSchedule::where('hospital_id', $hospital->id)->find($id);
 
         if (!$schedule) {
-            return response()->json(['message' => 'Work schedule not found'], 404);
+            return response()->json(['message' => 'الدوام غير موجود'], 404);
         }
 
         Log::info('Hospital Work Schedule details:', ['schedule_id' => $id, 'details' => $schedule->toArray()]);
@@ -92,7 +96,7 @@ class HospitalWorkScheduleController extends Controller
         $schedule = HospitalWorkSchedule::where('hospital_id', $hospital->id)->find($id);
 
         if (!$schedule) {
-            return response()->json(['message' => 'Work schedule not found'], 404);
+            return response()->json(['message' => 'الدوام غير موجود'], 404);
         }
 
         DB::beginTransaction();
@@ -100,11 +104,11 @@ class HospitalWorkScheduleController extends Controller
             $schedule->delete();
             DB::commit();
 
-            return response()->json(['message' => 'Work schedule deleted successfully'], 200);
+            return response()->json(['message' => 'تم حذف الدوام بنجاح'], 200);
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error("Error deleting hospital work schedule: " . $e->getMessage());
-            return response()->json(['message' => 'Failed to delete work schedule', 'error' => $e->getMessage()], 500);
+            return response()->json(['message' => 'فشل في حذف الدوام', 'error' => $e->getMessage()], 500);
         }
     }
     public function getAvailableDates(Request $request, $hospitalId): JsonResponse
@@ -112,7 +116,7 @@ class HospitalWorkScheduleController extends Controller
     // Find the hospital by ID
     $hospital = Hospital::find($hospitalId);
     if (!$hospital) {
-        return response()->json(['message' => 'Hospital not found'], 404);
+        return response()->json(['message' => 'المشفى غير موجود'], 404);
     }
 
     // Get month and year from the request or use current month and year as default

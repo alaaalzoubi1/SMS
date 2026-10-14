@@ -15,12 +15,16 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use App\Support\IssuesJwtTokens;
+use App\Support\SubscriptionTrial;
 use Illuminate\Validation\Rule;
 use MatanYadaev\EloquentSpatial\Objects\Point;
 use Tymon\JWTAuth\Facades\JWTAuth;
 
 class NurseAuthController extends Controller
 {
+    use IssuesJwtTokens;
+
     public function register(NurseRegisterRequest $request): JsonResponse
     {
         try {
@@ -33,6 +37,9 @@ class NurseAuthController extends Controller
                 'password'     => Hash::make($validated['password']),
                 'phone_number' => $validated['phone_number'],
                 'fcm_token'    => $request->fcm_token ?? null,
+                // 45-day free trial, re-anchored to the approval date later
+                // (see AdminApproveController::approve).
+                'subscription_expires_at' => SubscriptionTrial::expiryFromNow(),
             ]);
 
             $licenseImagePath = null;
@@ -76,7 +83,7 @@ class NurseAuthController extends Controller
             DB::commit();
 
             return response()->json([
-                'message' => 'Registration successful. Awaiting admin approval.',
+                'message' => 'تم التسجيل بنجاح. بانتظار موافقة الإدارة.',
             ], 201);
 
         } catch (\Exception $e) {
@@ -85,7 +92,7 @@ class NurseAuthController extends Controller
             Log::error('Nurse registration failed: ' . $e->getMessage());
 
             return response()->json([
-                'message' => 'Registration failed. Please try again later.',
+                'message' => 'فشل في التسجيل. حاول مرة أخرى لاحقاً.',
             ], 500);
         }
     }
@@ -120,30 +127,37 @@ class NurseAuthController extends Controller
     }
     public function login(Request $request): JsonResponse
     {
-        $credentials = $request->only('email', 'password','fcm_token');
+        $request->validate([
+            'email'       => 'required|email',
+            'password'    => 'required|string',
+            'fcm_token'   => 'nullable|string|max:1024',
+            'remember_me' => 'sometimes|boolean',
+        ]);
+
+        $credentials = $request->only('email', 'password');
 
         $account = Account::where('email', $credentials['email'])->first();
 
         if (!$account || !Hash::check($credentials['password'], $account->password)) {
-            return response()->json(['message' => 'Invalid credentials'], 401);
+            return response()->json(['message' => 'البريد الإلكتروني أو كلمة المرور غير صحيحة.'], 401);
         }
         if (!$account->hasRole('nurse')) {
-            return response()->json(['message' => 'Not authorized as nurse'], 403);
+            return response()->json(['message' => 'هذا الحساب ليس حساب ممرض.'], 403);
         }
         if ($account->is_approved !== 'approved') {
-            return response()->json(['message' => 'Your registration is not approved by admin yet.'], 403);
+            return response()->json(['message' => 'حسابك بانتظار موافقة الإدارة.'], 403);
         }
         if ($account->is_suspended)
         {
             return response()->json(['message' => 'تم إيقاف حسابك من قبل الإدارة يرجى التواصل مع الدعم الفني.'], 403);
         }
-        $token = JWTAuth::fromUser($account);
-        $account->fcm_token = $credentials['fcm_token'];
-        $account->save();
+        $this->storeFcmToken($account, $request);
+        $token = $this->issueToken($account, $request);
 
         return response()->json([
-            'message' => 'Login successful',
+            'message' => 'تم تسجيل الدخول بنجاح.',
             'token' => $token,
+            'expires_in' => $this->tokenTtlMinutes($request) * 60,
             'role' => $account->getRoleNames()->first()
         ]);
     }
@@ -170,7 +184,10 @@ class NurseAuthController extends Controller
             return response()->json(['message' => 'Not authorized as nurse'], 403);
         }
         if ($account->is_approved !== 'approved') {
-            return response()->json(['message' => 'Admin approval pending.'], 403);
+            return response()->json(['message' => 'حسابك بانتظار موافقة الإدارة.'], 403);
+        }
+        if ($account->is_suspended) {
+            return response()->json(['message' => 'تم إيقاف حسابك من قبل الإدارة يرجى التواصل مع الدعم الفني.'], 403);
         }
         $code = rand(100000, 999999);
         $account->verification_code = $code;
@@ -198,15 +215,21 @@ class NurseAuthController extends Controller
             return response()->json(['message' => 'Invalid or expired verification code.'], 403);
         }
 
+        if ($account->is_suspended) {
+            return response()->json(['message' => 'تم إيقاف حسابك من قبل الإدارة يرجى التواصل مع الدعم الفني.'], 403);
+        }
+
         $account->verification_code = null;
         $account->verification_expires_at = null;
         $account->save();
 
-        $token = JWTAuth::fromUser($account);
+        $this->storeFcmToken($account, $request);
+        $token = $this->issueToken($account, $request);
 
         return response()->json([
-            'message' => 'Login successful',
+            'message' => 'تم تسجيل الدخول بنجاح.',
             'token' => $token,
+            'expires_in' => $this->tokenTtlMinutes($request) * 60,
             'role' => $account->getRoleNames()->first()
         ]);
     }

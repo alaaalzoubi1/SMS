@@ -57,6 +57,12 @@ class DoctorReservationService
 
         $candidateStart = $workStart->copy();
 
+        // For today, a slot that already passed is not a real slot. Without
+        // this a request accepted at 19:00 could be pinned at 14:00.
+        if (Carbon::parse($date)->isToday() && Carbon::now()->gt($candidateStart)) {
+            $candidateStart = Carbon::now()->second(0);
+        }
+
         /** @var Collection $approvedReservations */
         foreach ($approvedReservations as $reservation) {
             $resStart = $this->timeOnDate($date, $reservation->start_time);
@@ -71,8 +77,10 @@ class DoctorReservationService
                 break;
             }
 
-            // Otherwise try right after it.
-            $candidateStart = $resEnd->copy();
+            // Otherwise try right after it (never moving backwards in time).
+            if ($resEnd->gt($candidateStart)) {
+                $candidateStart = $resEnd->copy();
+            }
         }
 
         $candidateEnd = $candidateStart->copy()->addMinutes($durationMinutes);
@@ -97,24 +105,28 @@ class DoctorReservationService
     }
 
     /**
-     * Build a slot when the caller explicitly overrides the schedule
-     * (force_confirm). The result is still anchored to the doctor's window:
-     * it continues from the last approved booking, or from opening time when
-     * there is none, and it is refused outright if the resulting slot would
-     * fall outside working hours.
+     * Build a slot when the doctor explicitly confirms the warning
+     * (force_confirm = true).
      *
-     * @throws Exception when no schedule exists for that date
+     * Client requirement: when the doctor accepts a request after official
+     * working hours, the warning is shown — and if the doctor confirms it,
+     * the request MUST be accepted. Previously this method threw when the
+     * slot ran past closing time, so the doctor saw the warning, confirmed,
+     * and the reservation was still not accepted.
+     *
+     * The slot is still placed sensibly: right after the last approved
+     * booking of that day, or at opening time when there is none. Only when
+     * the day has no schedule at all (e.g. a manual reservation on a day off)
+     * is it placed after the last booking, or at the current time for today,
+     * or at 09:00. `outside_working_hours` tells the caller whether the slot
+     * ended up (partly) outside the published working window.
+     *
+     * @return array{start_time: Carbon, end_time: Carbon, outside_working_hours: bool}
      */
     public function forceSlotForApproval(int $doctorId, string $date, int $durationMinutes): array
     {
         $schedule = DoctorWorkSchedule::findForDate($doctorId, $date);
-
-        if (!$schedule) {
-            throw new Exception('الطبيب لا يملك دوام عمل في هذا اليوم.');
-        }
-
-        $window = $schedule->windowFor($date);
-        [$workStart, $workEnd] = $window;
+        $window = $schedule?->windowFor($date);
 
         $lastApproved = DoctorReservation::where('doctor_id', $doctorId)
             ->whereDate('date', $date)
@@ -123,23 +135,43 @@ class DoctorReservationService
             ->orderByDesc('end_time')
             ->first();
 
-        $start = $lastApproved
-            ? $this->timeOnDate($date, $lastApproved->end_time)
-            : $workStart->copy();
+        $start = $lastApproved ? $this->timeOnDate($date, $lastApproved->end_time) : null;
 
         if ($start === null) {
-            $start = $workStart->copy();
+            if ($window !== null) {
+                $start = $window[0]->copy();
+            } elseif (Carbon::parse($date)->isToday()) {
+                $start = Carbon::now()->second(0);
+            } else {
+                $start = Carbon::parse($date)->startOfDay()->setTime(9, 0);
+            }
+        }
+
+        // The doctor confirmed late in the day: never place the booking
+        // before the current time on today's date.
+        if (Carbon::parse($date)->isToday() && $start->lt(Carbon::now()) && $window !== null && Carbon::now()->gt($window[1])) {
+            $start = Carbon::now()->second(0);
         }
 
         $end = $start->copy()->addMinutes($durationMinutes);
 
-        if ($end->gt($workEnd)) {
-            throw new Exception('لا يمكن تثبيت الحجز خارج أوقات دوام الطبيب في هذا اليوم.');
+        // `time` columns cannot hold a value past midnight of the booking day.
+        $dayEnd = Carbon::parse($date)->endOfDay()->second(0);
+        if ($end->gt($dayEnd)) {
+            $end = $dayEnd->copy();
+            if ($start->gte($end)) {
+                $start = $end->copy()->subMinutes(max(1, $durationMinutes));
+            }
         }
+
+        $outside = $window === null
+            || $start->lt($window[0])
+            || $end->gt($window[1]);
 
         return [
             'start_time' => $start,
             'end_time'   => $end,
+            'outside_working_hours' => $outside,
         ];
     }
 

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Admin\Concerns\FiltersProviderAccounts;
 use App\Http\Controllers\Controller;
 use App\Models\Hospital;
 use App\Models\HospitalServiceReservation;
@@ -11,10 +12,28 @@ use Illuminate\Http\Request;
 
 class HospitalStatisticsController extends Controller
 {
+    use FiltersProviderAccounts;
+
     public function hospitals(Request $request): JsonResponse
     {
+        $request->validate(array_merge($this->accountFilterRules(), [
+            'service_id' => 'nullable|integer|exists:services,id',
+            'has_vacancy' => 'nullable|in:0,1,true,false',
+        ]));
+
         $query = Hospital::query()
-            ->with('account:id,email,phone_number');
+            ->with(array_merge($this->withAccount(), ['province:id,name_ar,name_en']))
+            ->withCount([
+                'reservations',
+                'reservations as finished_reservations_count' => fn ($q) => $q->where('status', 'finished'),
+            ])
+            ->when($request->filled('service_id'),
+                fn ($q) => $q->whereHas('services', fn ($s) => $s->where('service_id', $request->service_id))
+            )
+            ->when(filter_var($request->input('has_vacancy'), FILTER_VALIDATE_BOOLEAN),
+                fn ($q) => $q->whereHas('services', fn ($s) => $s->where('capacity', '>', 0)
+                    ->when($request->filled('service_id'), fn ($x) => $x->where('service_id', $request->service_id)))
+            );
 
         $filters = collect($request->only([
             'full_name',
@@ -43,14 +62,20 @@ class HospitalStatisticsController extends Controller
             };
         });
 
+        // province, suspension, subscription, dates, deleted, sort
+        $this->applyAccountFilters($query, $request);
+
         return response()->json([
-            'hospitals' => $query->paginate(10)
+            'hospitals' => $query->paginate($request->input('per_page', 10))
         ]);
     }
     public function hospital($id): JsonResponse
     {
         return response()->json([
-            'hospital' => Hospital::with(['account:id,email,phone_number,created_at,updated_at','services_2','workSchedule'])->where('id',$id)->first()
+            'hospital' => Hospital::withTrashed()
+                ->with(array_merge($this->withAccount(), ['services_2','workSchedule','province:id,name_ar,name_en']))
+                ->withCount('reservations')
+                ->where('id',$id)->first()
         ]);
     }
     /**

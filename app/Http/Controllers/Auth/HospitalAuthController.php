@@ -15,12 +15,15 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use App\Support\IssuesJwtTokens;
 use Illuminate\Support\Facades\Validator;
 use MatanYadaev\EloquentSpatial\Objects\Point;
 use Tymon\JWTAuth\Facades\JWTAuth;
 
 class HospitalAuthController extends Controller
 {
+    use IssuesJwtTokens;
+
     public function updateHospitalData(StoreHospitalRequest $request): JsonResponse
     {
         try {
@@ -111,28 +114,40 @@ class HospitalAuthController extends Controller
 
     public function login(Request $request): JsonResponse
     {
+        $request->validate([
+            'email'       => 'required|email',
+            'password'    => 'required|string',
+            'fcm_token'   => 'nullable|string|max:1024',
+            'remember_me' => 'sometimes|boolean',
+        ]);
+
         $credentials = $request->only('email', 'password');
 
         $account = Account::where('email', $credentials['email'])->first();
 
         if (!$account || !Hash::check($credentials['password'], $account->password)) {
-            return response()->json(['message' => 'Invalid credentials'], 401);
+            return response()->json(['message' => 'البريد الإلكتروني أو كلمة المرور غير صحيحة.'], 401);
         }
         if (!$account->hasRole('hospital')) {
-            return response()->json(['message' => 'Not authorized as hospital'], 403);
+            return response()->json(['message' => 'هذا الحساب ليس حساب مشفى.'], 403);
         }
         if ($account->is_approved !== 'approved') {
-            return response()->json(['message' => 'Your registration is not completed yet.'], 403);
+            return response()->json(['message' => 'لم يتم استكمال تسجيل حساب المشفى بعد.'], 403);
         }
         if ($account->is_suspended)
         {
             return response()->json(['message' => 'تم إيقاف حسابك من قبل الإدارة يرجى التواصل مع الدعم الفني.'], 403);
         }
-        $token = JWTAuth::fromUser($account);
+
+        // Without this the hospital never had an FCM token, so it could not
+        // be told about new reservation requests.
+        $this->storeFcmToken($account, $request);
+        $token = $this->issueToken($account, $request);
 
         return response()->json([
-            'message' => 'Login successful',
-            'token' => $token
+            'message' => 'تم تسجيل الدخول بنجاح.',
+            'token' => $token,
+            'expires_in' => $this->tokenTtlMinutes($request) * 60,
         ]);
     }
     public function logout(): JsonResponse
@@ -158,7 +173,10 @@ class HospitalAuthController extends Controller
             return response()->json(['message' => 'Not authorized as hospital'], 403);
         }
         if ($account->is_approved !== 'approved') {
-            return response()->json(['message' => 'you need to complete your registration.'], 403);
+            return response()->json(['message' => 'لم يتم استكمال تسجيل حساب المشفى بعد.'], 403);
+        }
+        if ($account->is_suspended) {
+            return response()->json(['message' => 'تم إيقاف حسابك من قبل الإدارة يرجى التواصل مع الدعم الفني.'], 403);
         }
         $code = rand(100000, 999999);
         $account->verification_code = $code;
@@ -186,15 +204,21 @@ class HospitalAuthController extends Controller
             return response()->json(['message' => 'Invalid or expired verification code.'], 403);
         }
 
+        if ($account->is_suspended) {
+            return response()->json(['message' => 'تم إيقاف حسابك من قبل الإدارة يرجى التواصل مع الدعم الفني.'], 403);
+        }
+
         $account->verification_code = null;
         $account->verification_expires_at = null;
         $account->save();
 
-        $token = JWTAuth::fromUser($account);
+        $this->storeFcmToken($account, $request);
+        $token = $this->issueToken($account, $request);
 
         return response()->json([
-            'message' => 'Login successful',
-            'token' => $token
+            'message' => 'تم تسجيل الدخول بنجاح.',
+            'token' => $token,
+            'expires_in' => $this->tokenTtlMinutes($request) * 60,
         ]);
     }
     public function editProfile(HospitalEditProfileRequest $request): JsonResponse

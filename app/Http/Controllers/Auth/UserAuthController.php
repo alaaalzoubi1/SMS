@@ -12,10 +12,12 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
+use App\Support\IssuesJwtTokens;
 use Tymon\JWTAuth\Facades\JWTAuth;
 
 class UserAuthController extends Controller
 {
+    use IssuesJwtTokens;
 
 
     public function register(UserRegisterRequest $request) : JsonResponse
@@ -57,27 +59,34 @@ class UserAuthController extends Controller
     }
     public function login(Request $request): JsonResponse
     {
-        $credentials = $request->only('email', 'password','fcm_token');
+        $request->validate([
+            'email'       => 'required|email',
+            'password'    => 'required|string',
+            'fcm_token'   => 'nullable|string|max:1024',
+            'remember_me' => 'sometimes|boolean',
+        ]);
+
+        $credentials = $request->only('email', 'password');
 
         $account = Account::where('email', $credentials['email'])->first();
 
         if (!$account || !Hash::check($credentials['password'], $account->password)) {
-            return response()->json(['message' => 'Invalid credentials'], 401);
+            return response()->json(['message' => 'البريد الإلكتروني أو كلمة المرور غير صحيحة.'], 401);
         }
         if (!$account->hasRole('user')) {
-            return response()->json(['message' => 'Not authorized as user'], 403);
+            return response()->json(['message' => 'هذا الحساب ليس حساب مستخدم.'], 403);
         }
         if ($account->is_suspended)
         {
             return response()->json(['message' => 'تم إيقاف حسابك من قبل الإدارة يرجى التواصل مع الدعم الفني.'], 403);
         }
-        $token = JWTAuth::fromUser($account);
-        $account->fcm_token = $credentials['fcm_token'];
-        $account->save();
+        $this->storeFcmToken($account, $request);
+        $token = $this->issueToken($account, $request);
 
         return response()->json([
-            'message' => 'Login successful',
+            'message' => 'تم تسجيل الدخول بنجاح.',
             'token' => $token,
+            'expires_in' => $this->tokenTtlMinutes($request) * 60,
             'role' => $account->getRoleNames()->first()
         ]);
     }
@@ -101,7 +110,10 @@ class UserAuthController extends Controller
         ]);
         $account = Account::where('email', $request->email)->first();
         if (!$account->hasRole('user')) {
-            return response()->json(['message' => 'Not authorized as user'], 403);
+            return response()->json(['message' => 'هذا الحساب ليس حساب مستخدم.'], 403);
+        }
+        if ($account->is_suspended) {
+            return response()->json(['message' => 'تم إيقاف حسابك من قبل الإدارة يرجى التواصل مع الدعم الفني.'], 403);
         }
         $code = rand(100000, 999999);
         $account->verification_code = $code;
@@ -129,14 +141,20 @@ class UserAuthController extends Controller
             return response()->json(['message' => 'Invalid or expired verification code.'], 403);
         }
 
+        if ($account->is_suspended) {
+            return response()->json(['message' => 'تم إيقاف حسابك من قبل الإدارة يرجى التواصل مع الدعم الفني.'], 403);
+        }
+
         $account->verification_code = null;
         $account->verification_expires_at = null;
         $account->save();
 
-        $token = JWTAuth::fromUser($account);
+        $this->storeFcmToken($account, $request);
+        $token = $this->issueToken($account, $request);
 
         return response()->json([
-            'message' => 'Login successful',
+            'message' => 'تم تسجيل الدخول بنجاح.',
+            'expires_in' => $this->tokenTtlMinutes($request) * 60,
             'token' => $token,
             'role' => $account->getRoleNames()->first()
         ]);

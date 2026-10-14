@@ -18,11 +18,14 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use MatanYadaev\EloquentSpatial\Objects\Point;
+use App\Support\IssuesJwtTokens;
+use App\Support\SubscriptionTrial;
 use Spatie\LaravelOptions\Options;
 use Tymon\JWTAuth\Facades\JWTAuth;
 
 class DoctorAuthController extends Controller
 {
+    use IssuesJwtTokens;
 
 
     public function register(DoctorRegisterRequest $request): JsonResponse
@@ -37,6 +40,9 @@ class DoctorAuthController extends Controller
                 'password'     => Hash::make($validated['password']),
                 'phone_number' => $validated['phone_number'],
                 'fcm_token'    => $request->fcm_token ?? null,
+                // 45-day free trial, re-anchored to the approval date later
+                // (see AdminApproveController::approve).
+                'subscription_expires_at' => SubscriptionTrial::expiryFromNow(),
             ]);
 
             $licensePath = null;
@@ -124,28 +130,40 @@ class DoctorAuthController extends Controller
 //    }
     public function login(Request $request): JsonResponse
     {
+        $request->validate([
+            'email'       => 'required|email',
+            'password'    => 'required|string',
+            'fcm_token'   => 'nullable|string|max:1024',
+            'remember_me' => 'sometimes|boolean',
+        ]);
+
         $credentials = $request->only('email', 'password');
 
         $account = Account::where('email', $credentials['email'])->first();
 
         if (!$account || !Hash::check($credentials['password'], $account->password)) {
-            return response()->json(['message' => 'Invalid credentials'], 401);
+            return response()->json(['message' => 'البريد الإلكتروني أو كلمة المرور غير صحيحة.'], 401);
         }
         if (!$account->hasRole('doctor')) {
-            return response()->json(['message' => 'Not authorized as doctor'], 403);
+            return response()->json(['message' => 'هذا الحساب ليس حساب طبيب.'], 403);
         }
         if ($account->is_approved !== 'approved') {
-            return response()->json(['message' => 'Your registration is not approved by admin yet.'], 403);
+            return response()->json(['message' => 'حسابك بانتظار موافقة الإدارة.'], 403);
         }
         if ($account->is_suspended)
         {
             return response()->json(['message' => 'تم إيقاف حسابك من قبل الإدارة يرجى التواصل مع الدعم الفني.'], 403);
         }
-        $token = JWTAuth::fromUser($account);
+
+        // Keep the device token fresh so the doctor actually receives pushes.
+        $this->storeFcmToken($account, $request);
+
+        $token = $this->issueToken($account, $request);
 
         return response()->json([
-            'message' => 'Login successful',
-            'token' => $token
+            'message' => 'تم تسجيل الدخول بنجاح.',
+            'token' => $token,
+            'expires_in' => $this->tokenTtlMinutes($request) * 60,
         ]);
     }
     public function logout(): JsonResponse
@@ -171,7 +189,10 @@ class DoctorAuthController extends Controller
             return response()->json(['message' => 'Not authorized as doctor'], 403);
         }
         if ($account->is_approved !== 'approved') {
-            return response()->json(['message' => 'Admin approval pending.'], 403);
+            return response()->json(['message' => 'حسابك بانتظار موافقة الإدارة.'], 403);
+        }
+        if ($account->is_suspended) {
+            return response()->json(['message' => 'تم إيقاف حسابك من قبل الإدارة يرجى التواصل مع الدعم الفني.'], 403);
         }
         $code = rand(100000, 999999);
         $account->verification_code = $code;
@@ -199,15 +220,21 @@ class DoctorAuthController extends Controller
             return response()->json(['message' => 'Invalid or expired verification code.'], 403);
         }
 
+        if ($account->is_suspended) {
+            return response()->json(['message' => 'تم إيقاف حسابك من قبل الإدارة يرجى التواصل مع الدعم الفني.'], 403);
+        }
+
         $account->verification_code = null;
         $account->verification_expires_at = null;
         $account->save();
 
-        $token = JWTAuth::fromUser($account);
+        $this->storeFcmToken($account, $request);
+        $token = $this->issueToken($account, $request);
 
         return response()->json([
-            'message' => 'Login successful',
-            'token' => $token
+            'message' => 'تم تسجيل الدخول بنجاح.',
+            'token' => $token,
+            'expires_in' => $this->tokenTtlMinutes($request) * 60,
         ]);
     }
 

@@ -5,7 +5,10 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Jobs\SendFirebaseNotificationJob;
 use App\Jobs\SendFirebaseNotificationToAdminsJob;
+use App\Models\AdminNotification;
 use App\Models\HospitalCancellation;
+use App\Services\HospitalReservationService;
+use App\Support\AdminNotifier;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -197,9 +200,16 @@ class HospitalServiceReservationController extends Controller
                     'reason' => $request->reason
                 ]);
 
+                // A confirmed stay holds a bed; cancelling it must free the bed
+                // again, otherwise capacity leaks and the hospital ends up
+                // "full" while beds are actually free.
+                if ($oldStatus === 'confirmed' && $reservation->hospitalService) {
+                    $reservation->hospitalService->increment('capacity');
+                }
+
                 $this->notifyUser($reservation,
                     "إلغاء حجز",
-                    "تم إلغاء حجزك من المستشفى {$hospital->name}. السبب: {$request->reason}"
+                    "تم إلغاء حجزك من المستشفى {$hospital->full_name}. السبب: {$request->reason}"
                 );
             }
 
@@ -245,7 +255,7 @@ class HospitalServiceReservationController extends Controller
                 $this->notifyUser(
                     $reservation,
                     "تأكيد الحجز",
-                    "تم تثبيت حجزك من المستشفى {$hospital->name}."
+                    "تم تثبيت حجزك من المستشفى {$hospital->full_name}."
                 );
             }
 
@@ -266,7 +276,7 @@ class HospitalServiceReservationController extends Controller
                 $this->notifyUser(
                     $reservation,
                     "انتهاء الحجز",
-                    "تم إنهاء الحجز الخاص بك في المستشفى {$hospital->name}."
+                    "تم إنهاء الحجز الخاص بك في المستشفى {$hospital->full_name}."
                 );
             }
 
@@ -374,14 +384,18 @@ class HospitalServiceReservationController extends Controller
     }
 
 
-    public function makeReservation(Request $request)
+    public function makeReservation(Request $request, HospitalReservationService $hospitalReservations)
     {
         $validated = $request->validate([
             'hospital_service_id' => 'required|exists:hospital_services,id',
             'confirm' => 'sometimes|boolean',
+        ], [
+            'hospital_service_id.required' => 'يجب اختيار الخدمة.',
+            'hospital_service_id.exists'   => 'الخدمة المختارة غير موجودة.',
         ]);
+        unset($validated['confirm']);
         $userId = auth()->user()->user->id;
-        if (!$request->confirm){
+        if (!$request->boolean('confirm')){
             $previousReservation = HospitalServiceReservation::where('user_id' , $userId)
                 ->where('status','pending')
                 ->exists();
@@ -393,14 +407,39 @@ class HospitalServiceReservationController extends Controller
             }
         }
 
-        $hospitalService = HospitalService::with('hospital')
+        $hospitalService = HospitalService::with(['hospital', 'service'])
             ->where('id', $validated['hospital_service_id'])
             ->first();
 
-        if ($hospitalService->capacity <= 0) {
+        /*
+         | No free bed. Previously this answered HTTP 200 with a vague message
+         | and nothing else happened: no request, no notification, nobody
+         | followed up. Now:
+         |  - the patient gets a clear 422 "no vacancy" message plus the list
+         |    of hospitals that DO have a free bed for the same service;
+         |  - the admins get an alert (push + dashboard inbox) with the
+         |    patient's name/phone so they can call and redirect them.
+         */
+        if (!$hospitalService || !$hospitalService->hospital || $hospitalService->capacity <= 0) {
+            $alternatives = $hospitalService
+                ? $hospitalReservations->alternativesFor($hospitalService)
+                : collect();
+
+            if ($hospitalService) {
+                $hospitalReservations->notifyAdminsOfNoVacancy(
+                    $hospitalService,
+                    auth()->user()->user,
+                    $alternatives
+                );
+            }
+
             return response()->json([
-                'message' => 'لا يوجد سعة كافية في المشفى حالياً'
-            ]);
+                'message' => $alternatives->isNotEmpty()
+                    ? 'لا يوجد شاغر حالياً في هذا المشفى. يوجد شاغر في المشافي المقترحة، وستتواصل معك الإدارة قريباً.'
+                    : 'لا يوجد شاغر حالياً في هذا المشفى ولا في المشافي الأخرى لهذه الخدمة. ستتواصل معك الإدارة قريباً.',
+                'no_vacancy' => true,
+                'alternatives' => $alternatives,
+            ], 422);
         }
 
         $validated['user_id'] = auth()->user()->user->id;
@@ -408,6 +447,9 @@ class HospitalServiceReservationController extends Controller
         $validated['unit_price'] = $hospitalService->price;
 
         $reservation = HospitalServiceReservation::create($validated);
+
+        // Tell the hospital a new request arrived (it was never notified).
+        $hospitalReservations->notifyHospitalOfNewReservation($reservation);
 
         $this->notifyAdminsOfNewReservation($reservation);
 
@@ -429,15 +471,31 @@ class HospitalServiceReservationController extends Controller
 
             $serviceName = $reservation->hospitalService?->service?->service_name ?? 'خدمة';
             $patientName = $reservation->user?->full_name ?? 'مستخدم';
+            $patientPhone = $reservation->user?->phone_number;
+            // Hospital has no `name` column (it is `full_name`), so the
+            // message always said "غير محدد".
+            $hospitalName = $reservation->hospital?->full_name ?? 'غير محدد';
 
-            SendFirebaseNotificationToAdminsJob::dispatch(
+            // Stored for the dashboard inbox and pushed to admin devices.
+            AdminNotifier::notify(
+                AdminNotification::TYPE_HOSPITAL_RESERVATION,
                 'طلب حجز خدمة مشفى جديد',
                 sprintf(
-                    'طلب %s حجز خدمة "%s" في مشفى %s.',
+                    'طلب %s%s حجز خدمة "%s" في مشفى %s.',
                     $patientName,
+                    $patientPhone ? " ({$patientPhone})" : '',
                     $serviceName,
-                    $reservation->hospital?->name ?? 'غير محدد'
-                )
+                    $hospitalName
+                ),
+                [
+                    'reservation_id' => $reservation->id,
+                    'patient_user_id' => $reservation->user_id,
+                    'patient_name' => $patientName,
+                    'patient_phone' => $patientPhone,
+                    'hospital_id' => $reservation->hospital_id,
+                    'hospital_name' => $hospitalName,
+                    'service_name' => $serviceName,
+                ]
             );
         } catch (\Throwable $e) {
             Log::error('Failed to queue admin notification for hospital reservation: ' . $e->getMessage());

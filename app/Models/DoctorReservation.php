@@ -44,13 +44,13 @@ class DoctorReservation extends Model
     }
     public function canBeCancelled(): bool
     {
-        return !in_array($this->status, ['completed', 'cancelled']);
+        return !in_array($this->status, ['completed', 'cancelled', 'rejected']);
     }
 
     public function cancel(string $reason): void
     {
         if (!$this->canBeCancelled()) {
-            throw new \DomainException('Reservation cannot be cancelled.');
+            throw new \DomainException('لا يمكن إلغاء هذا الحجز في حالته الحالية.');
         }
 
         $this->status = 'cancelled';

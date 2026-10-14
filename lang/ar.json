@@ -1,0 +1,8 @@
+{
+    "(and :count more error)": "(وخطأ آخر)",
+    "(and :count more errors)": "(و :count أخطاء أخرى)",
+    "The given data was invalid.": "البيانات المدخلة غير صحيحة.",
+    "Unauthenticated.": "يجب تسجيل الدخول أولاً.",
+    "This action is unauthorized.": "غير مصرح لك بتنفيذ هذا الإجراء.",
+    "Too Many Attempts.": "عدد المحاولات كبير، يرجى المحاولة لاحقاً."
+}

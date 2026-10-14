@@ -10,10 +10,55 @@ use Illuminate\Validation\Rule;
 
 class UserStatisticsController extends Controller
 {
-    public function users(): JsonResponse
+    /**
+     * GET api/admin/user/all
+     *
+     * Now filterable and exposes the account's suspension state, so users can
+     * be restricted / deleted from the dashboard.
+     * Query: full_name, email, phone_number, gender, is_suspended,
+     *        has_account (registered vs. created manually), created_from,
+     *        created_to, trashed (with|only), per_page.
+     */
+    public function users(Request $request): JsonResponse
     {
+        $request->validate([
+            'full_name'    => 'nullable|string|max:255',
+            'email'        => 'nullable|string|max:255',
+            'phone_number' => 'nullable|string|max:25',
+            'gender'       => 'nullable|in:male,female',
+            'is_suspended' => 'nullable|in:0,1,true,false',
+            'has_account'  => 'nullable|in:0,1,true,false',
+            'created_from' => 'nullable|date',
+            'created_to'   => 'nullable|date|after_or_equal:created_from',
+            'trashed'      => 'nullable|in:with,only',
+            'per_page'     => 'nullable|integer|min:1|max:100',
+        ]);
+
+        $query = User::query()
+            ->with(['account' => fn ($q) => $q->withTrashed()->select([
+                'id', 'email', 'phone_number', 'is_suspended', 'is_approved', 'created_at', 'deleted_at',
+            ])])
+            ->when($request->input('trashed') === 'with', fn ($q) => $q->withTrashed())
+            ->when($request->input('trashed') === 'only', fn ($q) => $q->onlyTrashed())
+            ->when($request->filled('full_name'), fn ($q) => $q->where('full_name', 'like', '%' . $request->full_name . '%'))
+            ->when($request->filled('gender'), fn ($q) => $q->where('gender', $request->gender))
+            ->when($request->filled('email'), fn ($q) => $q->whereHas('account', fn ($a) => $a->withTrashed()->where('email', 'like', '%' . $request->email . '%')))
+            ->when($request->filled('phone_number'), function ($q) use ($request) {
+                $phone = '%' . $request->phone_number . '%';
+                $q->where(fn ($w) => $w->where('phone', 'like', $phone)
+                    ->orWhereHas('account', fn ($a) => $a->withTrashed()->where('phone_number', 'like', $phone)));
+            })
+            ->when($request->filled('is_suspended'), fn ($q) => $q->whereHas('account', fn ($a) => $a->withTrashed()
+                ->where('is_suspended', filter_var($request->is_suspended, FILTER_VALIDATE_BOOLEAN))))
+            ->when($request->filled('has_account'), fn ($q) => filter_var($request->has_account, FILTER_VALIDATE_BOOLEAN)
+                ? $q->whereNotNull('account_id')
+                : $q->whereNull('account_id'))
+            ->when($request->filled('created_from'), fn ($q) => $q->whereDate('created_at', '>=', $request->created_from))
+            ->when($request->filled('created_to'), fn ($q) => $q->whereDate('created_at', '<=', $request->created_to))
+            ->orderByDesc('created_at');
+
         return response()->json([
-            'users' => User::with('account:id,email,phone_number')->paginate(10)
+            'users' => $query->paginate($request->input('per_page', 10))
         ]);
     }
 

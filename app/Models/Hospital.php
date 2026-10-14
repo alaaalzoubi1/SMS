@@ -64,6 +64,11 @@ class Hospital extends Model
             ->whereNotNull('hospital_services.price'); // Only include services with a price
     }
 
+    public function reservations(): HasMany
+    {
+        return $this->hasMany(HospitalServiceReservation::class, 'hospital_id');
+    }
+
     public function province(): BelongsTo
     {
         return $this->belongsTo(Province::class);

@@ -82,6 +82,13 @@ return [
 
     'fallback_locale' => env('APP_FALLBACK_LOCALE', 'en'),
 
+    /*
+    | Language of every API response (validation errors included). The mobile
+    | apps and the dashboard are Arabic, so API messages default to Arabic
+    | regardless of APP_LOCALE. Override with API_LOCALE if ever needed.
+    */
+    'api_locale' => env('API_LOCALE', 'ar'),
+
     'faker_locale' => env('APP_FAKER_LOCALE', 'en_US'),
 
     /*

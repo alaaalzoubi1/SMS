@@ -110,13 +110,13 @@ class ManageHospitalsAccountsController extends Controller
 
             $account = $hospital->account;
             if ($account) {
-                $account->forceFill(['is_suspended' => true])->save();
-
-                try {
-                    auth()->guard('api')->logout();
-                } catch (\Throwable $e) {
-                    Log::warning('JWT blacklist unavailable while deleting hospital: ' . $e->getMessage());
-                }
+                // `is_suspended` blocks every further request from the hospital
+                // (EnsureAccountIsActive) and its login.
+                //
+                // NOTE: this used to call auth()->guard('api')->logout(),
+                // which invalidates the token of the *current* request — i.e.
+                // it logged the ADMIN out every time a hospital was deleted.
+                $account->forceFill(['is_suspended' => true, 'fcm_token' => null])->save();
             }
 
             DB::commit();
