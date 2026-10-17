@@ -24,6 +24,7 @@ class HospitalServiceReservation extends Model
         'end_date',
         'status',
         'reserved_by_admin',
+        'accepted_at',
     ];
 
     protected $appends = ['days', 'final_price'];
@@ -33,6 +34,7 @@ class HospitalServiceReservation extends Model
         'reserved_by_admin' => 'boolean',
         'start_date' => 'date:Y-m-d',
         'end_date' => 'date:Y-m-d',
+        'accepted_at' => 'datetime:Y-m-d H:i:s',
     ];
 
     /**
@@ -67,6 +69,60 @@ class HospitalServiceReservation extends Model
     public function getFinalPriceAttribute(): float
     {
         return round((float) $this->unit_price * $this->days, 2);
+    }
+
+    public static function statusLabel(string $status): string
+    {
+        return match ($status) {
+            'pending'   => 'قيد الانتظار',
+            'accepted'  => 'مقبول (بانتظار التثبيت)',
+            'confirmed' => 'مثبت',
+            'finished'  => 'منتهي',
+            'cancelled' => 'ملغي',
+            default     => $status,
+        };
+    }
+
+    /**
+     * Countdown for the patient to go to the hospital and confirm (تثبيت)
+     * an ACCEPTED reservation: accepted_at + hospital's
+     * reservation_confirmation_deadline (hours).
+     *
+     * Pass the deadline hours explicitly (callers already have the hospital
+     * loaded) so listing many reservations never lazy-loads the hospital
+     * once per row (N+1). Legacy rows accepted before `accepted_at` existed
+     * fall back to `updated_at`.
+     *
+     * @return array{confirmation_deadline_hours: ?float, confirmation_deadline_at: ?string,
+     *               confirmation_remaining_seconds: ?int, confirmation_expired: ?bool}
+     */
+    public function confirmationCountdown(?float $deadlineHours): array
+    {
+        $empty = [
+            'confirmation_deadline_hours'    => $deadlineHours,
+            'confirmation_deadline_at'       => null,
+            'confirmation_remaining_seconds' => null,
+            'confirmation_expired'           => null,
+        ];
+
+        if ($this->status !== 'accepted' || !$deadlineHours || $deadlineHours <= 0) {
+            return $empty;
+        }
+
+        $acceptedAt = $this->accepted_at ?? $this->updated_at;
+        if (!$acceptedAt) {
+            return $empty;
+        }
+
+        $deadlineAt = Carbon::parse($acceptedAt)->addSeconds((int) round($deadlineHours * 3600));
+        $remaining  = max(0, Carbon::now()->diffInSeconds($deadlineAt, false));
+
+        return [
+            'confirmation_deadline_hours'    => $deadlineHours,
+            'confirmation_deadline_at'       => $deadlineAt->toIso8601String(),
+            'confirmation_remaining_seconds' => (int) $remaining,
+            'confirmation_expired'           => $remaining <= 0,
+        ];
     }
 
     public function user():BelongsTo

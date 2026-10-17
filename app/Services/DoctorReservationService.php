@@ -13,6 +13,11 @@ use Illuminate\Support\Collection;
 class DoctorReservationService
 {
     /**
+     * Statuses whose reservation keeps its start/end time on the calendar.
+     */
+    public const SLOT_HOLDING_STATUSES = ['approved', 'completed'];
+
+    /**
      * Get the next available reservation time slot.
      */
     public function getNextAvailableSlot(int $doctorId, string $date, int $durationMinutes): ?array
@@ -45,11 +50,14 @@ class DoctorReservationService
 
         [$workStart, $workEnd] = $window;
 
-        // Only approved bookings hold a time; pending ones have null times
-        // and must not influence the search.
+        // Every booking that occupies a time slot blocks it: approved AND
+        // completed ones. Completed bookings used to be ignored, so once a
+        // patient was marked "completed" the same slot was handed out again
+        // to the next request. Pending ones have no time yet; cancelled /
+        // rejected ones free their slot.
         $approvedReservations = DoctorReservation::where('doctor_id', $doctorId)
             ->whereDate('date', $date)
-            ->where('status', 'approved')
+            ->whereIn('status', self::SLOT_HOLDING_STATUSES)
             ->whereNotNull('start_time')
             ->whereNotNull('end_time')
             ->orderBy('start_time')
@@ -130,7 +138,7 @@ class DoctorReservationService
 
         $lastApproved = DoctorReservation::where('doctor_id', $doctorId)
             ->whereDate('date', $date)
-            ->where('status', 'approved')
+            ->whereIn('status', self::SLOT_HOLDING_STATUSES)
             ->whereNotNull('end_time')
             ->orderByDesc('end_time')
             ->first();

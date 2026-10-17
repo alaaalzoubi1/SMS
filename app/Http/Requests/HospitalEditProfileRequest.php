@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class HospitalEditProfileRequest extends FormRequest
 {
@@ -30,6 +31,15 @@ class HospitalEditProfileRequest extends FormRequest
             'province_id' => 'sometimes|required|integer|exists:provinces,id',
             'reservation_confirmation_deadline' => 'sometimes|required|numeric',
             'profile_description' => 'nullable|string',
+            'hospital_type_id' => ['sometimes', 'required', 'integer', Rule::exists('hospital_types', 'id')->whereNull('deleted_at')],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'hospital_type_id.required' => 'يجب اختيار نوع المشفى.',
+            'hospital_type_id.exists'   => 'نوع المشفى المختار غير موجود.',
         ];
     }
 }

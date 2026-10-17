@@ -52,7 +52,7 @@ class UserReservationsController extends Controller
             case 'hospital':
                 $reservations = \App\Models\HospitalServiceReservation::query()
                     ->where('user_id', $userId)
-                    ->with(['hospital.account:id,phone_number', 'hospitalService.service','cancellation','rate'])
+                    ->with(['hospital.account:id,phone_number', 'hospital.hospitalType:id,name_ar,name_en,icon', 'hospitalService.service','cancellation','rate'])
                     ->when($apiStatus, function ($q) use ($statusMap, $apiStatus) {
                         $status = $statusMap[$apiStatus]['hospital'] ?? null;
                         if ($status) $q->where('status', $status);
@@ -83,7 +83,7 @@ class UserReservationsController extends Controller
                 $user = \App\Models\User::query()
                     ->with([
                         'nurseReservations' => fn($q) => $q->with(['nurse','nurseService.service','services.service','cancellation','rate'])->orderByDesc('created_at'),
-                        'hospitalReservations' => fn($q) => $q->with(['hospital.account:id,phone_number','hospitalService.service','cancellation','rate'])->orderByDesc('created_at'),
+                        'hospitalReservations' => fn($q) => $q->with(['hospital.account:id,phone_number','hospital.hospitalType:id,name_ar,name_en,icon','hospitalService.service','cancellation','rate'])->orderByDesc('created_at'),
                         'doctorReservations' => fn($q) => $q->with(['doctor.specialization','doctor.account:id,phone_number','doctorService','cancellation','rate'])->orderByDesc('created_at'),
                     ])
                     ->findOrFail($userId);
@@ -149,6 +149,17 @@ class UserReservationsController extends Controller
 
                 foreach ($this->mapFields($hospital->location) as $key => $value) {
                     $hospital->setAttribute($key, $value);
+                }
+
+                // Countdown to go to the hospital and confirm (تثبيت) an
+                // accepted reservation. Computed from the already-loaded
+                // hospital — no extra query per reservation.
+                foreach ($reservation->confirmationCountdown(
+                    $hospital->reservation_confirmation_deadline !== null
+                        ? (float) $hospital->reservation_confirmation_deadline
+                        : null
+                ) as $key => $value) {
+                    $reservation->setAttribute($key, $value);
                 }
 
                 $hospital->setAttribute(

@@ -37,15 +37,17 @@ class HospitalAuthController extends Controller
                 ->first();
 
             if (!$hospital) {
-                return response()->json(['message' => 'Hospital not found or invalid code.'], 404);
+                DB::rollBack();
+                return response()->json(['message' => 'المشفى غير موجود أو الرمز غير صحيح.'], 404);
             }
 
             $account = $hospital->account;
 
             if ($account->is_approved === 'approved') {
+                DB::rollBack();
                 return response()->json([
-                    'message' => 'account already have been created'
-                ]);
+                    'message' => 'تم إنشاء حساب هذا المشفى مسبقاً، يرجى تسجيل الدخول.'
+                ], 409);
             }
 
             $profileImagePath = $hospital->profile_image_path;
@@ -65,6 +67,7 @@ class HospitalAuthController extends Controller
 
             $hospital->update([
                 'full_name' => $validated['hospital_name'],
+                'hospital_type_id' => $validated['hospital_type_id'],
                 'address'   => $validated['address'],
                 'location'  => new Point($validated['latitude'], $validated['longitude']),
                 'profile_image_path' => $profileImagePath,
@@ -96,7 +99,7 @@ class HospitalAuthController extends Controller
 
             return response()->json([
                 'message'  => 'Hospital data updated successfully.',
-                'hospital' => $hospital->fresh(),
+                'hospital' => $hospital->fresh(['hospitalType']),
                 'account'  => $account->fresh(),
                 'token'    => $token,
             ]);
@@ -254,6 +257,10 @@ class HospitalAuthController extends Controller
         {
             $hospitalData['profile_description'] = $validated['profile_description'];
         }
+        if (array_key_exists('hospital_type_id', $validated))
+        {
+            $hospitalData['hospital_type_id'] = $validated['hospital_type_id'];
+        }
 
         if ($request->hasFile('profile_image')) {
 
@@ -280,7 +287,7 @@ class HospitalAuthController extends Controller
 
         return response()->json([
             'message' => 'تم تحديث الملف الشخصي بنجاح.',
-            'hospital' => $hospital->fresh(),
+            'hospital' => $hospital->fresh(['hospitalType']),
             'account' => $account
         ]);
     }

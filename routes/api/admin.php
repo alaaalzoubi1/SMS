@@ -61,6 +61,17 @@ Route::prefix('service')->group(function () {
     Route::get('/trashed', [ServiceController::class, 'trashed'])->name('service.trashed');
 });
 
+// Hospital types CRUD (أنواع المشافي)
+Route::prefix('hospital-types')->controller(\App\Http\Controllers\HospitalTypeController::class)->group(function () {
+    Route::get('/', 'index');
+    Route::get('/trashed', 'trashed');
+    Route::get('/{id}', 'show')->whereNumber('id');
+    Route::post('/', 'store');
+    Route::match(['put', 'post'], '/{id}', 'update')->whereNumber('id');
+    Route::delete('/{id}', 'destroy')->whereNumber('id');
+    Route::patch('/{id}/restore', 'restore')->whereNumber('id');
+});
+
 Route::prefix('specializations')->group(function () {
     Route::get('', [SpecializationController::class, 'index']);
     Route::get('/{id}', [SpecializationController::class, 'show']);

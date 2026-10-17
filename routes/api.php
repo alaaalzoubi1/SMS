@@ -105,6 +105,9 @@ Route::prefix('contact-info')->group(function () {
     Route::get('/', [ContactInfoController::class, 'index'])->middleware('throttle:60,1');
 });
 
+// Hospital types: categories for the user app + the type dropdown at hospital registration
+Route::get('hospital-types', [\App\Http\Controllers\HospitalTypeController::class, 'publicIndex'])->middleware('throttle:60,1');
+
 
 
 Route::middleware('throttle:60,1')->group(function () {

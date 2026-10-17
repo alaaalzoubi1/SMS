@@ -19,10 +19,12 @@ class HospitalStatisticsController extends Controller
         $request->validate(array_merge($this->accountFilterRules(), [
             'service_id' => 'nullable|integer|exists:services,id',
             'has_vacancy' => 'nullable|in:0,1,true,false',
+            'hospital_type_id' => 'nullable|integer|exists:hospital_types,id',
         ]));
 
         $query = Hospital::query()
-            ->with(array_merge($this->withAccount(), ['province:id,name_ar,name_en']))
+            ->with(array_merge($this->withAccount(), ['province:id,name_ar,name_en', 'hospitalType:id,name_ar,name_en']))
+            ->when($request->filled('hospital_type_id'), fn ($q) => $q->where('hospitals.hospital_type_id', $request->hospital_type_id))
             ->withCount([
                 'reservations',
                 'reservations as finished_reservations_count' => fn ($q) => $q->where('status', 'finished'),
@@ -73,7 +75,7 @@ class HospitalStatisticsController extends Controller
     {
         return response()->json([
             'hospital' => Hospital::withTrashed()
-                ->with(array_merge($this->withAccount(), ['services_2','workSchedule','province:id,name_ar,name_en']))
+                ->with(array_merge($this->withAccount(), ['services_2','workSchedule','province:id,name_ar,name_en','hospitalType:id,name_ar,name_en']))
                 ->withCount('reservations')
                 ->where('id',$id)->first()
         ]);

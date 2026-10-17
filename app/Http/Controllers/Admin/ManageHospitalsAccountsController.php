@@ -26,6 +26,9 @@ class ManageHospitalsAccountsController extends Controller
 
             $validator = Validator::make($request->all(), [
                 'hospital_name' => 'required|string|max:255|unique:hospitals,full_name',
+                // Optional here: the hospital must pick it when it completes
+                // its registration, but the admin may preset it.
+                'hospital_type_id' => 'nullable|integer|exists:hospital_types,id',
             ]);
 
             if ($validator->fails()) {
@@ -54,6 +57,7 @@ class ManageHospitalsAccountsController extends Controller
                 'address' => '',
                 'location'=> new Point(0 , 0),
                 'province_id' => 1,
+                'hospital_type_id' => $request->input('hospital_type_id'),
             ]);
 
             DB::commit();

@@ -23,13 +23,16 @@ use Illuminate\Support\Facades\Log;
 
 class HospitalServiceReservationController extends Controller
 {
+    /** Cached so present() can compute the confirmation countdown without a query per row. */
+    private ?Hospital $currentHospital = null;
+
     private function getAuthenticatedHospital()
     {
         $hospital = Hospital::where('account_id', Auth::id())->first();
         if (!$hospital) {
             abort(404, 'Hospital not found for the authenticated user.');
         }
-        return $hospital;
+        return $this->currentHospital = $hospital;
     }
 
     /**
@@ -90,7 +93,12 @@ class HospitalServiceReservationController extends Controller
             'start_date' => $this->formatDate($reservation->start_date),
             'end_date' => $this->formatDate($reservation->end_date),
             'cancellation' => $reservation->cancellation,
-        ];
+            'accepted_at' => $reservation->accepted_at?->format('Y-m-d H:i:s'),
+        ] + $reservation->confirmationCountdown(
+            $this->currentHospital?->reservation_confirmation_deadline !== null
+                ? (float) $this->currentHospital->reservation_confirmation_deadline
+                : null
+        );
     }
 
     public function index(Request $request)
@@ -222,6 +230,9 @@ class HospitalServiceReservationController extends Controller
                     DB::rollBack();
                     return response()->json(['message' => 'يجب أن تكون الحالة قيد الانتظار ليتم القبول'], 422);
                 }
+
+                // Start of the patient's countdown to go and confirm (تثبيت).
+                $reservation->accepted_at = Carbon::now();
 
                 $deadlineHours = $hospital->reservation_confirmation_deadline;
                 $body = "تم قبول طلب الحجز، يجب تثبيت الحجز خلال {$deadlineHours} ساعة وإلا سيتم إلغاؤه تلقائياً.";
@@ -467,34 +478,70 @@ class HospitalServiceReservationController extends Controller
     private function notifyAdminsOfNewReservation(HospitalServiceReservation $reservation): void
     {
         try {
-            $reservation->loadMissing(['user', 'hospital', 'hospitalService.service']);
+            $reservation->loadMissing([
+                'user.account:id,phone_number',
+                'hospital.account:id,phone_number',
+                'hospital.province:id,name_ar',
+                'hospital.hospitalType:id,name_ar',
+                'hospitalService.service',
+            ]);
 
-            $serviceName = $reservation->hospitalService?->service?->service_name ?? 'خدمة';
-            $patientName = $reservation->user?->full_name ?? 'مستخدم';
-            $patientPhone = $reservation->user?->phone_number;
-            // Hospital has no `name` column (it is `full_name`), so the
-            // message always said "غير محدد".
-            $hospitalName = $reservation->hospital?->full_name ?? 'غير محدد';
+            $serviceName  = $reservation->hospitalService?->service?->service_name ?? 'خدمة';
+            $patient      = $reservation->user;
+            $patientName  = $patient?->full_name ?? 'مستخدم';
+            $patientPhone = $patient?->phone_number;
+            $hospital     = $reservation->hospital;
+            // Hospital has no `name` column (it is `full_name`).
+            $hospitalName = $hospital?->full_name ?? 'غير محدد';
+            $statusLabel  = HospitalServiceReservation::statusLabel($reservation->status ?? 'pending');
+            $price        = (float) $reservation->unit_price;
+            $beds         = $reservation->hospitalService?->capacity;
+            $deadline     = $hospital?->reservation_confirmation_deadline;
+            $createdAt    = optional($reservation->created_at)->format('Y-m-d H:i');
+
+            $lines = array_filter([
+                sprintf('رقم الطلب: #%d', $reservation->id),
+                'الحالة: ' . $statusLabel,
+                sprintf('المريض: %s%s', $patientName, $patientPhone ? " ({$patientPhone})" : ''),
+                $patient ? sprintf('الجنس / العمر: %s / %s',
+                    $patient->gender === 'female' ? 'أنثى' : ($patient->gender === 'male' ? 'ذكر' : '-'),
+                    $patient->age ?? '-') : null,
+                sprintf('الخدمة: %s — السعر لليوم: %s', $serviceName, number_format($price, 0)),
+                sprintf('المشفى: %s%s%s',
+                    $hospitalName,
+                    $hospital?->province?->name_ar ? ' — ' . $hospital->province->name_ar : '',
+                    $hospital?->account?->phone_number ? ' (' . $hospital->account->phone_number . ')' : ''),
+                $beds !== null ? 'الأسرّة المتاحة حالياً: ' . $beds : null,
+                $deadline ? sprintf('مهلة التثبيت بعد القبول: %s ساعة', $deadline) : null,
+                $createdAt ? 'وقت الطلب: ' . $createdAt : null,
+            ]);
 
             // Stored for the dashboard inbox and pushed to admin devices.
             AdminNotifier::notify(
                 AdminNotification::TYPE_HOSPITAL_RESERVATION,
-                'طلب حجز خدمة مشفى جديد',
-                sprintf(
-                    'طلب %s%s حجز خدمة "%s" في مشفى %s.',
-                    $patientName,
-                    $patientPhone ? " ({$patientPhone})" : '',
-                    $serviceName,
-                    $hospitalName
-                ),
+                sprintf('طلب حجز مشفى جديد #%d (%s)', $reservation->id, $statusLabel),
+                implode("\n", $lines),
                 [
-                    'reservation_id' => $reservation->id,
-                    'patient_user_id' => $reservation->user_id,
-                    'patient_name' => $patientName,
-                    'patient_phone' => $patientPhone,
-                    'hospital_id' => $reservation->hospital_id,
-                    'hospital_name' => $hospitalName,
-                    'service_name' => $serviceName,
+                    'reservation_id'      => $reservation->id,
+                    'status'              => $reservation->status ?? 'pending',
+                    'status_label'        => $statusLabel,
+                    'reserved_by_admin'   => (bool) $reservation->reserved_by_admin,
+                    'created_at'          => $createdAt,
+                    'patient_user_id'     => $reservation->user_id,
+                    'patient_name'        => $patientName,
+                    'patient_phone'       => $patientPhone,
+                    'patient_gender'      => $patient?->gender,
+                    'patient_age'         => $patient?->age,
+                    'hospital_id'         => $reservation->hospital_id,
+                    'hospital_name'       => $hospitalName,
+                    'hospital_phone'      => $hospital?->account?->phone_number,
+                    'hospital_province'   => $hospital?->province?->name_ar,
+                    'hospital_type'       => $hospital?->hospitalType?->name_ar,
+                    'hospital_service_id' => $reservation->hospital_service_id,
+                    'service_name'        => $serviceName,
+                    'unit_price'          => $price,
+                    'available_beds'      => $beds,
+                    'confirmation_deadline_hours' => $deadline,
                 ]
             );
         } catch (\Throwable $e) {

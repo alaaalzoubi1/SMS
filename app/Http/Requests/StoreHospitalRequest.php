@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreHospitalRequest extends FormRequest
 {
@@ -23,6 +24,8 @@ class StoreHospitalRequest extends FormRequest
     {
         return [
             'hospital_name' => 'required|string|max:255|exists:hospitals,full_name',
+            // Every hospital must choose its type from GET api/hospital-types.
+            'hospital_type_id' => ['required', 'integer', Rule::exists('hospital_types', 'id')->whereNull('deleted_at')],
             'unique_code'   => 'required|string|exists:hospitals,unique_code',
             'address'       => 'required|string|max:255',
             'email'          => 'required|email|unique:accounts,email' ,
@@ -40,11 +43,14 @@ class StoreHospitalRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'hospital_name.required' => 'The hospital name is required.',
-            'unique_code.required'   => 'The unique code is required.',
-            'address.required'       => 'The address is required.',
-            'email.required'         => 'The email is required.',
-            'phone_number.required'  => 'The phone number is required.',
+            'hospital_name.required'         => 'اسم المشفى مطلوب.',
+            'hospital_name.exists'           => 'اسم المشفى غير موجود.',
+            'hospital_type_id.required'      => 'يجب اختيار نوع المشفى.',
+            'hospital_type_id.exists'        => 'نوع المشفى المختار غير موجود.',
+            'unique_code.required'   => 'الرمز الخاص بالمشفى مطلوب.',
+            'address.required'       => 'العنوان مطلوب.',
+            'email.required'         => 'البريد الإلكتروني مطلوب.',
+            'phone_number.required'  => 'رقم الهاتف مطلوب.',
         ];
     }
 }

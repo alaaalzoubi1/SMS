@@ -28,7 +28,8 @@ class Hospital extends Model
         'profile_image_path',
         'reservation_confirmation_deadline',
         'province_id',
-        'profile_description'
+        'profile_description',
+        'hospital_type_id',
     ];
 
     protected static function booted()
@@ -67,6 +68,11 @@ class Hospital extends Model
     public function reservations(): HasMany
     {
         return $this->hasMany(HospitalServiceReservation::class, 'hospital_id');
+    }
+
+    public function hospitalType(): BelongsTo
+    {
+        return $this->belongsTo(HospitalType::class)->withTrashed();
     }
 
     public function province(): BelongsTo
