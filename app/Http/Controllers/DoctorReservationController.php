@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\FiltersReservedByAdmin;
 use App\Jobs\SendFirebaseNotificationJob;
+use App\Support\PatientNotifier;
 use App\Models\Doctor;
 use App\Models\DoctorReservation;
 use App\Models\DoctorService;
@@ -18,7 +20,7 @@ use Illuminate\Support\Facades\Log;
 
 class DoctorReservationController extends Controller
 {
-    use AuthorizesRequests;
+    use AuthorizesRequests, FiltersReservedByAdmin;
 
 
     protected DoctorReservationService $doctorReservationService;
@@ -99,14 +101,21 @@ class DoctorReservationController extends Controller
             'from' => 'nullable|date',
             'to' => 'nullable|date|after_or_equal:from',
             'per_page' => 'nullable|integer|min:1|max:100',
+            'reserved_by_admin' => 'nullable',
         ]);
+        $byAdmin = $this->reservedByAdmin($request);
 
         $doctor = Doctor::where('account_id', auth()->id())->firstOrFail();
 
+        // from/to used to be applied to `start_time`, a TIME column (no
+        // date in it), so the date range never matched. It now filters the
+        // reservation `date`.
         $query = DoctorReservation::where('doctor_id', $doctor->id)
             ->when($request->status, fn($q) => $q->where('status', $request->status))
-            ->when($request->from, fn($q) => $q->whereDate('start_time', '>=', $request->from))
-            ->when($request->to, fn($q) => $q->whereDate('start_time', '<=', $request->to))
+            ->when($request->from, fn($q) => $q->whereDate('date', '>=', $request->from))
+            ->when($request->to, fn($q) => $q->whereDate('date', '<=', $request->to))
+            ->when($byAdmin !== null, fn ($q) => $q->where('reserved_by_admin', $byAdmin))
+            ->orderBy('date', 'desc')
             ->orderBy('start_time', 'desc')
             ->with(['user.account', 'doctorService','cancellation']);
 
@@ -349,7 +358,9 @@ class DoctorReservationController extends Controller
         $request->validate([
             'date' => 'required|date_format:Y-m-d',
             'status' => 'nullable|in:pending,approved,rejected,cancelled,completed',
+            'reserved_by_admin' => 'nullable',
         ]);
+        $byAdmin = $this->reservedByAdmin($request);
 
         $doctor = Doctor::where('account_id', auth()->id())->firstOrFail();
 
@@ -357,8 +368,11 @@ class DoctorReservationController extends Controller
             ->where('doctor_id', $doctor->id)
             ->whereDate('date', $request->date)
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->status))
+            ->when($byAdmin !== null, fn ($q) => $q->where('reserved_by_admin', $byAdmin))
             ->orderBy('start_time')
-            ->with(['user.account:id,full_name,phone_number', 'doctorService', 'cancellation'])
+            // `accounts` has no full_name column — selecting it made this
+            // endpoint fail with an SQL error.
+            ->with(['user.account:id,phone_number', 'doctorService', 'cancellation'])
             ->get();
 
         return response()->json([
@@ -370,12 +384,6 @@ class DoctorReservationController extends Controller
     private function notifyUser(DoctorReservation $reservation, ?string $reason = null): void
     {
         try {
-            $userAccount = $reservation->user->account ?? null;
-
-            if (!$userAccount || !$userAccount->fcm_token) {
-                return;
-            }
-
             $doctorName = $reservation->doctor->full_name ?? 'الطبيب';
 
             $title = 'تحديث حالة الحجز من الطبيب';
@@ -384,9 +392,9 @@ class DoctorReservationController extends Controller
                 'approved'  => sprintf(
                     'تمت الموافقة على حجزك من %s بتاريخ %s من الساعة %s حتى %s.',
                     $doctorName,
-                    $reservation->date,
-                    $reservation->start_time,
-                    $reservation->end_time
+                    \Illuminate\Support\Carbon::parse($reservation->date)->format('Y-m-d'),
+                    $reservation->start_time ? \Illuminate\Support\Carbon::parse($reservation->start_time)->format('H:i') : '-',
+                    $reservation->end_time ? \Illuminate\Support\Carbon::parse($reservation->end_time)->format('H:i') : '-'
                 ),
                 'cancelled' => sprintf(
                     'تم إلغاء حجزك من %s. السبب: %s',
@@ -408,11 +416,9 @@ class DoctorReservationController extends Controller
                 ),
             };
 
-            SendFirebaseNotificationJob::dispatch(
-                $userAccount->fcm_token,
-                $title,
-                $body
-            );
+            // Patient with an account → push to the patient. Admin-made
+            // reservation for someone without an account → the admins get it.
+            PatientNotifier::notify($reservation, $title, $body);
 
         } catch (\Throwable $e) {
             Log::error('Failed to send user notification (doctor): ' . $e->getMessage());

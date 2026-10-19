@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\FiltersReservedByAdmin;
 use App\Jobs\SendFirebaseNotificationJob;
+use App\Support\PatientNotifier;
 use App\Models\Nurse;
 use App\Models\NurseCancellation;
 use App\Models\NurseReservation;
@@ -20,7 +22,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 class NurseReservationController extends Controller
 {
-    use AuthorizesRequests;
+    use AuthorizesRequests, FiltersReservedByAdmin;
     /**
      * Display a listing of the resource.
      */
@@ -32,11 +34,14 @@ class NurseReservationController extends Controller
             'from' => 'nullable|date',
             'to' => 'nullable|date|after_or_equal:from',
             'per_page' => 'nullable|integer|min:1|max:100',
+            'reserved_by_admin' => 'nullable',
         ]);
+        $byAdmin = $this->reservedByAdmin($request);
 
         $nurse = Nurse::where('account_id', auth()->id())->firstOrFail();
 
         $query = NurseReservation::where('nurse_id', $nurse->id)
+            ->when($byAdmin !== null, fn ($q) => $q->where('reserved_by_admin', $byAdmin))
             ->when($request->status, fn($q) => $q->where('status', $request->status))
             ->when($request->from, fn($q) => $q->whereDate('start_at', '>=', $request->from))
             ->when($request->to, fn($q) => $q->whereDate('start_at', '<=', $request->to))
@@ -121,27 +126,21 @@ class NurseReservationController extends Controller
             DB::commit();
 
             try {
-                $userAccount = $reservation->user->account ?? null;
                 $nurseName = $reservation->nurse->full_name ?? '';
 
-                if ($userAccount && $userAccount->fcm_token) {
+                $title = "تحديث حالة الحجز";
 
-                    $title = "تحديث حالة الحجز";
+                $body = match ($newStatus) {
+                    'accepted'  => "تمت الموافقة على حجزك من الممرض $nurseName.",
+                    'rejected'  => "تم رفض حجزك من الممرض $nurseName. السبب: {$request->reason}",
+                    'cancelled' => "تم إلغاء حجزك من الممرض $nurseName. السبب: {$request->reason}",
+                    'completed' => "تم اكتمال حجزك مع الممرض $nurseName بنجاح.",
+                    default     => "تم تحديث حالة حجزك إلى $newStatus.",
+                };
 
-                    $body = match ($newStatus) {
-                        'accepted'  => "تمت الموافقة على حجزك من الممرض $nurseName.",
-                        'rejected'  => "تم رفض حجزك من الممرض $nurseName. السبب: {$request->reason}",
-                        'cancelled' => "تم إلغاء حجزك من الممرض $nurseName. السبب: {$request->reason}",
-                        'completed' => "تم اكتمال حجزك مع الممرض $nurseName بنجاح.",
-                        default     => "تم تحديث حالة حجزك إلى $newStatus.",
-                    };
-
-                    SendFirebaseNotificationJob::dispatch(
-                        $userAccount->fcm_token,
-                        $title,
-                        $body
-                    );
-                }
+                // Patient with an account → push to the patient. Admin-made
+                // reservation for someone without an account → the admins.
+                PatientNotifier::notify($reservation, $title, $body);
 
             } catch (\Throwable $e) {
                 Log::error('Failed to send notification: ' . $e->getMessage());

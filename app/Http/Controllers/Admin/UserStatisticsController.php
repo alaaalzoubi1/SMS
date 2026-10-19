@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\FiltersReservedByAdmin;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -10,6 +11,8 @@ use Illuminate\Validation\Rule;
 
 class UserStatisticsController extends Controller
 {
+    use FiltersReservedByAdmin;
+
     /**
      * GET api/admin/user/all
      *
@@ -70,40 +73,39 @@ class UserStatisticsController extends Controller
 
         $request->validate([
             'status' => ['nullable', Rule::in($allowedApiStatuses)],
+            'reserved_by_admin' => ['nullable'],
         ]);
+        $byAdmin = $this->reservedByAdmin($request);
 
-        // خريطة التحويل: من حالة API الموحّدة -> إلى قيمة enum في كل جدول
+        // خريطة التحويل: من حالة API الموحّدة -> إلى قيم enum في كل جدول
+        // ([] = الحالة غير موجودة في هذا الجدول → لا نتائج).
+        // Same map as the user app: nurse `cancelled` and hospital
+        // `completed` (finished) / `approved` (accepted) used to return nothing.
         $statusMap = [
-            'pending'   => ['nurse' => 'pending',  'hospital' => 'pending',   'doctor' => 'pending'],
-            'approved'  => ['nurse' => 'accepted', 'hospital' => 'confirmed', 'doctor' => 'approved'],
-            'cancelled' => ['nurse' => null,       'hospital' => 'cancelled', 'doctor' => 'cancelled'],
-            'rejected'  => ['nurse' => 'rejected', 'hospital' => null,        'doctor' => 'rejected'],
-            'completed' => ['nurse' => 'completed','hospital' => null,        'doctor' => 'completed'],
+            'pending'   => ['nurse' => ['pending'],   'hospital' => ['pending'],               'doctor' => ['pending']],
+            'approved'  => ['nurse' => ['accepted'],  'hospital' => ['confirmed', 'accepted'], 'doctor' => ['approved']],
+            'cancelled' => ['nurse' => ['cancelled'], 'hospital' => ['cancelled'],             'doctor' => ['cancelled']],
+            'rejected'  => ['nurse' => ['rejected'],  'hospital' => [],                        'doctor' => ['rejected']],
+            'completed' => ['nurse' => ['completed'], 'hospital' => ['finished'],              'doctor' => ['completed']],
         ];
+
+        $apiStatus = $request->filled('status') ? $request->string('status')->toString() : null;
+
+        $scope = function (string $kind) use ($statusMap, $apiStatus, $byAdmin) {
+            return function ($q) use ($kind, $statusMap, $apiStatus, $byAdmin) {
+                if ($apiStatus !== null) {
+                    $statuses = $statusMap[$apiStatus][$kind];
+                    $statuses === [] ? $q->whereRaw('1=0') : $q->whereIn('status', $statuses);
+                }
+                $this->applyReservedByAdmin($q, $byAdmin);
+            };
+        };
 
         $with = [
-            'nurseReservations',
-            'hospitalReservations',
-            'doctorReservations',
+            'nurseReservations'    => $scope('nurse'),
+            'hospitalReservations' => $scope('hospital'),
+            'doctorReservations'   => $scope('doctor'),
         ];
-
-        if ($request->filled('status')) {
-            $apiStatus = $request->string('status')->toString();
-            $map = $statusMap[$apiStatus];
-
-            $with = [
-                'nurseReservations' => function ($q) use ($map) {
-                    // إن كانت غير مدعومة في هذا الجدول نرجّع صفوفًا صفرية
-                    return is_null($map['nurse']) ? $q->whereRaw('1=0') : $q->where('status', $map['nurse']);
-                },
-                'hospitalReservations' => function ($q) use ($map) {
-                    return is_null($map['hospital']) ? $q->whereRaw('1=0') : $q->where('status', $map['hospital']);
-                },
-                'doctorReservations' => function ($q) use ($map) {
-                    return is_null($map['doctor']) ? $q->whereRaw('1=0') : $q->where('status', $map['doctor']);
-                },
-            ];
-        }
 
         $user = User::query()
             ->with(array_merge($with, ['account:id,email,phone_number']))

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Enums\GraduationType;
 use App\Http\Controllers\Admin\Concerns\FiltersProviderAccounts;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\FiltersReservedByAdmin;
 use App\Models\NurseService;
 use App\Models\Nurse;
 use App\Models\NurseReservation;
@@ -15,7 +16,7 @@ use TarfinLabs\LaravelSpatial\Types\Point;
 
 class NurseStatisticsController extends Controller
 {
-    use FiltersProviderAccounts;
+    use FiltersProviderAccounts, FiltersReservedByAdmin;
 
     public function nurses(Request $request): JsonResponse
     {
@@ -162,15 +163,18 @@ class NurseStatisticsController extends Controller
     public function nurseReservations(Request $request ,$id): JsonResponse
     {
         $request->validate([
-            'status' => 'nullable|in:pending,accepted,rejected,completed',
+            // `cancelled` was missing from the allowed values.
+            'status' => 'nullable|in:pending,accepted,rejected,completed,cancelled',
             'from' => 'nullable|date',
             'to' => 'nullable|date|after_or_equal:from',
             'per_page' => 'nullable|integer|min:1|max:100',
+            'reserved_by_admin' => 'nullable',
         ]);
-
+        $byAdmin = $this->reservedByAdmin($request);
 
         $query = NurseReservation::where('nurse_id', $id)
             ->when($request->status, fn($q) => $q->where('status', $request->status))
+            ->when($byAdmin !== null, fn ($q) => $q->where('reserved_by_admin', $byAdmin))
             ->when($request->from, fn($q) => $q->whereDate('start_at', '>=', $request->from))
             ->when($request->to, fn($q) => $q->whereDate('start_at', '<=', $request->to))
             ->orderBy('start_at', 'desc')

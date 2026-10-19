@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Admin\Concerns\FiltersProviderAccounts;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\FiltersReservedByAdmin;
 use App\Models\Doctor;
 use App\Models\DoctorReservation;
 use Illuminate\Http\JsonResponse;
@@ -11,7 +12,7 @@ use Illuminate\Http\Request;
 
 class DoctorStatisticsController extends Controller
 {
-    use FiltersProviderAccounts;
+    use FiltersProviderAccounts, FiltersReservedByAdmin;
 
     public function doctors(Request $request): JsonResponse
     {
@@ -84,13 +85,18 @@ class DoctorStatisticsController extends Controller
             'from' => 'nullable|date',
             'to' => 'nullable|date|after_or_equal:from',
             'per_page' => 'nullable|integer|min:1|max:20',
+            'reserved_by_admin' => 'nullable',
         ]);
+        $byAdmin = $this->reservedByAdmin($request);
 
-
+        // from/to now filter the reservation `date` (they were applied to
+        // `start_time`, a TIME column, so the range never matched).
         $query = DoctorReservation::where('doctor_id', $id)
             ->when($request->status, fn($q) => $q->where('status', $request->status))
-            ->when($request->from, fn($q) => $q->whereDate('start_time', '>=', $request->from))
-            ->when($request->to, fn($q) => $q->whereDate('start_time', '<=', $request->to))
+            ->when($request->from, fn($q) => $q->whereDate('date', '>=', $request->from))
+            ->when($request->to, fn($q) => $q->whereDate('date', '<=', $request->to))
+            ->when($byAdmin !== null, fn ($q) => $q->where('reserved_by_admin', $byAdmin))
+            ->orderBy('date', 'desc')
             ->orderBy('start_time', 'desc')
             ->with(['user.account:id,email,phone_number,created_at,updated_at', 'doctorService']);
 

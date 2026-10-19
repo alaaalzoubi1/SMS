@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Admin\Concerns\FiltersProviderAccounts;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\FiltersReservedByAdmin;
 use App\Models\Hospital;
 use App\Models\HospitalServiceReservation;
 use App\Models\User;
@@ -12,7 +13,7 @@ use Illuminate\Http\Request;
 
 class HospitalStatisticsController extends Controller
 {
-    use FiltersProviderAccounts;
+    use FiltersProviderAccounts, FiltersReservedByAdmin;
 
     public function hospitals(Request $request): JsonResponse
     {
@@ -111,16 +112,24 @@ class HospitalStatisticsController extends Controller
     public function hospitalReservations(Request $request ,$id): JsonResponse
     {
         $request->validate([
-            'status' => 'nullable|in:pending,confirmed,cancelled',
+            // `accepted` and `finished` were rejected before.
+            'status' => 'nullable|in:pending,accepted,confirmed,finished,cancelled',
             'from' => 'nullable|date',
             'to' => 'nullable|date|after_or_equal:from',
             'per_page' => 'nullable|integer|min:1|max:20',
+            'reserved_by_admin' => 'nullable',
         ]);
+        $byAdmin = $this->reservedByAdmin($request);
+
+        // Requests that have not started yet have no start_date, so the date
+        // range falls back to the request date (created_at) for them —
+        // otherwise pending / accepted requests could never be found by date.
         $query = HospitalServiceReservation::where('hospital_id', $id)
             ->when($request->status, fn($q) => $q->where('status', $request->status))
-            ->when($request->from, fn($q) => $q->whereDate('start_date', '>=', $request->from))
-            ->when($request->to, fn($q) => $q->whereDate('start_date', '<=', $request->to))
-            ->orderBy('start_date', 'desc')
+            ->when($request->from, fn($q) => $q->whereRaw('DATE(COALESCE(start_date, created_at)) >= ?', [$request->from]))
+            ->when($request->to, fn($q) => $q->whereRaw('DATE(COALESCE(start_date, created_at)) <= ?', [$request->to]))
+            ->when($byAdmin !== null, fn ($q) => $q->where('reserved_by_admin', $byAdmin))
+            ->orderByRaw('COALESCE(start_date, created_at) DESC')
             ->with(['user.account', 'hospitalService.service']);
 
         $perPage = $request->input('per_page', 10);

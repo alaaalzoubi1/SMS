@@ -3,12 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\FiltersReservedByAdmin;
 use App\Jobs\SendFirebaseNotificationJob;
 use App\Jobs\SendFirebaseNotificationToAdminsJob;
 use App\Models\AdminNotification;
 use App\Models\HospitalCancellation;
 use App\Services\HospitalReservationService;
 use App\Support\AdminNotifier;
+use App\Support\PatientNotifier;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -23,6 +25,8 @@ use Illuminate\Support\Facades\Log;
 
 class HospitalServiceReservationController extends Controller
 {
+    use FiltersReservedByAdmin;
+
     /** Cached so present() can compute the confirmation countdown without a query per row. */
     private ?Hospital $currentHospital = null;
 
@@ -105,12 +109,15 @@ class HospitalServiceReservationController extends Controller
     {
         $request->validate([
             'status' => 'nullable|in:pending,confirmed,accepted,cancelled,finished',
+            'reserved_by_admin' => 'nullable',
         ]);
+        $byAdmin = $this->reservedByAdmin($request);
 
         $hospital = $this->getAuthenticatedHospital();
 
         $reservations = HospitalServiceReservation::where('hospital_id', $hospital->id)
               ->when($request->filled('status'), fn ($q) => $q->where('status', $request->status))
+              ->when($byAdmin !== null, fn ($q) => $q->where('reserved_by_admin', $byAdmin))
               ->with(['user', 'hospitalService.service','cancellation'])
               ->orderBy('start_date', 'desc')
               ->paginate()
@@ -145,13 +152,16 @@ class HospitalServiceReservationController extends Controller
         $request->validate([
             'date' => 'required|date_format:Y-m-d',
             'status' => 'nullable|in:pending,confirmed,accepted,cancelled,finished',
+            'reserved_by_admin' => 'nullable',
         ]);
+        $byAdmin = $this->reservedByAdmin($request);
 
         $hospital = $this->getAuthenticatedHospital();
 
         $reservations = HospitalServiceReservation::where('hospital_id', $hospital->id)
               ->whereDate('start_date', $request->date)
               ->when($request->filled('status'), fn ($q) => $q->where('status', $request->status))
+              ->when($byAdmin !== null, fn ($q) => $q->where('reserved_by_admin', $byAdmin))
               ->with(['user', 'hospitalService.service', 'cancellation'])
               ->orderBy('start_date')
               ->get()
@@ -191,6 +201,11 @@ class HospitalServiceReservationController extends Controller
 
         DB::beginTransaction();
         try {
+            // Set the new status on the model up front (it is only saved at
+            // the end) so the notifications sent inside the rules below carry
+            // the NEW status. The rules themselves check $oldStatus.
+            $reservation->status = $newStatus;
+
             /* ───────────────────────────────
                RULE 1 — CANCELLED
                ─────────────────────────────── */
@@ -311,10 +326,9 @@ class HospitalServiceReservationController extends Controller
     private function notifyUser($reservation, string $title, string $body)
     {
         try {
-            $token = $reservation->user->account->fcm_token ?? null;
-            if ($token) {
-                SendFirebaseNotificationJob::dispatch($token, $title, $body);
-            }
+            // Patient with an account → push to the patient. Admin-made
+            // reservation for someone without an account → the admins.
+            PatientNotifier::notify($reservation, $title, $body);
         } catch (\Throwable $e) {
             Log::error("Failed to send notification: " . $e->getMessage());
         }
@@ -378,12 +392,16 @@ class HospitalServiceReservationController extends Controller
         }
     }
 
-    public function trashed()
+    public function trashed(Request $request)
     {
+        $request->validate(['reserved_by_admin' => 'nullable']);
+        $byAdmin = $this->reservedByAdmin($request);
+
         $hospital = $this->getAuthenticatedHospital();
 
         $reservations = HospitalServiceReservation::onlyTrashed()
             ->where('hospital_id', $hospital->id)
+            ->when($byAdmin !== null, fn ($q) => $q->where('reserved_by_admin', $byAdmin))
 ->with(['user', 'hospitalService.service'])
               ->orderBy('start_date', 'desc')
               ->get()
