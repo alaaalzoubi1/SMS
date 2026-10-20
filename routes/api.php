@@ -56,12 +56,8 @@ use App\Http\Controllers\Auth\ForgotPasswordController;
         Route::post('verify-login', [NurseAuthController::class, 'verifyLogin'])->middleware('throttle:5,1');
     });
     Route::prefix('hospital')->group(function () {
-        // Public (no token) + throttled: the hospital registration screen
-        // loads the hospital types before the hospital has an account.
-        // Same data as GET api/hospital-types.
-        Route::get('hospital-types', [\App\Http\Controllers\HospitalTypeController::class, 'publicIndex'])
-            ->middleware('throttle:60,1')
-            ->name('hospital.registration-hospital-types');
+
+
         Route::post('register', [HospitalAuthController::class, 'updateHospitalData'])->middleware('throttle:5,60');
 //        Route::post('verifyCode', [HospitalAuthController::class, 'verifyCode']);
         Route::post('login', [HospitalAuthController::class, 'login'])->middleware('throttle:10,1');
@@ -119,3 +115,6 @@ Route::get('hospital-types', [\App\Http\Controllers\HospitalTypeController::clas
 Route::middleware('throttle:60,1')->group(function () {
     Route::get('/landing', [LandingPageController::class, 'index']);
 });
+Route::get('hospital-types', [\App\Http\Controllers\HospitalTypeController::class, 'publicIndex'])
+    ->middleware('throttle:60,1')
+    ->name('hospital.registration-hospital-types');
