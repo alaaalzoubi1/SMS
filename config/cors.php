@@ -2,16 +2,12 @@
 
 return [
 
-    'paths' => [
-        'api/admin/*',
-        'api/hospital/*',
-        'api/doctor/*',
-        'api/landing',
-        'api/legal/*',
-        'api/contact-info',
-        'api/provinces',
-        'api/site-content/*',
-    ],
+    // `paths` = the routes that GET CORS headers. A path missing from this
+    // list gets no CORS headers at all, and the browser then BLOCKS it (it is
+    // not "open"). So every API route is covered here; who may call them is
+    // controlled by the allowed origins below (only muafa-sy.com sites).
+    // Mobile apps are not affected by CORS either way.
+    'paths' => ['api/*'],
 
     'allowed_methods' => ['*'],
 
