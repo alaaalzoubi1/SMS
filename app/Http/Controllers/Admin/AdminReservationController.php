@@ -55,6 +55,16 @@ class AdminReservationController extends Controller
             ], 422);
         }
 
+        // Same rule as the patient app: no booking on a day off, and no
+        // booking for today once the doctor's shift is over. Checked before
+        // resolveUser so no patient record is created for a refused request.
+        if ($error = $this->doctorService->bookingDateError(
+            (int) $request->doctor_id,
+            (string) $request->date
+        )) {
+            return response()->json($error, 422);
+        }
+
         $user = $this->userService->resolveUser(
             $request->user_id,
             $request->user_data

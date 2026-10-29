@@ -44,14 +44,13 @@ class DoctorReservationController extends Controller
         $userId = auth()->user()->user->id;
 
         // Reject up front rather than letting the request sit pending only to
-        // fail (or get force-confirmed) when the doctor tries to approve it.
-        if (!$this->doctorReservationService->worksOn(
+        // fail (or get force-confirmed) when the doctor tries to approve it:
+        // a day the doctor does not work, or today after the shift ended.
+        if ($error = $this->doctorReservationService->bookingDateError(
             (int) $request->doctor_id,
             $request->date
         )) {
-            return response()->json([
-                'message' => 'الطبيب لا يملك دوام عمل في هذا اليوم، اختر تاريخاً آخر.'
-            ], 422);
+            return response()->json($error, 422);
         }
         // The "you already have a pending request" warning only applies to the
         // SAME doctor. It used to look at any pending doctor request, so a

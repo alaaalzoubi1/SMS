@@ -113,6 +113,76 @@ class DoctorReservationService
     }
 
     /**
+     * True when $date is today and the doctor's working hours for today are
+     * already over (e.g. the doctor works 13:00–14:00 and it is now 18:00).
+     * A window that crosses midnight (22:00 → 02:00) ends tomorrow, so it is
+     * never "over" on the day it starts.
+     */
+    public function shiftEndedToday(int $doctorId, string $date): bool
+    {
+        if (!Carbon::parse($date)->isToday()) {
+            return false;
+        }
+
+        $schedule = DoctorWorkSchedule::findForDate($doctorId, $date);
+        $window = $schedule?->windowFor($date);
+
+        return $window !== null && Carbon::now()->gte($window[1]);
+    }
+
+    /**
+     * First date from $from (inclusive) on which the doctor works and the
+     * shift is not over yet. Null when nothing is found within $days days.
+     */
+    public function nextBookableDate(int $doctorId, string $from, int $days = 30): ?string
+    {
+        $day = Carbon::parse($from)->startOfDay();
+
+        for ($i = 0; $i < $days; $i++, $day->addDay()) {
+            $date = $day->toDateString();
+            if ($this->worksOn($doctorId, $date) && !$this->shiftEndedToday($doctorId, $date)) {
+                return $date;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Shared check for every "request a doctor reservation" entry point.
+     * Returns null when the date can be booked, otherwise the 422 payload
+     * (message + the nearest bookable date so the app can suggest it).
+     */
+    public function bookingDateError(int $doctorId, string $date): ?array
+    {
+        $date = Carbon::parse($date)->toDateString();
+
+        if (!$this->worksOn($doctorId, $date)) {
+            $next = $this->nextBookableDate($doctorId, Carbon::parse($date)->addDay()->toDateString());
+
+            return [
+                'message' => 'الطبيب لا يملك دوام عمل في هذا اليوم، اختر تاريخاً آخر.'
+                    . ($next ? " أقرب يوم متاح: {$next}." : ''),
+                'reason' => 'not_working_day',
+                'next_available_date' => $next,
+            ];
+        }
+
+        if ($this->shiftEndedToday($doctorId, $date)) {
+            $next = $this->nextBookableDate($doctorId, Carbon::tomorrow()->toDateString());
+
+            return [
+                'message' => 'انتهى دوام الطبيب لهذا اليوم، يرجى الحجز ليوم آخر.'
+                    . ($next ? " أقرب يوم متاح: {$next}." : ''),
+                'reason' => 'shift_ended',
+                'next_available_date' => $next,
+            ];
+        }
+
+        return null;
+    }
+
+    /**
      * Build a slot when the doctor explicitly confirms the warning
      * (force_confirm = true).
      *

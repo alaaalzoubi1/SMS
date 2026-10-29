@@ -208,8 +208,14 @@ class DoctorWorkScheduleController extends Controller
 
         $dates = [];
 
+        $reservations = app(\App\Services\DoctorReservationService::class);
+
         for ($date = $startDate->copy(); $date->lte($requestedMonthEnd); $date->addDay()) {
             if (in_array($date->dayOfWeek, $workDayNums)) {
+                // Today stops being offered once the doctor's shift is over.
+                if ($date->isToday() && $reservations->shiftEndedToday($doctor->id, $date->toDateString())) {
+                    continue;
+                }
                 $dates[] = $date->toDateString();
             }
         }
