@@ -18,15 +18,19 @@ class SendFirebaseNotificationJob implements ShouldQueue
     protected string $title;
     protected string $body;
 
-    public function __construct(string $token, string $title, string $body)
+    /** Optional FCM data payload (string values). `ring` = '1' marks a long / ringing alert. */
+    protected array $data = []; // default keeps jobs queued before this change working
+
+    public function __construct(string $token, string $title, string $body, array $data = [])
     {
         $this->token = $token;
         $this->title = $title;
         $this->body = $body;
+        $this->data = $data;
     }
 
     public function handle(FirebaseService $firebaseService): void
     {
-        $firebaseService->sendNotification($this->token, $this->title, $this->body);
+        $firebaseService->sendNotification($this->token, $this->title, $this->body, $this->data);
     }
 }

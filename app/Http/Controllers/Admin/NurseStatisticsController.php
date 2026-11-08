@@ -164,7 +164,7 @@ class NurseStatisticsController extends Controller
     {
         $request->validate([
             // `cancelled` was missing from the allowed values.
-            'status' => 'nullable|in:pending,accepted,rejected,completed,cancelled',
+            'status' => 'nullable|in:pending,accepted,rejected,completed,cancelled,expired',
             'from' => 'nullable|date',
             'to' => 'nullable|date|after_or_equal:from',
             'per_page' => 'nullable|integer|min:1|max:100',

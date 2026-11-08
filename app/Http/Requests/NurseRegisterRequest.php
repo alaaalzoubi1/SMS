@@ -23,7 +23,8 @@ class NurseRegisterRequest extends FormRequest
 
             // Nurse Info (Full Name, Address, Graduation Type, etc.)
             'full_name' => 'required|string|max:255',
-            'address' => 'nullable|string|max:255', // Address is optional
+            // Detailed address is mandatory at registration (min 15 characters).
+            'address' => 'required|string|min:15|max:255',
             'graduation_type' => ['required', Rule::in(GraduationType::values())],
             'longitude' => 'nullable|numeric|between:-180,180',  // Longitude can be null
             'latitude' => 'nullable|numeric|between:-90,90',   // Latitude can be null
@@ -46,6 +47,8 @@ class NurseRegisterRequest extends FormRequest
             'email.unique' => 'This email is already in use.',
             'phone_number.unique' => 'This phone number is already in use.',
             'password.confirmed' => 'The password confirmation does not match.',
+            'address.required' => 'يرجى إدخال عنوان الممرض بالتفصيل.',
+            'address.min' => 'يجب أن يكون العنوان مفصلاً ولا يقل عن 15 حرفاً.',
             'graduation_type.in' => 'نوع التخرج يجب أن يكون أحد الخيارات التالية: ' . implode('، ', GraduationType::values()) . '.',
             'license_image.required' => 'A license image is required.',
             'license_image.image' => 'The license image must be a valid image.',
@@ -67,5 +70,27 @@ class NurseRegisterRequest extends FormRequest
             'profile_description' => 'Profile Description',
             'license_image' => 'License Image',
         ];
+    }
+
+    /**
+     * Accept older spellings (and removed options sent by outdated app
+     * builds) by mapping them to the canonical value before validation.
+     */
+    protected function prepareForValidation(): void
+    {
+        $merge = [];
+
+        if ($this->filled('graduation_type')) {
+            $merge['graduation_type'] = GraduationType::normalize((string) $this->input('graduation_type'))
+                ?? $this->input('graduation_type');
+        }
+
+        if (is_string($this->input('address'))) {
+            $merge['address'] = trim($this->input('address'));
+        }
+
+        if ($merge) {
+            $this->merge($merge);
+        }
     }
 }

@@ -26,12 +26,14 @@ class NurseReservation extends Model
         'note',
         'start_at',
         'end_at',
-        'reserved_by_admin'
+        'reserved_by_admin',
+        'response_deadline_at',
     ];
     protected  $casts = [
         'location' => Point::class,
         'price' => 'float',
         'reserved_by_admin' => 'boolean',
+        'response_deadline_at' => 'datetime',
     ];
 
     /**
@@ -41,6 +43,19 @@ class NurseReservation extends Model
      * and stays in the payload for backwards compatibility — these
      * attributes are the ones to build the cart/history UI from.
      */
+    /**
+     * Keep nurses.current_reservation_id in step with every status change
+     * (nurse reply, patient/admin cancel, account deletion, …) in one place.
+     */
+    protected static function booted(): void
+    {
+        static::saved(function (self $reservation) {
+            if ($reservation->wasChanged('status')) {
+                \App\Support\NurseRequestManager::syncAfterStatusChange($reservation);
+            }
+        });
+    }
+
     protected $appends = [
         'services_count',
         'service_names',
@@ -153,7 +168,7 @@ class NurseReservation extends Model
 
     public function canBeCancelled(): bool
     {
-        return !in_array($this->status, ['completed', 'rejected', 'cancelled']);
+        return !in_array($this->status, ['completed', 'rejected', 'cancelled', 'expired']);
     }
 
     public function cancel(string $reason): void

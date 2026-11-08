@@ -13,7 +13,7 @@ class UserReservationsController extends Controller
 
     public function myReservations(Request $request)
     {
-        $allowedApiStatuses = ['pending', 'approved', 'cancelled', 'rejected', 'completed'];
+        $allowedApiStatuses = ['pending', 'approved', 'cancelled', 'rejected', 'completed', 'expired'];
         $allowedTypes = ['nurse', 'doctor', 'hospital'];
 
         $request->validate([
@@ -30,6 +30,8 @@ class UserReservationsController extends Controller
             'cancelled' => ['nurse' => ['cancelled'], 'hospital' => ['cancelled'],             'doctor' => ['cancelled']],
             'rejected'  => ['nurse' => ['rejected'],  'hospital' => [],                        'doctor' => ['rejected']],
             'completed' => ['nurse' => ['completed'], 'hospital' => ['finished'],              'doctor' => ['completed']],
+            // Nurse did not answer within NurseRequestManager::TIMEOUT_MINUTES.
+            'expired'   => ['nurse' => ['expired'],   'hospital' => [],                        'doctor' => []],
         ];
 
         $userId = auth()->user()->user->id;

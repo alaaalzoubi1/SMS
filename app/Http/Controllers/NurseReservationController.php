@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Concerns\FiltersReservedByAdmin;
 use App\Jobs\SendFirebaseNotificationJob;
 use App\Support\PatientNotifier;
+use App\Support\NurseRequestManager;
 use App\Models\Nurse;
 use App\Models\NurseCancellation;
 use App\Models\NurseReservation;
@@ -29,7 +30,7 @@ class NurseReservationController extends Controller
     public function index(Request $request): JsonResponse
     {
         $request->validate([
-            'status' => 'nullable|in:pending,accepted,rejected,completed,cancelled',
+            'status' => 'nullable|in:pending,accepted,rejected,completed,cancelled,expired',
             'reservation_type' => 'nullable|in:direct,manual',
             'from' => 'nullable|date',
             'to' => 'nullable|date|after_or_equal:from',
@@ -69,6 +70,7 @@ class NurseReservationController extends Controller
         try {
 
             $reservation = NurseReservation::with(['user.account', 'nurse.account'])
+                ->lockForUpdate()
                 ->find($id);
 
             if (!$reservation) {
@@ -87,7 +89,19 @@ class NurseReservationController extends Controller
                 'rejected'  => [],
                 'cancelled' => [],
                 'completed' => [],
+                'expired'   => [],
             ];
+
+            // Overdue request the expiry job has not reached yet.
+            if ($currentStatus === 'pending' && $reservation->response_deadline_at
+                && $reservation->response_deadline_at->isPast()) {
+                DB::rollBack();
+                NurseRequestManager::expire($reservation);
+                return response()->json([
+                    'message' => 'انتهت مهلة الرد على هذا الطلب (' . NurseRequestManager::TIMEOUT_MINUTES . ' دقائق) ولم يعد متاحاً.',
+                    'reason' => 'request_expired',
+                ], 409);
+            }
 
             if (!in_array($newStatus, $allowedTransitions[$currentStatus] ?? [])) {
                 DB::rollBack();
@@ -123,18 +137,20 @@ class NurseReservationController extends Controller
                 }
             }
 
+            // (NurseReservation::booted() frees the nurse for new requests when
+            // the status leaves pending / accepted-direct.)
             DB::commit();
 
             try {
                 $nurseName = $reservation->nurse->full_name ?? '';
 
-                $title = "تحديث حالة الحجز";
+                $title = NurseRequestManager::NOTIFICATION_TITLE;
 
                 $body = match ($newStatus) {
                     'accepted'  => "تمت الموافقة على حجزك من الممرض $nurseName.",
                     'rejected'  => "تم رفض حجزك من الممرض $nurseName. السبب: {$request->reason}",
                     'cancelled' => "تم إلغاء حجزك من الممرض $nurseName. السبب: {$request->reason}",
-                    'completed' => "تم اكتمال حجزك مع الممرض $nurseName بنجاح.",
+                    'completed' => "تم تنفيذ الخدمة من قبل $nurseName.",
                     default     => "تم تحديث حالة حجزك إلى $newStatus.",
                 };
 
@@ -170,6 +186,7 @@ class NurseReservationController extends Controller
             'rejected'  => 'مرفوض',
             'cancelled' => 'ملغي',
             'completed' => 'مكتمل',
+            'expired'   => 'منتهي المهلة',
             default     => $status,
         };
     }
@@ -191,35 +208,45 @@ class NurseReservationController extends Controller
 
     public function store(NurseReservationRequest $request)
     {
+        $userId = auth()->user()->user->id;
+        $nurseId = (int) $request->nurse_id;
+
+        // One request at a time per nurse: refuse while the nurse is busy
+        // with another request (pending, or an accepted instant visit).
+        if (NurseRequestManager::isBusy($nurseId)) {
+            return $this->nurseBusyResponse();
+        }
+
+        if (!$request->confirm){
+            $previousReservation = NurseReservation::where('user_id' , $userId)
+                ->where('status','pending')
+                ->exists();
+            if ($previousReservation)
+            {
+                return response()->json([
+                    'message' => 'لديك بالفعل طلب بحالة قيد الانتظار هل تريد المتابعة فعلاً!'
+                ]);
+            }
+        }
+
         DB::beginTransaction();
 
         try {
-            $userId = auth()->user()->user->id;
-            if (!$request->confirm){
-                $previousReservation = NurseReservation::where('user_id' , $userId)
-                    ->where('status','pending')
-                    ->exists();
-                if ($previousReservation)
-                {
-                    return response()->json([
-                        'message' => 'لديك بالفعل طلب بحالة قيد الانتظار هل تريد المتابعة فعلاً!'
-                    ]);
-                }
-            }
             $serviceIds = array_values(array_unique($request->nurse_service_ids));
 
             $services = NurseService::query()
-                ->where('nurse_id', $request->nurse_id)
+                ->where('nurse_id', $nurseId)
                 ->whereIn('id', $serviceIds)
                 ->get();
 
             if ($services->count() !== count($serviceIds)) {
+                DB::rollBack();
                 return response()->json(['message' => 'أحد الخدمات المحددة غير متاحة.'], 422);
             }
 
             $reservation = new NurseReservation();
             $reservation->user_id = $userId;
-            $reservation->nurse_id = $request->nurse_id;
+            $reservation->nurse_id = $nurseId;
 
             // Legacy column (NOT NULL FK) — points at the first service only.
             // `price` is the real total; clients should render `services` /
@@ -241,34 +268,26 @@ class NurseReservationController extends Controller
                 $reservation->location = new Point($request->lat,$request->lng);
             }
             $reservation->status = "pending";
+            $reservation->response_deadline_at = NurseRequestManager::deadlineFrom();
             $reservation->save();
+
+            // Atomic: if another patient grabbed this nurse a moment ago, give up.
+            if (!NurseRequestManager::claim($nurseId, $reservation->id)) {
+                DB::rollBack();
+                return $this->nurseBusyResponse();
+            }
 
             $reservation->services()->attach(
                 $services->mapWithKeys(fn (NurseService $s) => [$s->id => ['price' => $s->price]])
             );
 
+            // Ringing push to the nurse + 8-minute expiry (both sent after commit).
+            NurseRequestManager::announce($reservation, auth()->user()->user->full_name ?? 'غير معروف');
+
             DB::commit();
-            $reservation->loadMissing('services.service');
 
-            $nurse = $reservation->nurse()->with('account')->first();
-            if ($nurse && $nurse->account && $nurse->account->fcm_token) {
-                // servicesLabel() lists every selected service. Using the
-                // singular `nurseService` here only ever named the first one,
-                // so a multi-service booking looked like a single-service one.
-                $body = sprintf(
-                    "المستخدم %s طلب خدمة: %s.",
-                    auth()->user()->user->full_name ?? "غير معروف",
-                    $reservation->servicesLabel(),
-                );
-
-                SendFirebaseNotificationJob::dispatch(
-                    $nurse->account->fcm_token,
-                    "طلب حجز جديد",
-                    $body
-                );
-            }
             return response()->json([
-                'message' => 'تم إنشاء الحجز بنجاح.',
+                'message' => 'تم إرسال الطلب إلى الممرض. سيتم إلغاؤه تلقائياً إذا لم يرد خلال ' . NurseRequestManager::TIMEOUT_MINUTES . ' دقائق.',
                 'data' => $reservation->load('nurseService', 'services.service', 'nurse.account:id'),
             ], 201);
 
@@ -278,6 +297,14 @@ class NurseReservationController extends Controller
             Log::error('Reservation creation failed: ' . $e->getMessage());
             return response()->json(['message' => 'فشل تسجيل الحجز يرجى المحاولة مرة أخرى لاحقاً'], 500);
         }
+    }
+
+    private function nurseBusyResponse(): JsonResponse
+    {
+        return response()->json([
+            'message' => 'هذا الممرض مشغول حالياً بطلب آخر، يرجى اختيار ممرض آخر.',
+            'reason' => 'nurse_busy',
+        ], 409);
     }
 
 

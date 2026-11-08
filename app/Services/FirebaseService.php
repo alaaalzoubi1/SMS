@@ -7,6 +7,9 @@ use Illuminate\Support\Facades\Log;
 use Kreait\Firebase\Factory;
 use Kreait\Firebase\Messaging\CloudMessage;
 use Kreait\Firebase\Messaging\Notification;
+use Kreait\Firebase\Messaging\AndroidConfig;
+use Kreait\Firebase\Messaging\ApnsConfig;
+use App\Support\NurseRequestManager;
 
 class FirebaseService
 {
@@ -22,7 +25,12 @@ class FirebaseService
         $this->messaging = $this->resolveMessaging();
     }
 
-    public function sendNotification(string $deviceToken, string $title, string $body): void
+    /**
+     * @param array<string, scalar> $data Optional data payload. Values are
+     *        sent as strings. With data['ring'] === '1' the message is sent
+     *        with high priority so the app can show its long / ringing alert.
+     */
+    public function sendNotification(string $deviceToken, string $title, string $body, array $data = []): void
     {
         if (empty($deviceToken)) {
             Log::warning('FCM skipped: empty device token', ['title' => $title]);
@@ -44,6 +52,24 @@ class FirebaseService
         try {
             $message = CloudMessage::withTarget('token', $deviceToken)
                 ->withNotification(Notification::create($title, $body));
+
+            if ($data) {
+                $data = array_map(fn ($v) => (string) $v, $data);
+                $message = $message->withData($data);
+
+                if (($data['ring'] ?? null) === '1') {
+                    $message = $message
+                        ->withAndroidConfig(AndroidConfig::fromArray([
+                            'priority' => 'high',
+                            'ttl' => (NurseRequestManager::TIMEOUT_MINUTES * 60) . 's',
+                            'notification' => ['channel_id' => 'nurse_requests', 'sound' => 'default'],
+                        ]))
+                        ->withApnsConfig(ApnsConfig::fromArray([
+                            'headers' => ['apns-priority' => '10'],
+                            'payload' => ['aps' => ['sound' => 'default', 'interruption-level' => 'time-sensitive']],
+                        ]));
+                }
+            }
 
             $messaging->send($message);
         } catch (\Throwable $e) {
