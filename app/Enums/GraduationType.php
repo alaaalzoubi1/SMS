@@ -3,10 +3,9 @@
 namespace App\Enums;
 
 /**
- * Single source of truth for the values stored in
- * `nurses.graduation_type`. These values MUST stay in sync with the enum
- * definition in the `create_nurses_table` migration — the database column is
- * a native enum, so anything outside this list is rejected on insert.
+ * Single source of truth for the values stored in `nurses.graduation_type`.
+ * Since 2026_11_08_000001 the column is a plain string, so this enum (and the
+ * validation rules built from it) is what limits the allowed values.
  *
  * Before this enum existed the same field was validated with two different
  * lists: registration accepted 'مدرسة التمريض والقبالة' while the profile
@@ -15,21 +14,15 @@ namespace App\Enums;
  */
 enum GraduationType: string
 {
-    case INSTITUTE      = 'معهد طبي/صحي';
-    case NURSING_SCHOOL = 'مدرسة التمريض والقبالة';
-    case UNIVERSITY     = 'جامعة';
-    case MASTER         = 'ماجستير';
-    case DOCTORATE      = 'دكتوراه';
+    // Declaration order = display order (registration dropdown, filters).
+    case NURSING_COLLEGE        = 'كلية التمريض';
+    case HEALTH_SCIENCES_COLLEGE = 'كلية العلوم الصحية';
+    case NURSING_SCHOOL         = 'مدرسة التمريض والقبالة';
+    case INSTITUTE              = 'معهد طبي/صحي';
 
     public function label(): string
     {
-        return match ($this) {
-            self::INSTITUTE      => 'معهد طبي/صحي',
-            self::NURSING_SCHOOL => 'مدرسة التمريض والقبالة',
-            self::UNIVERSITY     => 'جامعة',
-            self::MASTER         => 'ماجستير',
-            self::DOCTORATE      => 'دكتوراه',
-        };
+        return $this->value;
     }
 
     /**
@@ -62,10 +55,18 @@ enum GraduationType: string
     public static function aliases(): array
     {
         return [
-            'معهد'      => self::INSTITUTE->value,
-            'معهد طبي'  => self::INSTITUTE->value,
-            'مدرسة'     => self::NURSING_SCHOOL->value,
-            'كلية'      => self::UNIVERSITY->value,
+            'معهد'                  => self::INSTITUTE->value,
+            'معهد طبي'              => self::INSTITUTE->value,
+            'مدرسة'                 => self::NURSING_SCHOOL->value,
+            'مدرسة تمريض والقبالة'  => self::NURSING_SCHOOL->value,
+            'مدرسة التمريض'         => self::NURSING_SCHOOL->value,
+            'كلية'                  => self::NURSING_COLLEGE->value,
+            // Removed options (Nov 2026): existing rows are migrated to
+            // "كلية التمريض" and old app builds sending them still work.
+            'جامعة'                 => self::NURSING_COLLEGE->value,
+            'ماجستير'               => self::NURSING_COLLEGE->value,
+            'دكتوراه'               => self::NURSING_COLLEGE->value,
+            'العلوم الصحية'         => self::HEALTH_SCIENCES_COLLEGE->value,
         ];
     }
 

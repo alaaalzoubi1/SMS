@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\NurseRequestManager;
+
 use App\Models\Nurse;
 use App\Models\NurseService;
 use App\Http\Requests\StoreNurseServiceRequest;
@@ -205,6 +207,7 @@ class NurseServiceController extends Controller
             ])
             ->whereHas('nurse', function ($q) {
                 $q->Active()->Approved();
+                NurseRequestManager::onlyAvailable($q); // busy nurses are hidden
             })
             ->when($request->filled('name'), function ($q) use ($request) {
                 $q->whereHas('service', function ($sub) use ($request) {

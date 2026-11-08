@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\NurseRequestManager;
+
 use App\Http\Requests\NurseFilterRequest;
 use App\Models\Nurse;
 use App\Http\Requests\StoreNurseRequest;
@@ -26,6 +28,7 @@ class NurseController extends Controller
             ->with(['services.service', 'province'])
             ->Approved()
             ->Active()
+            ->tap(fn ($q) => NurseRequestManager::onlyAvailable($q)) // busy nurses are hidden
             ->when($request->filled('gender'),
                 fn ($q) => $q->where('gender', $request->gender)
             )
@@ -169,6 +172,7 @@ class NurseController extends Controller
         $nurses = Nurse::query()
             ->Active()
             ->Approved()
+            ->tap(fn ($q) => NurseRequestManager::onlyAvailable($q)) // busy nurses are hidden
             ->whereNotNull('location')
             ->withDistanceSphere('location', $point, 'distance_meters')
             ->orderBy('distance_meters')

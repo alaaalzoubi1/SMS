@@ -1,6 +1,8 @@
 <?php
 namespace App\Services;
 
+use Illuminate\Support\Facades\DB;
+
 use App\Models\Doctor;
 use App\Models\DoctorService;
 use App\Models\DoctorWorkSchedule;
@@ -146,6 +148,60 @@ class DoctorReservationService
         }
 
         return null;
+    }
+
+    /**
+     * A patient may have only ONE pending request per specialization (e.g.
+     * one pending dentist request at a time). Returns null when allowed,
+     * otherwise the 422 payload pointing at the request to cancel first.
+     * One indexed query (user_id) joined to doctors — no per-row lookups.
+     */
+    public function pendingSameSpecializationError(int $userId, int $doctorId): ?array
+    {
+        $specializationId = DB::table('doctors')->where('id', $doctorId)->value('specialization_id');
+
+        if (!$specializationId) {
+            return null;
+        }
+
+        $existing = DB::table('doctor_reservations')
+            ->join('doctors', 'doctors.id', '=', 'doctor_reservations.doctor_id')
+            ->leftJoin('specializations', 'specializations.id', '=', 'doctors.specialization_id')
+            ->where('doctor_reservations.user_id', $userId)
+            ->where('doctor_reservations.status', 'pending')
+            ->whereNull('doctor_reservations.deleted_at')
+            ->where('doctors.specialization_id', $specializationId)
+            ->select([
+                'doctor_reservations.id',
+                'doctor_reservations.doctor_id',
+                'doctor_reservations.date',
+                'doctors.full_name as doctor_name',
+                'specializations.name_ar as specialization_name',
+            ])
+            ->first();
+
+        if (!$existing) {
+            return null;
+        }
+
+        $specialization = $existing->specialization_name ?: 'نفس الاختصاص';
+
+        return [
+            'message' => sprintf(
+                'لديك طلب حجز قيد الانتظار لدى %s (%s) بتاريخ %s. لا يمكن أن يكون لديك أكثر من طلب قيد الانتظار لأطباء من نفس الاختصاص، يرجى إلغاء الطلب الأول أولاً ثم إرسال طلب جديد.',
+                $existing->doctor_name,
+                $specialization,
+                Carbon::parse($existing->date)->toDateString()
+            ),
+            'reason' => 'pending_same_specialization',
+            'existing_reservation' => [
+                'id' => $existing->id,
+                'doctor_id' => $existing->doctor_id,
+                'doctor_name' => $existing->doctor_name,
+                'specialization_name' => $existing->specialization_name,
+                'date' => Carbon::parse($existing->date)->toDateString(),
+            ],
+        ];
     }
 
     /**

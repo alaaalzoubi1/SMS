@@ -31,7 +31,13 @@ class AccountApprovedMail extends Mailable
      */
     public function build(): static
     {
-        return $this->subject('Your Account Has Been Approved')
-            ->view('emails.account_approved');
+        $this->account->loadMissing(['doctor:id,account_id,full_name', 'nurse:id,account_id,full_name', 'hospital:id,account_id,full_name']);
+
+        $name = $this->account->doctor?->full_name
+            ?? $this->account->nurse?->full_name
+            ?? $this->account->hospital?->full_name;
+
+        return $this->subject('تمت الموافقة على حسابك في معافى')
+            ->view('emails.account_approved', ['name' => $name]);
     }
 }

@@ -83,16 +83,21 @@ class VerifyFlowsTest extends TestCase
 
     public function test_reserve_other_doctor_not_blocked(): void
     {
+        // Updated Nov 2026: one pending request per specialization. A doctor
+        // of ANOTHER specialization is still allowed; the same doctor (same
+        // specialization) is now refused with a 422 instead of the old
+        // requires_confirmation prompt.
         $this->res('pending');
+        DB::table('specializations')->insert(['id' => 2, 'name_ar' => 'أسنان', 'name_en' => 'Dental']);
         $acc2 = Account::create(['email' => 'd2@x.com', 'password' => 'x', 'phone_number' => '9', 'is_approved' => 'approved']);
-        $doc2 = DB::table('doctors')->insertGetId(['account_id' => $acc2->id, 'full_name' => 'Dr2', 'specialization_id' => 1,
+        $doc2 = DB::table('doctors')->insertGetId(['account_id' => $acc2->id, 'full_name' => 'Dr2', 'specialization_id' => 2,
             'province_id' => 1, 'address' => 'aaaaaaaaaaaa', 'gender' => 'male', 'age' => 30, 'birthdate' => '1990-01-01', 'location' => '']);
         $svc2 = DB::table('doctor_services')->insertGetId(['doctor_id' => $doc2, 'name' => 'كشف', 'price' => 5000, 'duration_minutes' => 30]);
         DB::table('doctor_work_schedules')->insert(['doctor_id' => $doc2, 'day_of_week' => 'saturday', 'start_time' => '14:00', 'end_time' => '18:00']);
         $r = $this->actingAs($this->userAcc, 'api')->postJson('/api/user/doctors/reserve', ['doctor_id' => $doc2, 'doctor_service_id' => $svc2, 'date' => '2026-10-17']);
         $r->assertStatus(201);
         $r = $this->actingAs($this->userAcc, 'api')->postJson('/api/user/doctors/reserve', ['doctor_id' => $this->doctorId, 'doctor_service_id' => $this->svcId, 'date' => '2026-10-17']);
-        $r->assertOk()->assertJson(['requires_confirmation' => true]);
+        $r->assertStatus(422)->assertJson(['reason' => 'pending_same_specialization']);
     }
 
     public function test_login_remember_me_and_fcm(): void

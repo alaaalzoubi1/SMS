@@ -10,6 +10,7 @@ use App\Services\NurseReservationService;
 use App\Services\HospitalReservationService;
 use Exception;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class AdminReservationController extends Controller
 {
@@ -62,6 +63,14 @@ class AdminReservationController extends Controller
             (int) $request->doctor_id,
             (string) $request->date
         )) {
+            return response()->json($error, 422);
+        }
+
+        // Same rule as the patient app: one pending request per specialization.
+        if ($request->filled('user_id') && ($error = $this->doctorService->pendingSameSpecializationError(
+            (int) $request->user_id,
+            (int) $request->doctor_id
+        ))) {
             return response()->json($error, 422);
         }
 
@@ -123,16 +132,34 @@ class AdminReservationController extends Controller
                 'message' => 'يجب إرسال user_id أو user_data.'
             ], 422);
         }
-        $user = $this->userService->resolveUser(
-            $request->user_id,
-            $request->user_data
-        );
+        // One request at a time per nurse (checked before a patient record
+        // is created for user_data).
+        if (\App\Support\NurseRequestManager::isBusy((int) $request->nurse_id)) {
+            return response()->json([
+                'message' => 'هذا الممرض مشغول حالياً بطلب آخر، يرجى اختيار ممرض آخر.',
+                'reason' => 'nurse_busy',
+            ], 409);
+        }
 
-        $reservation = $this->nurseService->create(
-            $user->id,
-            $request->all(),
-            true
-        );
+        try {
+            $reservation = DB::transaction(function () use ($request) {
+                $user = $this->userService->resolveUser(
+                    $request->user_id,
+                    $request->user_data
+                );
+
+                return $this->nurseService->create(
+                    $user->id,
+                    $request->all(),
+                    true
+                );
+            });
+        } catch (\App\Exceptions\NurseBusyException $e) {
+            return response()->json([
+                'message' => 'هذا الممرض مشغول حالياً بطلب آخر، يرجى اختيار ممرض آخر.',
+                'reason' => 'nurse_busy',
+            ], 409);
+        }
 
         $reservation->load(['user', 'nurse.account', 'services']);
 

@@ -52,22 +52,15 @@ class DoctorReservationController extends Controller
         )) {
             return response()->json($error, 422);
         }
-        // The "you already have a pending request" warning only applies to the
-        // SAME doctor. It used to look at any pending doctor request, so a
-        // patient could not request a second, different doctor until the
-        // first one accepted.
-        if (!$request->boolean('confirm')){
-            $previousReservation = DoctorReservation::where('user_id' , $userId)
-                ->where('doctor_id', $request->doctor_id)
-                ->where('status','pending')
-                ->exists();
-            if ($previousReservation)
-            {
-                return response()->json([
-                    'message' => 'لديك بالفعل طلب بحالة قيد الانتظار لدى هذا الطبيب، هل تريد المتابعة فعلاً؟',
-                    'requires_confirmation' => true,
-                ]);
-            }
+        // Only one pending request per specialization: the patient must
+        // cancel the first one before asking another doctor of the same
+        // specialization (this also covers the same doctor). `confirm` is
+        // still accepted for old app builds but no longer bypasses this.
+        if ($error = $this->doctorReservationService->pendingSameSpecializationError(
+            (int) $userId,
+            (int) $request->doctor_id
+        )) {
+            return response()->json($error, 422);
         }
         $service = DoctorService::where('id', $request->doctor_service_id)
             ->where('doctor_id', $request->doctor_id)
@@ -385,7 +378,7 @@ class DoctorReservationController extends Controller
         try {
             $doctorName = $reservation->doctor->full_name ?? 'الطبيب';
 
-            $title = 'تحديث حالة الحجز من الطبيب';
+            $title = 'معافى يتمنى لكم الشفاء';
 
             $body = match ($reservation->status) {
                 'approved'  => sprintf(
@@ -406,7 +399,7 @@ class DoctorReservationController extends Controller
                     $reason
                 ),
                 'completed' => sprintf(
-                    'تم اكتمال حجزك مع %s بنجاح.',
+                    'تم تنفيذ الخدمة من قبل %s.',
                     $doctorName
                 ),
                 default     => sprintf(

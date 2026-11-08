@@ -1,7 +1,8 @@
 <?php
 namespace App\Services;
 
-use App\Jobs\SendFirebaseNotificationJob;
+use App\Exceptions\NurseBusyException;
+use App\Support\NurseRequestManager;
 use App\Models\NurseReservation;
 use App\Models\NurseService;
 use Exception;
@@ -52,6 +53,7 @@ class NurseReservationService
             $reservation->note = $data['note'] ?? null;
             $reservation->status = "pending";
             $reservation->reserved_by_admin = $isAdmin;
+            $reservation->response_deadline_at = NurseRequestManager::deadlineFrom();
 
             if (isset($data['start_at']))
                 $reservation->start_at = $data['start_at'];
@@ -64,27 +66,20 @@ class NurseReservationService
 
             $reservation->save();
 
+            // One request at a time per nurse (atomic). The caller wraps this
+            // in a transaction, so the row above is rolled back on failure.
+            if (!NurseRequestManager::claim((int) $data['nurse_id'], $reservation->id)) {
+                throw new NurseBusyException();
+            }
+
             $reservation->services()->attach(
                 $services->mapWithKeys(fn (NurseService $s) => [$s->id => ['price' => $s->price]])
             );
 
             $reservation->loadMissing(['services.service', 'user:id,full_name']);
 
-            // Notify the nurse. servicesLabel() covers every selected service,
-            // whereas the singular nurseService only ever named the first.
-            $nurseAccount = $reservation->nurse?->account;
-
-            if ($nurseAccount?->fcm_token) {
-                SendFirebaseNotificationJob::dispatch(
-                    $nurseAccount->fcm_token,
-                    'طلب حجز جديد',
-                    sprintf(
-                        'المستخدم %s طلب خدمة: %s.',
-                        $reservation->user?->full_name ?? 'غير معروف',
-                        $reservation->servicesLabel()
-                    )
-                );
-            }
+            // Ringing push to the nurse + expiry after the timeout.
+            NurseRequestManager::announce($reservation, $reservation->user?->full_name ?? 'غير معروف');
 
             return $reservation;
         }catch (ModelNotFoundException $e){

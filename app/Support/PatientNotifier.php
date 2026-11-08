@@ -53,7 +53,7 @@ class PatientNotifier
 
             AdminNotifier::notify(
                 AdminNotification::TYPE_ADMIN_RESERVATION_UPDATE,
-                sprintf('%s — حجز من الإدارة #%d (%s)', $title, $reservation->id, $kindLabel),
+                sprintf('تحديث حالة الحجز — حجز من الإدارة #%d (%s)', $reservation->id, $kindLabel),
                 implode("\n", array_filter([
                     $body,
                     sprintf('المريض: %s%s', $patientName, $patientPhone ? " ({$patientPhone})" : ''),

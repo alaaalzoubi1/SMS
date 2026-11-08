@@ -1,15 +1,20 @@
 <!-- resources/views/emails/account_approved.blade.php -->
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Your Account Has Been Approved</title>
+    <title>تمت الموافقة على حسابك</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: Tahoma, Arial, sans-serif;
             color: #333;
+            direction: rtl;
+            text-align: right;
+            margin: 0;
+            padding: 20px;
+            background-color: #ffffff;
         }
 
         .container {
@@ -19,19 +24,23 @@
             padding: 20px;
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            direction: rtl;
+            text-align: right;
         }
 
         .header {
             background-color: teal;
             color: white;
-            padding: 10px 0;
+            padding: 12px 0;
             text-align: center;
             font-size: 24px;
+            border-radius: 6px;
         }
 
         .content {
             margin-top: 20px;
             font-size: 16px;
+            line-height: 1.9;
         }
 
         .footer {
@@ -40,38 +49,24 @@
             font-size: 14px;
             color: #777;
         }
-
-        .button {
-            background-color: #4CAF50;
-            color: white;
-            padding: 10px 20px;
-            text-decoration: none;
-            border-radius: 5px;
-            display: inline-block;
-            margin-top: 20px;
-        }
-
-        .button:hover {
-            background-color: #45a049;
-        }
     </style>
 </head>
-<body>
-<div class="container">
+<body dir="rtl">
+<div class="container" dir="rtl">
     <div class="header">
-        Sahtee
+        معافى
     </div>
 
-    <div class="content">
-        <h2>Hello {{ $account->full_name }},</h2>
-        <p>We are excited to inform you that your account has been approved successfully. You can now log in to your account and explore our services.</p>
+    <div class="content" dir="rtl">
+        <h2>مرحباً{{ $name ? ' ' . $name : '' }}،</h2>
+        <p>يسعدنا إعلامك بأنه تمت الموافقة على حسابك بنجاح. يمكنك الآن تسجيل الدخول إلى حسابك والبدء باستخدام خدماتنا.</p>
 
-        <p>If you have any questions, feel free to contact us.</p>
-
+        <p>إذا كان لديك أي استفسار، لا تتردد في التواصل معنا.</p>
     </div>
 
-    <div class="footer">
-        <p>Thank you for choosing Sahtee!</p>
+    <div class="footer" dir="rtl">
+        <p>شكراً لاختيارك معافى!</p>
+        <p>معافى يتمنى لكم الشفاء</p>
     </div>
 </div>
 </body>
