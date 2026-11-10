@@ -2,19 +2,39 @@
 
 namespace App\Observers;
 
-use Illuminate\Support\Facades\Cache;
+use App\Models\Account;
+use App\Services\PlatformStatsService;
+use Illuminate\Contracts\Events\ShouldHandleEventsAfterCommit;
 
 /**
- * Attached to Doctor, Nurse, Hospital, and User (see AppServiceProvider).
- * The landing page's "stats" numbers (doctor count, nurse count, etc.) are
- * cached forever and only recomputed the moment a new one registers —
- * never on a page read — so a busy landing page never triggers a COUNT()
- * query. See PlatformStatsService.
+ * Attached to Doctor, Nurse, Hospital, User and Account (see
+ * AppServiceProvider). Forgets the landing page counts whenever one of
+ * them could change, so the next landing page request rebuilds them once.
+ * Runs after commit so a request in flight can't re-cache the old numbers.
  */
-class PlatformStatsObserver
+class PlatformStatsObserver implements ShouldHandleEventsAfterCommit
 {
     public function created($model): void
     {
-        Cache::forget('platform_stats');
+        PlatformStatsService::forget();
+    }
+
+    public function updated($model): void
+    {
+        // Profiles: nothing counted changes on an ordinary edit.
+        // Accounts: approval / rejection / suspension moves the numbers.
+        if ($model instanceof Account && $model->wasChanged(['is_approved', 'is_suspended'])) {
+            PlatformStatsService::forget();
+        }
+    }
+
+    public function deleted($model): void
+    {
+        PlatformStatsService::forget();
+    }
+
+    public function restored($model): void
+    {
+        PlatformStatsService::forget();
     }
 }

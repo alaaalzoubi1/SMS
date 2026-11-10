@@ -43,5 +43,6 @@ class AppServiceProvider extends ServiceProvider
         Nurse::observe(PlatformStatsObserver::class);
         Hospital::observe(PlatformStatsObserver::class);
         User::observe(PlatformStatsObserver::class);
+        \App\Models\Account::observe(PlatformStatsObserver::class);
     }
 }

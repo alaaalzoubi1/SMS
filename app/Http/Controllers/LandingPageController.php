@@ -82,6 +82,10 @@ class LandingPageController extends Controller
         // edited) instead of reflecting every registration.
         $data['sections'] = $this->withLiveStats($data['sections']);
 
+        // Also exposed as a plain object so the frontend can show the counts
+        // directly, whether or not the admin set up a CMS "stats" section.
+        $data['stats'] = PlatformStatsService::get();
+
         return response()->json($data);
     }
 
